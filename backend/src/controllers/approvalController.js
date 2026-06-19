@@ -1,5 +1,15 @@
 const approvalService = require('../services/approvalService');
 
+async function queueExternal(req, res, next) {
+  try {
+    const { url, title, company } = req.body;
+    const item = await approvalService.addExternal(req.user.sub, { url, title, company });
+    res.status(201).json({ message: 'Added to Apply Queue', item });
+  } catch (err) {
+    next(err);
+  }
+}
+
 async function list(req, res, next) {
   try {
     const status = req.query.status || 'pending';
@@ -37,4 +47,4 @@ async function reject(req, res, next) {
   }
 }
 
-module.exports = { list, summary, approve, reject };
+module.exports = { list, summary, approve, reject, queueExternal };

@@ -27,6 +27,8 @@ const conferenceRoutes = require('./routes/conferenceRoutes');
 const swarmRoutes = require('./routes/swarmRoutes');
 const resumeCommunityRoutes = require('./routes/resumeCommunityRoutes');
 const calendarRoutes = require('./routes/calendarRoutes');
+const teamRoutes = require('./routes/teamRoutes');
+const pushRoutes = require('./routes/pushRoutes');
 
 function createApp() {
   const app = express();
@@ -51,6 +53,7 @@ function createApp() {
       emailConfigured: Boolean(env.resendApiKey),
       mongoConfigured: Boolean(env.mongoUri),
       openaiConfigured: Boolean(env.openaiApiKey),
+      pushConfigured: Boolean(env.vapidPublicKey && env.vapidPrivateKey),
       time: new Date().toISOString(),
     });
   });
@@ -76,6 +79,8 @@ function createApp() {
   app.use('/api/swarm', swarmRoutes);
   app.use('/api/resumes', resumeCommunityRoutes);
   app.use('/api/calendar', calendarRoutes);
+  app.use('/api/team', teamRoutes);
+  app.use('/api/push', pushRoutes);
 
   const distPath = path.join(__dirname, '../../frontend/dist');
   app.use(express.static(distPath));

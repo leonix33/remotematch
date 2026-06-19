@@ -4,6 +4,7 @@ const approvalController = require('../controllers/approvalController');
 
 router.get('/', requireAuth, approvalController.list);
 router.get('/summary', requireAuth, approvalController.summary);
+router.post('/queue-external', requireAuth, approvalController.queueExternal);
 router.post('/:jobId/approve', requireAuth, approvalController.approve);
 router.post('/:jobId/reject', requireAuth, approvalController.reject);
 

@@ -9,6 +9,8 @@ const jobService = require('./services/jobService');
 const { initSocket } = require('./socket');
 const conferenceService = require('./services/conferenceService');
 const { startReminderCron } = require('./services/reminderService');
+const { startWeeklyPulseCron } = require('./services/weeklyPulseService');
+const teamService = require('./services/teamService');
 
 async function ensureAdmin() {
   if (!env.mongoUri) return;
@@ -21,15 +23,17 @@ async function ensureAdmin() {
     existing.role = 'admin';
     existing.active = true;
     await existing.save();
+    await teamService.ensureTeamForUser(existing);
     console.log('Admin user synced from environment');
     return;
   }
-  await User.create({
+  const user = await User.create({
     name: 'Admin',
     email,
     role: 'admin',
     passwordHash,
   });
+  await teamService.ensureTeamForUser(user);
   console.log('Admin user created');
 }
 
@@ -60,6 +64,7 @@ async function start() {
   server.listen(env.port, () => {
     console.log(`${env.appName} running on port ${env.port} (HTTP + WebSocket)`);
     startReminderCron();
+    startWeeklyPulseCron();
   });
 }
 

@@ -1,9 +1,15 @@
+const crypto = require('crypto');
 const JobApproval = require('../models/JobApproval');
 const Job = require('../models/Job');
 const env = require('../config/env');
 const jobService = require('./jobService');
 const profileService = require('./profileService');
 const { scoreJobsForProfile } = require('./jobScoringService');
+const teamService = require('./teamService');
+
+function requireMongo() {
+  if (!env.mongoUri) throw new Error('MongoDB is required');
+}
 
 async function loadJobs(minMatch = 60) {
   if (env.mongoUri) {
@@ -32,6 +38,22 @@ async function listForUser(userId, statusFilter = 'pending') {
   const approvals = await JobApproval.find({ userId }).lean();
   const byJob = new Map(approvals.map((a) => [a.jobId, a]));
 
+  const jobIdsInFeed = new Set(jobs.map((j) => j.jobId));
+  for (const a of approvals) {
+    if (!jobIdsInFeed.has(a.jobId) && a.jobId.startsWith('ext-')) {
+      jobs.push({
+        jobId: a.jobId,
+        title: a.title,
+        company: a.company,
+        url: a.url,
+        matchPct: a.matchPct || 0,
+        atsType: a.atsType,
+        source: a.source || 'chrome-extension',
+        personalMatchPct: a.matchPct || 0,
+      });
+    }
+  }
+
   const merged = jobs.map((job) => {
     const existing = byJob.get(job.jobId);
     return {
@@ -58,9 +80,24 @@ async function setStatus(userId, jobId, status, notes = '') {
   if (!env.mongoUri) {
     throw new Error('MongoDB is required for apply approvals');
   }
-  const jobs = await loadJobs(0);
-  const job = jobs.find((j) => j.jobId === jobId);
-  if (!job) throw new Error('Job not found');
+  if (status === 'approved') {
+    await teamService.checkLimit(userId, 'approval');
+  }
+
+  let job = (await loadJobs(0)).find((j) => j.jobId === jobId);
+  if (!job) {
+    const existing = await JobApproval.findOne({ userId, jobId });
+    if (!existing) throw new Error('Job not found');
+    job = {
+      jobId: existing.jobId,
+      title: existing.title,
+      company: existing.company,
+      url: existing.url,
+      matchPct: existing.matchPct,
+      atsType: existing.atsType,
+      source: existing.source,
+    };
+  }
 
   const approval = await JobApproval.findOneAndUpdate(
     { userId, jobId },
@@ -79,6 +116,10 @@ async function setStatus(userId, jobId, status, notes = '') {
     },
     { upsert: true, new: true }
   );
+
+  if (status === 'approved') {
+    await teamService.incrementUsage(userId, 'approval');
+  }
   return approval;
 }
 
@@ -122,4 +163,26 @@ async function markApplied(userId, jobIds) {
   );
 }
 
-module.exports = { listForUser, setStatus, counts, listApproved, markApplied };
+async function addExternal(userId, { url, title, company }) {
+  requireMongo();
+  if (!url) throw new Error('URL is required');
+  const jobId = `ext-${crypto.createHash('sha256').update(url).digest('hex').slice(0, 16)}`;
+  const approval = await JobApproval.findOneAndUpdate(
+    { userId, jobId },
+    {
+      userId,
+      jobId,
+      title: title || 'External job',
+      company: company || 'Unknown',
+      url,
+      matchPct: 0,
+      source: 'chrome-extension',
+      status: 'pending',
+      notes: 'Queued from browser extension',
+    },
+    { upsert: true, new: true }
+  );
+  return approval;
+}
+
+module.exports = { listForUser, setStatus, counts, listApproved, markApplied, addExternal };

@@ -5,6 +5,7 @@ const replySchema = new mongoose.Schema(
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     userName: String,
     content: { type: String, required: true },
+    canIntro: { type: Boolean, default: false },
   },
   { timestamps: true }
 );

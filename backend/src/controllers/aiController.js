@@ -1,5 +1,6 @@
 const { z } = require('zod');
 const aiCoachService = require('../services/aiCoachService');
+const teamService = require('../services/teamService');
 
 const chatSchema = z.object({
   message: z.string().min(1).max(4000),
@@ -7,8 +8,10 @@ const chatSchema = z.object({
 
 async function send(req, res, next) {
   try {
+    await teamService.checkLimit(req.user.sub, 'ai');
     const body = chatSchema.parse(req.body);
     const result = await aiCoachService.chat(req.user.sub, body.message);
+    await teamService.incrementUsage(req.user.sub, 'ai');
     res.json(result);
   } catch (err) {
     next(err);

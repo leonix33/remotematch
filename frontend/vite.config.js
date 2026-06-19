@@ -35,6 +35,7 @@ export default defineConfig(({ mode }) => {
           navigateFallback: '/index.html',
           navigateFallbackDenylist: [/^\/api/],
           globPatterns: ['**/*.{js,css,html,ico,svg,woff2}'],
+          importScripts: ['push-listener.js'],
           runtimeCaching: [
             {
               urlPattern: /^\/api\/.*/i,

@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>RemoteMatch Extension Settings</title>
+    <style>
+      body { font-family: system-ui, sans-serif; max-width: 480px; margin: 40px auto; padding: 0 16px; }
+      label { display: block; margin-top: 16px; font-weight: 600; }
+      input { width: 100%; padding: 8px; margin-top: 4px; }
+      button { margin-top: 20px; padding: 10px 16px; }
+      p { color: #555; font-size: 14px; }
+    </style>
+  </head>
+  <body>
+    <h1>RemoteMatch Extension</h1>
+    <p>
+      Log in to RemoteMatch, open DevTools → Application → Local Storage → copy your
+      <code>accessToken</code> value (or use the token from your auth session).
+    </p>
+    <label>API base URL<input id="apiBase" placeholder="https://remotematch.onrender.com" /></label>
+    <label>Access token (JWT)<input id="accessToken" type="password" /></label>
+    <button id="save">Save</button>
+    <p id="status"></p>
+    <script>
+      chrome.storage.sync.get(['apiBase', 'accessToken'], (data) => {
+        document.getElementById('apiBase').value = data.apiBase || 'https://remotematch.onrender.com';
+        document.getElementById('accessToken').value = data.accessToken || '';
+      });
+      document.getElementById('save').addEventListener('click', () => {
+        chrome.storage.sync.set({
+          apiBase: document.getElementById('apiBase').value.trim(),
+          accessToken: document.getElementById('accessToken').value.trim(),
+        }, () => {
+          document.getElementById('status').textContent = 'Saved.';
+        });
+      });
+    </script>
+  </body>
+</html>

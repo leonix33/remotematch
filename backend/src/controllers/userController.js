@@ -1,6 +1,8 @@
 const { z } = require('zod');
 const bcrypt = require('bcryptjs');
 const User = require('../models/User');
+const teamService = require('../services/teamService');
+const Team = require('../models/Team');
 
 const createUserSchema = z.object({
   name: z.string().min(2),
@@ -23,12 +25,25 @@ async function createUser(req, res, next) {
     const body = createUserSchema.parse(req.body);
     const exists = await User.findOne({ email: body.email.toLowerCase() });
     if (exists) return res.status(409).json({ message: 'Email already exists' });
+
+    const adminTeam = await teamService.getTeamForUser(req.user.sub);
+    if (adminTeam) {
+      const limits = Team.planLimits(adminTeam.plan);
+      const members = await User.countDocuments({ teamId: adminTeam._id, active: true });
+      if (members >= limits.members) {
+        return res.status(403).json({
+          message: `Team member limit reached (${limits.members}). Upgrade to Pro for more seats.`,
+        });
+      }
+    }
+
     const passwordHash = await bcrypt.hash(body.password, 10);
     const user = await User.create({
       name: body.name,
       email: body.email,
       role: body.role,
       passwordHash,
+      teamId: adminTeam?._id,
     });
     res.status(201).json({
       id: user._id,

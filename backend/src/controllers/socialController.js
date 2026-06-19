@@ -37,8 +37,10 @@ async function listWatchlist(req, res, next) {
 
 async function addWatchlist(req, res, next) {
   try {
-    const body = z.object({ company: z.string().min(1), notes: z.string().optional() }).parse(req.body);
-    res.status(201).json(await watchlistService.add(req.user.sub, body.company, body.notes));
+    const body = z
+      .object({ company: z.string().min(1), notes: z.string().optional(), shared: z.boolean().optional() })
+      .parse(req.body);
+    res.status(201).json(await watchlistService.add(req.user.sub, body.company, body.notes, body.shared));
   } catch (err) {
     next(err);
   }
@@ -72,8 +74,43 @@ async function createReferral(req, res, next) {
 
 async function replyReferral(req, res, next) {
   try {
-    const body = z.object({ content: z.string().min(1) }).parse(req.body);
-    res.json(await referralService.reply(req.user.sub, req.params.id, body.content));
+    const body = z
+      .object({ content: z.string().min(1), canIntro: z.boolean().optional() })
+      .parse(req.body);
+    res.json(await referralService.reply(req.user.sub, req.params.id, body.content, body.canIntro));
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function offerIntro(req, res, next) {
+  try {
+    const body = z.object({ message: z.string().optional() }).parse(req.body);
+    res.status(201).json(await referralService.offerIntro(req.user.sub, req.params.id, body.message));
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function listIntroOffers(req, res, next) {
+  try {
+    res.json(await referralService.listIntroOffers(req.user.sub));
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function acceptIntro(req, res, next) {
+  try {
+    res.json(await referralService.acceptIntro(req.user.sub, req.params.id));
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function declineIntro(req, res, next) {
+  try {
+    res.json(await referralService.declineIntro(req.user.sub, req.params.id));
   } catch (err) {
     next(err);
   }
@@ -124,6 +161,10 @@ module.exports = {
   listReferrals,
   createReferral,
   replyReferral,
+  offerIntro,
+  listIntroOffers,
+  acceptIntro,
+  declineIntro,
   victoryFeed,
   postVictory,
   listMentors,

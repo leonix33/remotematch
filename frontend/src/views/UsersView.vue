@@ -13,14 +13,34 @@ const form = ref({ name: '', email: '', password: '', role: 'user' });
 const resetTarget = ref(null);
 const resetPassword = ref('');
 const resetSaving = ref(false);
+const teamUsage = ref(null);
+const upgrading = ref(false);
 
 async function load() {
   loading.value = true;
   try {
-    const { data } = await http.get('/users');
-    users.value = data;
+    const [usersRes, usageRes] = await Promise.all([
+      http.get('/users'),
+      http.get('/team/usage').catch(() => ({ data: null })),
+    ]);
+    users.value = usersRes.data;
+    teamUsage.value = usageRes.data;
   } finally {
     loading.value = false;
+  }
+}
+
+async function upgradePlan(plan) {
+  upgrading.value = true;
+  error.value = '';
+  try {
+    await http.post('/team/upgrade', { plan });
+    success.value = `Plan updated to ${plan}`;
+    await load();
+  } catch (e) {
+    error.value = e.response?.data?.message || 'Upgrade failed';
+  } finally {
+    upgrading.value = false;
   }
 }
 
@@ -90,6 +110,46 @@ onMounted(load);
       <div class="card px-4 py-3 text-center">
         <p class="text-2xl font-bold text-teal-300">{{ users.length }}</p>
         <p class="text-xs text-slate-500">team members</p>
+        <p v-if="teamUsage?.limits" class="mt-1 text-xs text-slate-600">max {{ teamUsage.limits.members }}</p>
+      </div>
+    </div>
+
+    <div v-if="teamUsage && !teamUsage.unlimited" class="mt-6 card p-6">
+      <div class="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h3 class="font-semibold text-slate-200">Team plan · {{ teamUsage.plan }}</h3>
+          <p class="text-sm text-slate-500">{{ teamUsage.name }} · resets {{ teamUsage.usageMonth }}</p>
+        </div>
+        <div class="flex gap-2">
+          <button
+            class="btn-secondary text-xs"
+            :disabled="teamUsage.plan === 'free' || upgrading"
+            @click="upgradePlan('free')"
+          >
+            Free
+          </button>
+          <button
+            class="btn-primary text-xs"
+            :disabled="teamUsage.plan === 'pro' || upgrading"
+            @click="upgradePlan('pro')"
+          >
+            Pro
+          </button>
+        </div>
+      </div>
+      <div class="mt-4 grid gap-3 sm:grid-cols-3">
+        <div class="rounded-lg bg-slate-950/50 p-3 text-sm">
+          <p class="text-slate-500">Agent runs</p>
+          <p class="text-teal-200">{{ teamUsage.usage?.agentRuns || 0 }} / {{ teamUsage.limits?.agentRunsPerMonth }}</p>
+        </div>
+        <div class="rounded-lg bg-slate-950/50 p-3 text-sm">
+          <p class="text-slate-500">AI calls</p>
+          <p class="text-teal-200">{{ teamUsage.usage?.aiCalls || 0 }} / {{ teamUsage.limits?.aiCallsPerMonth }}</p>
+        </div>
+        <div class="rounded-lg bg-slate-950/50 p-3 text-sm">
+          <p class="text-slate-500">Approvals</p>
+          <p class="text-teal-200">{{ teamUsage.usage?.approvals || 0 }} / {{ teamUsage.limits?.approvalsPerMonth }}</p>
+        </div>
       </div>
     </div>
 
@@ -136,8 +196,9 @@ onMounted(load);
           <li class="flex gap-3"><span class="badge badge-teal">User</span> Dashboard, jobs, applications, cover letters</li>
         </ul>
         <div class="mt-6 rounded-xl border border-teal-900/40 bg-slate-950/50 p-4 text-sm text-slate-500">
-          <p class="font-medium text-slate-300">Multi-user roadmap</p>
-          <p class="mt-2">Next: per-user resume profiles, personal match scores, and private application history.</p>
+          <p class="font-medium text-slate-300">Tier 3 — Team plans</p>
+          <p class="mt-2">Free: 3 seats, 5 agent runs/mo. Pro: 15 seats, 50 runs. Shared watchlists on Social tab.</p>
+          <p class="mt-2">Chrome extension: load <code class="text-teal-400">chrome-extension/</code> unpacked in Chrome.</p>
         </div>
       </div>
     </div>

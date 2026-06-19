@@ -2,11 +2,13 @@ const AgentRun = require('../models/AgentRun');
 const jobService = require('../services/jobService');
 const approvalService = require('../services/approvalService');
 const profileService = require('../services/profileService');
+const teamService = require('../services/teamService');
 const { scoreJobsForProfile } = require('../services/jobScoringService');
 const env = require('../config/env');
 
 async function runAgent(req, res, next) {
   try {
+    await teamService.checkLimit(req.user.sub, 'agent');
     let run;
     if (env.mongoUri) {
       run = await AgentRun.create({ status: 'running', startedBy: req.user.sub, mode: 'search' });
@@ -20,6 +22,7 @@ async function runAgent(req, res, next) {
       run.finishedAt = new Date();
       await run.save();
     }
+    await teamService.incrementUsage(req.user.sub, 'agent');
     res.json({
       message: 'Agent search completed (no auto-apply). Review jobs in Apply Queue, then click Apply Approved.',
       output: output.slice(-2000),

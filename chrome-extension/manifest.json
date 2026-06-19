@@ -1,0 +1,23 @@
+{
+  "manifest_version": 3,
+  "name": "RemoteMatch Queue",
+  "version": "1.0.0",
+  "description": "Send any job page to your RemoteMatch Apply Queue",
+  "permissions": ["storage", "activeTab"],
+  "host_permissions": ["https://remotematch.onrender.com/*", "http://localhost:5100/*", "http://localhost:5173/*"],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Send to RemoteMatch"
+  },
+  "options_page": "options.html",
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "icons": {
+    "128": "icon.svg"
+  }
+}

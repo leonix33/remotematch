@@ -9,6 +9,7 @@ const userSchema = new mongoose.Schema(
     active: { type: Boolean, default: true },
     isMentor: { type: Boolean, default: false },
     verifiedSkills: [String],
+    teamId: { type: mongoose.Schema.Types.ObjectId, ref: 'Team', index: true },
   },
   { timestamps: true }
 );

@@ -8,6 +8,7 @@ const Watchlist = require('../models/Watchlist');
 const emailService = require('./emailService');
 const { scoreJobsForProfile } = require('./jobScoringService');
 const User = require('../models/User');
+const pushService = require('./pushService');
 
 function requireMongo() {
   if (!env.mongoUri) throw new Error('MongoDB is required');
@@ -43,6 +44,16 @@ async function create(userId, payload) {
     }
   } catch {
     /* email optional */
+  }
+
+  try {
+    await pushService.sendToUser(userId, {
+      title: payload.title || 'RemoteMatch',
+      body: payload.body || '',
+      url: payload.link || '/',
+    });
+  } catch {
+    /* push optional */
   }
 
   return n;

@@ -21,4 +21,7 @@ module.exports = {
   deployTag: 'sync-v2',
   resendApiKey: trim(process.env.RESEND_API_KEY) || '',
   emailFrom: trim(process.env.EMAIL_FROM) || 'RemoteMatch <onboarding@resend.dev>',
+  vapidPublicKey: trim(process.env.VAPID_PUBLIC_KEY) || '',
+  vapidPrivateKey: trim(process.env.VAPID_PRIVATE_KEY) || '',
+  vapidSubject: trim(process.env.VAPID_SUBJECT) || 'mailto:leonix23@gmail.com',
 };

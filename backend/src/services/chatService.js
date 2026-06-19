@@ -347,6 +347,41 @@ async function unreadCounts(userId) {
   return { pendingRequests: incoming, conversations };
 }
 
+async function ensureDirectDm(userA, userB, introMessage = '') {
+  requireMongo();
+  const existing = await Conversation.findOne({
+    type: 'dm',
+    'members.userId': { $all: [userA, userB] },
+    $expr: { $eq: [{ $size: '$members' }, 2] },
+  });
+  if (existing) return { conversationId: existing._id };
+
+  const fromUser = await User.findById(userA);
+  const conversation = await Conversation.create({
+    type: 'dm',
+    members: [
+      { userId: userA, role: 'member' },
+      { userId: userB, role: 'member' },
+    ],
+    createdBy: userA,
+  });
+
+  if (introMessage) {
+    await Message.create({
+      conversationId: conversation._id,
+      senderId: userA,
+      senderName: fromUser?.name || 'Teammate',
+      content: introMessage,
+      type: 'text',
+    });
+    conversation.lastMessagePreview = introMessage.slice(0, 120);
+    conversation.lastMessageAt = new Date();
+    await conversation.save();
+  }
+
+  return { conversationId: conversation._id };
+}
+
 module.exports = {
   listContacts,
   listIncomingRequests,
@@ -357,6 +392,7 @@ module.exports = {
   createApplySquad,
   addMentor,
   listConversations,
+  ensureDirectDm,
   getMessages,
   sendMessage,
   unreadCounts,
