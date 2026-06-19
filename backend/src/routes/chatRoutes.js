@@ -9,6 +9,8 @@ router.post('/requests', requireAuth, chatController.sendDmRequest);
 router.post('/requests/:id/accept', requireAuth, chatController.acceptRequest);
 router.post('/requests/:id/decline', requireAuth, chatController.declineRequest);
 router.post('/groups', requireAuth, chatController.createGroup);
+router.post('/squads', requireAuth, chatController.createApplySquad);
+router.post('/conversations/:id/mentor', requireAuth, chatController.inviteMentor);
 router.get('/conversations', requireAuth, chatController.listConversations);
 router.get('/conversations/:id/messages', requireAuth, chatController.getMessages);
 router.post('/conversations/:id/messages', requireAuth, chatController.sendMessage);

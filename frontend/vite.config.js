@@ -47,7 +47,10 @@ export default defineConfig(({ mode }) => {
     ],
     server: {
       port: 5173,
-      proxy: { '/api': 'http://localhost:5100' },
+      proxy: {
+        '/api': 'http://localhost:5100',
+        '/socket.io': { target: 'http://localhost:5100', ws: true },
+      },
     },
   };
 });

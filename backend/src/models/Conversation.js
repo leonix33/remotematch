@@ -17,6 +17,10 @@ const conversationSchema = new mongoose.Schema(
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     lastMessageAt: { type: Date, default: Date.now },
     lastMessagePreview: { type: String, default: '' },
+    jobId: { type: String, default: '' },
+    jobTitle: { type: String, default: '' },
+    company: { type: String, default: '' },
+    squadType: { type: String, enum: ['', 'apply_squad', 'mentor'], default: '' },
   },
   { timestamps: true }
 );

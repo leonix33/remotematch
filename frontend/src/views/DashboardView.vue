@@ -10,16 +10,22 @@ const syncStatus = ref(null);
 const loading = ref(true);
 const syncing = ref(false);
 const syncMessage = ref('');
+const victories = ref([]);
+const marketPulse = ref(null);
 
 async function load() {
   loading.value = true;
   try {
-    const [statsRes, syncRes] = await Promise.all([
+    const [statsRes, syncRes, vicRes, pulseRes] = await Promise.all([
       http.get('/analytics/summary'),
       http.get('/sync/status').catch(() => ({ data: null })),
+      http.get('/social/victories').catch(() => ({ data: [] })),
+      http.get('/intelligence/market-pulse').catch(() => ({ data: null })),
     ]);
     stats.value = statsRes.data;
     syncStatus.value = syncRes.data;
+    victories.value = vicRes.data.slice(0, 5);
+    marketPulse.value = pulseRes.data;
   } finally {
     loading.value = false;
   }
@@ -119,11 +125,34 @@ onMounted(async () => {
       <h3 class="font-semibold text-slate-200">Quick actions</h3>
       <div class="mt-4 flex flex-wrap gap-3">
         <RouterLink to="/jobs" class="btn-primary">Browse Jobs</RouterLink>
+        <RouterLink to="/intelligence" class="btn-secondary">AI Intelligence</RouterLink>
+        <RouterLink to="/interview" class="btn-secondary">Interview Sim</RouterLink>
+        <RouterLink to="/conferences" class="btn-secondary">Conferences</RouterLink>
+        <RouterLink to="/swarm" class="btn-secondary">Launch Swarm</RouterLink>
         <RouterLink to="/chat" class="btn-secondary">AI Coach & Chat</RouterLink>
         <RouterLink to="/approvals" class="btn-secondary">Apply Queue</RouterLink>
+        <RouterLink to="/social" class="btn-secondary">Social Hub</RouterLink>
         <RouterLink to="/agent" class="btn-secondary">Run Agent</RouterLink>
-        <RouterLink to="/generator" class="btn-secondary">Write Cover Letter</RouterLink>
       </div>
+    </div>
+
+    <div v-if="marketPulse" class="mt-8 card p-6">
+      <h3 class="font-semibold text-slate-200">Market pulse</h3>
+      <p class="mt-2 text-sm text-slate-400">
+        Hot skills:
+        <span v-for="s in marketPulse.trendingSkills?.slice(0, 6)" :key="s.skill" class="ml-2 badge badge-teal">{{ s.skill }}</span>
+      </p>
+    </div>
+
+    <div v-if="victories.length" class="mt-8 card p-6">
+      <h3 class="font-semibold text-slate-200">Victory feed</h3>
+      <div class="mt-4 space-y-2">
+        <p v-for="v in victories" :key="v._id" class="text-sm text-slate-400">
+          <span class="text-teal-300">{{ v.userName }}</span> — {{ v.type }} @ {{ v.company }}
+          <span v-if="v.message"> · {{ v.message }}</span>
+        </p>
+      </div>
+      <RouterLink to="/social" class="mt-3 inline-block text-sm text-teal-400">View social hub →</RouterLink>
     </div>
   </div>
 </template>

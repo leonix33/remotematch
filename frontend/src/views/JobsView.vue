@@ -3,10 +3,18 @@ import { onMounted, ref, watch } from 'vue';
 import http from '../api/http';
 
 const jobs = ref([]);
+const contacts = ref([]);
 const loading = ref(true);
 const section = ref('all');
 const minMatch = ref('0');
 const search = ref('');
+const copilotJob = ref(null);
+const copilot = ref(null);
+const resumeJob = ref(null);
+const resumeDiff = ref(null);
+const squadJob = ref(null);
+const squadMembers = ref([]);
+const aiLoading = ref(false);
 
 async function load() {
   loading.value = true;
@@ -18,6 +26,61 @@ async function load() {
   } finally {
     loading.value = false;
   }
+}
+
+async function loadContacts() {
+  try {
+    const { data } = await http.get('/chat/contacts');
+    contacts.value = data;
+  } catch {
+    contacts.value = [];
+  }
+}
+
+async function runCopilot(job) {
+  copilotJob.value = job;
+  aiLoading.value = true;
+  copilot.value = null;
+  try {
+    const { data } = await http.get(`/intelligence/match/${encodeURIComponent(job.jobId)}`);
+    copilot.value = data;
+  } finally {
+    aiLoading.value = false;
+  }
+}
+
+async function runResumeDiff(job) {
+  resumeJob.value = job;
+  aiLoading.value = true;
+  resumeDiff.value = null;
+  try {
+    const { data } = await http.get(`/intelligence/resume/${encodeURIComponent(job.jobId)}`);
+    resumeDiff.value = data;
+  } finally {
+    aiLoading.value = false;
+  }
+}
+
+function openSquad(job) {
+  squadJob.value = job;
+  squadMembers.value = [];
+}
+
+async function createSquad() {
+  if (!squadJob.value || !squadMembers.value.length) return;
+  await http.post('/chat/squads', {
+    jobId: squadJob.value.jobId,
+    jobTitle: squadJob.value.title,
+    company: squadJob.value.company,
+    memberIds: squadMembers.value,
+  });
+  squadJob.value = null;
+}
+
+function toggleSquadMember(id) {
+  const i = squadMembers.value.indexOf(id);
+  if (i >= 0) squadMembers.value.splice(i, 1);
+  else squadMembers.value.push(id);
 }
 
 function sectionBadge(s) {
@@ -32,14 +95,17 @@ function sectionLabel(s) {
   return 'Browse';
 }
 
-onMounted(load);
+onMounted(() => {
+  load();
+  loadContacts();
+});
 watch([section, minMatch], load);
 </script>
 
 <template>
   <div>
     <h2 class="text-2xl font-bold">Jobs</h2>
-    <p class="mt-1 text-slate-400">Matched remote roles from your agent</p>
+    <p class="mt-1 text-slate-400">Matched remote roles — Match Copilot, resume diff, apply squads</p>
 
     <div class="mt-6 flex flex-wrap gap-3">
       <select v-model="section" class="input w-auto">
@@ -71,12 +137,56 @@ watch([section, minMatch], load);
             <span v-if="job.atsType && job.atsType !== 'unknown'" class="badge badge-gold">{{ job.atsType }}</span>
           </div>
         </div>
-        <div class="mt-3 flex flex-wrap gap-3 text-sm">
+        <div class="mt-3 flex flex-wrap gap-2 text-sm">
           <span class="text-slate-500">{{ job.source }}</span>
           <a v-if="job.url" :href="job.url" target="_blank" rel="noopener" class="text-teal-400 hover:underline">View job →</a>
+          <button class="btn-secondary px-2 py-1 text-xs" @click="runCopilot(job)">Match Copilot</button>
+          <button class="btn-secondary px-2 py-1 text-xs" @click="runResumeDiff(job)">Resume diff</button>
+          <button class="btn-secondary px-2 py-1 text-xs" @click="openSquad(job)">Apply squad</button>
         </div>
       </div>
       <p v-if="!jobs.length" class="text-slate-500">No jobs found. Run the agent to fetch new listings.</p>
+    </div>
+
+    <div v-if="copilotJob" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" @click.self="copilotJob = null">
+      <div class="card max-h-[80vh] w-full max-w-lg overflow-y-auto p-6">
+        <h3 class="font-semibold text-slate-200">Match Copilot — {{ copilotJob.title }}</h3>
+        <p v-if="aiLoading" class="mt-4 text-slate-400">Analyzing…</p>
+        <div v-else-if="copilot?.analysis" class="mt-4 space-y-3 text-sm">
+          <p class="text-teal-300">{{ copilot.analysis.oneLiner }}</p>
+          <p><span class="text-slate-500">Verdict:</span> {{ copilot.analysis.verdict }} ({{ copilot.analysis.matchPct }}%)</p>
+          <p><span class="text-slate-500">Strengths:</span> {{ copilot.analysis.strengths?.join(', ') }}</p>
+          <p><span class="text-slate-500">Gaps:</span> {{ copilot.analysis.gaps?.join(', ') }}</p>
+          <ul class="list-disc pl-5 text-slate-400">
+            <li v-for="(p, i) in copilot.analysis.talkingPoints" :key="i">{{ p }}</li>
+          </ul>
+        </div>
+        <button class="btn-secondary mt-4" @click="copilotJob = null">Close</button>
+      </div>
+    </div>
+
+    <div v-if="resumeJob" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" @click.self="resumeJob = null">
+      <div class="card max-h-[80vh] w-full max-w-lg overflow-y-auto p-6">
+        <h3 class="font-semibold text-slate-200">Resume diff — {{ resumeJob.title }}</h3>
+        <pre v-if="resumeDiff" class="mt-4 whitespace-pre-wrap text-sm text-slate-300">{{ resumeDiff.suggestions }}</pre>
+        <p v-else class="mt-4 text-slate-400">Loading…</p>
+        <button class="btn-secondary mt-4" @click="resumeJob = null">Close</button>
+      </div>
+    </div>
+
+    <div v-if="squadJob" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" @click.self="squadJob = null">
+      <form class="card w-full max-w-md p-6" @submit.prevent="createSquad">
+        <h3 class="font-semibold text-slate-200">Apply squad — {{ squadJob.company }}</h3>
+        <p class="mt-1 text-sm text-slate-500">Invite teammates to coordinate on this role</p>
+        <label v-for="c in contacts" :key="c.id" class="mt-2 flex gap-2 text-sm">
+          <input type="checkbox" :checked="squadMembers.includes(c.id)" @change="toggleSquadMember(c.id)" />
+          {{ c.name }}
+        </label>
+        <div class="mt-4 flex gap-2">
+          <button type="button" class="btn-secondary flex-1" @click="squadJob = null">Cancel</button>
+          <button type="submit" class="btn-primary flex-1">Create squad</button>
+        </div>
+      </form>
     </div>
   </div>
 </template>

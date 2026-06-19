@@ -204,6 +204,10 @@ async function listConversations(userId) {
       id: c._id,
       type: c.type,
       title,
+      jobId: c.jobId,
+      jobTitle: c.jobTitle,
+      company: c.company,
+      squadType: c.squadType,
       members: c.members.map((m) => ({
         id: m.userId,
         name: userMap.get(m.userId.toString())?.name,
@@ -264,6 +268,64 @@ async function sendMessage(conversationId, userId, content) {
   };
 }
 
+async function createApplySquad(creatorId, { jobId, jobTitle, company, memberIds }) {
+  requireMongo();
+  const creator = await User.findById(creatorId);
+  const name = `Squad: ${jobTitle} @ ${company}`;
+  const conversation = await Conversation.create({
+    type: 'group',
+    name,
+    jobId,
+    jobTitle,
+    company,
+    squadType: 'apply_squad',
+    members: [{ userId: creatorId, role: 'admin' }],
+    createdBy: creatorId,
+    lastMessagePreview: `Apply squad for ${company}`,
+  });
+
+  await Message.create({
+    conversationId: conversation._id,
+    senderId: creatorId,
+    senderName: creator?.name || 'User',
+    content: `Apply squad opened for ${jobTitle} at ${company}. Share notes and cover letter drafts here.`,
+    type: 'system',
+  });
+
+  for (const toUserId of memberIds) {
+    if (toUserId.toString() !== creatorId.toString()) {
+      await ChatRequest.create({
+        fromUserId: creatorId,
+        toUserId,
+        conversationId: conversation._id,
+        type: 'group',
+        introMessage: `Join apply squad for ${company}`,
+      });
+    }
+  }
+  return conversation;
+}
+
+async function addMentor(conversationId, mentorId, requesterId) {
+  requireMongo();
+  const mentor = await User.findById(mentorId);
+  if (!mentor?.isMentor && mentor?.role !== 'admin') throw new Error('User is not a mentor');
+  const conversation = await Conversation.findById(conversationId);
+  if (!conversation || !isMember(conversation, requesterId)) throw new Error('Conversation not found');
+  if (isMember(conversation, mentorId)) return conversation;
+
+  await ChatRequest.create({
+    fromUserId: requesterId,
+    toUserId: mentorId,
+    conversationId: conversation._id,
+    type: 'group',
+    introMessage: 'Mentor review requested',
+  });
+  conversation.squadType = conversation.squadType || 'mentor';
+  await conversation.save();
+  return conversation;
+}
+
 async function unreadCounts(userId) {
   requireMongo();
   const [incoming, conversations] = await Promise.all([
@@ -280,6 +342,8 @@ module.exports = {
   acceptRequest,
   declineRequest,
   createGroup,
+  createApplySquad,
+  addMentor,
   listConversations,
   getMessages,
   sendMessage,

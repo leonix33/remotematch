@@ -108,12 +108,41 @@ async function sendMessage(req, res, next) {
   }
 }
 
+const squadSchema = z.object({
+  jobId: z.string(),
+  jobTitle: z.string(),
+  company: z.string(),
+  memberIds: z.array(z.string()).min(1),
+});
+
+async function createApplySquad(req, res, next) {
+  try {
+    const body = squadSchema.parse(req.body);
+    const conv = await chatService.createApplySquad(req.user.sub, body);
+    res.status(201).json({ id: conv._id, name: conv.name });
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function inviteMentor(req, res, next) {
+  try {
+    const body = z.object({ mentorId: z.string() }).parse(req.body);
+    await chatService.addMentor(req.params.id, body.mentorId, req.user.sub);
+    res.json({ message: 'Mentor invited' });
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   contacts,
   incomingRequests,
   summary,
   sendDmRequest,
   createGroup,
+  createApplySquad,
+  inviteMentor,
   acceptRequest,
   declineRequest,
   listConversations,

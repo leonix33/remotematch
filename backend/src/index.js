@@ -1,9 +1,13 @@
+const http = require('http');
+const { Server } = require('socket.io');
 const bcrypt = require('bcryptjs');
 const connectDb = require('./config/db');
 const env = require('./config/env');
 const createApp = require('./app');
 const User = require('./models/User');
 const jobService = require('./services/jobService');
+const { initSocket } = require('./socket');
+const conferenceService = require('./services/conferenceService');
 
 async function ensureAdmin() {
   if (!env.mongoUri) return;
@@ -39,13 +43,21 @@ async function start() {
     } catch (err) {
       console.warn('SQLite sync skipped:', err.message);
     }
+    await conferenceService.ensureSeed();
   } else {
     console.warn('MONGODB_URI not set — running in SQLite-only mode (read-only from agent DBs)');
   }
 
   const app = createApp();
-  app.listen(env.port, () => {
-    console.log(`${env.appName} running on port ${env.port}`);
+  const server = http.createServer(app);
+  const io = new Server(server, {
+    cors: { origin: env.clientOrigin, credentials: true },
+    path: '/socket.io',
+  });
+  initSocket(io);
+
+  server.listen(env.port, () => {
+    console.log(`${env.appName} running on port ${env.port} (HTTP + WebSocket)`);
   });
 }
 

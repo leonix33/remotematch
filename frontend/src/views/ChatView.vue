@@ -2,8 +2,10 @@
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import http from '../api/http';
 import { useAuthStore } from '../stores/auth';
+import { useSocket } from '../stores/socket';
 
 const auth = useAuthStore();
+const { connect, disconnect, joinConversation, leaveConversation, sendMessage: socketSend, emitTyping, onNewMessage, connected, typingUser } = useSocket();
 const tab = ref('ai');
 const loading = ref(true);
 const error = ref('');
@@ -85,7 +87,9 @@ async function loadChatData() {
 }
 
 async function openConversation(conv) {
+  if (activeConversation.value?.id) leaveConversation(activeConversation.value.id);
   activeConversation.value = conv;
+  joinConversation(conv.id);
   try {
     const { data } = await http.get(`/chat/conversations/${conv.id}/messages`);
     messages.value = data;
@@ -100,10 +104,13 @@ async function sendMessage() {
   if (!text || !activeConversation.value || sending.value) return;
   sending.value = true;
   try {
-    const { data } = await http.post(`/chat/conversations/${activeConversation.value.id}/messages`, {
-      content: text,
-    });
-    messages.value.push(data);
+    if (connected.value) {
+      const msg = await socketSend(activeConversation.value.id, text);
+      messages.value.push(msg);
+    } else {
+      const { data } = await http.post(`/chat/conversations/${activeConversation.value.id}/messages`, { content: text });
+      messages.value.push(data);
+    }
     messageInput.value = '';
     await scrollMessages();
     await loadChatData();
@@ -112,6 +119,10 @@ async function sendMessage() {
   } finally {
     sending.value = false;
   }
+}
+
+function onInput() {
+  if (activeConversation.value) emitTyping(activeConversation.value.id);
 }
 
 async function sendDmRequest() {
@@ -201,21 +212,36 @@ async function scrollMessages() {
 }
 
 let pollTimer;
+let unsubMsg;
+
 onMounted(async () => {
   loading.value = true;
+  connect();
+  unsubMsg = onNewMessage(({ conversationId, message }) => {
+    if (activeConversation.value?.id === conversationId) {
+      if (!messages.value.find((m) => m.id === message.id)) messages.value.push(message);
+      scrollMessages();
+    }
+    loadChatData();
+  });
   await Promise.all([loadAiHistory(), loadChatData()]);
   loading.value = false;
   pollTimer = setInterval(() => {
-    if (tab.value === 'team' && activeConversation.value) {
+    if (!connected.value && tab.value === 'team' && activeConversation.value) {
       http.get(`/chat/conversations/${activeConversation.value.id}/messages`).then(({ data }) => {
         messages.value = data;
       });
     }
     if (tab.value !== 'ai') loadChatData();
-  }, 8000);
+  }, 15000);
 });
 
-onUnmounted(() => clearInterval(pollTimer));
+onUnmounted(() => {
+  clearInterval(pollTimer);
+  unsubMsg?.();
+  if (activeConversation.value?.id) leaveConversation(activeConversation.value.id);
+  disconnect();
+});
 
 watch(tab, () => { error.value = ''; });
 </script>
@@ -230,6 +256,7 @@ watch(tab, () => { error.value = ''; });
         </p>
       </div>
       <div v-if="pendingCount" class="badge badge-gold">{{ pendingCount }} pending invite{{ pendingCount > 1 ? 's' : '' }}</div>
+      <span v-if="connected" class="badge badge-teal text-xs">Live</span>
     </div>
 
     <div class="mt-6 flex flex-wrap gap-2">
@@ -309,7 +336,8 @@ watch(tab, () => { error.value = ''; });
           >
             <div class="flex items-center justify-between gap-2">
               <span class="font-medium text-slate-200 truncate">{{ conv.title }}</span>
-              <span v-if="conv.type === 'group'" class="badge badge-teal text-[10px]">group</span>
+              <span v-if="conv.squadType === 'apply_squad'" class="badge badge-gold text-[10px]">squad</span>
+              <span v-else-if="conv.type === 'group'" class="badge badge-teal text-[10px]">group</span>
             </div>
             <p class="truncate text-xs text-slate-500">{{ conv.lastMessagePreview || 'No messages yet' }}</p>
           </button>
@@ -349,8 +377,9 @@ watch(tab, () => { error.value = ''; });
               </div>
             </div>
           </div>
+          <p v-if="typingUser" class="px-4 py-1 text-xs text-slate-500">{{ typingUser }} is typing…</p>
           <form class="flex gap-2 border-t border-slate-800 p-4" @submit.prevent="sendMessage">
-            <input v-model="messageInput" class="input flex-1" placeholder="Type a message…" />
+            <input v-model="messageInput" class="input flex-1" placeholder="Type a message…" @input="onInput" />
             <button type="submit" class="btn-primary" :disabled="sending || !messageInput.trim()">Send</button>
           </form>
         </template>

@@ -18,6 +18,13 @@ const profileRoutes = require('./routes/profileRoutes');
 const approvalRoutes = require('./routes/approvalRoutes');
 const aiRoutes = require('./routes/aiRoutes');
 const chatRoutes = require('./routes/chatRoutes');
+const intelligenceRoutes = require('./routes/intelligenceRoutes');
+const interviewRoutes = require('./routes/interviewRoutes');
+const socialRoutes = require('./routes/socialRoutes');
+const notificationRoutes = require('./routes/notificationRoutes');
+const outcomeRoutes = require('./routes/outcomeRoutes');
+const conferenceRoutes = require('./routes/conferenceRoutes');
+const swarmRoutes = require('./routes/swarmRoutes');
 
 function createApp() {
   const app = express();
@@ -55,6 +62,13 @@ function createApp() {
   app.use('/api/approvals', approvalRoutes);
   app.use('/api/ai', aiRoutes);
   app.use('/api/chat', chatRoutes);
+  app.use('/api/intelligence', intelligenceRoutes);
+  app.use('/api/interview', interviewRoutes);
+  app.use('/api/social', socialRoutes);
+  app.use('/api/notifications', notificationRoutes);
+  app.use('/api/outcomes', outcomeRoutes);
+  app.use('/api/conferences', conferenceRoutes);
+  app.use('/api/swarm', swarmRoutes);
 
   const distPath = path.join(__dirname, '../../frontend/dist');
   app.use(express.static(distPath));

@@ -8,6 +8,20 @@ const loading = ref(true);
 const acting = ref('');
 const status = ref('pending');
 const error = ref('');
+const whisper = ref([]);
+const whisperLoading = ref(false);
+
+async function loadWhisper() {
+  whisperLoading.value = true;
+  try {
+    const { data } = await http.get('/intelligence/whisper');
+    whisper.value = data;
+  } catch {
+    whisper.value = [];
+  } finally {
+    whisperLoading.value = false;
+  }
+}
 
 async function loadSummary() {
   try {
@@ -63,7 +77,7 @@ function sectionBadge(s) {
   return 'badge-slate';
 }
 
-onMounted(load);
+onMounted(() => { load(); loadWhisper(); });
 watch(status, load);
 </script>
 
@@ -101,6 +115,19 @@ watch(status, load);
     </div>
 
     <p v-if="error" class="mt-4 rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-300">{{ error }}</p>
+
+    <div v-if="whisper.length && status === 'pending'" class="mt-6 card p-4">
+      <div class="flex items-center justify-between">
+        <h3 class="font-semibold text-slate-200">Agent whisper</h3>
+        <button class="btn-secondary px-2 py-1 text-xs" :disabled="whisperLoading" @click="loadWhisper">Refresh</button>
+      </div>
+      <div class="mt-3 space-y-2">
+        <div v-for="w in whisper.slice(0, 8)" :key="w.jobId" class="flex flex-wrap items-center justify-between gap-2 text-sm">
+          <span class="text-slate-300">{{ w.company }} — {{ w.title }}</span>
+          <span class="badge" :class="w.recommend === 'approve' ? 'badge-teal' : 'badge-slate'">{{ w.rationale }}</span>
+        </div>
+      </div>
+    </div>
 
     <div v-if="loading" class="mt-8 text-slate-400">Loading queue…</div>
     <div v-else class="mt-6 space-y-3">

@@ -13,6 +13,11 @@ import UsersView from '../views/UsersView.vue';
 import ProfileView from '../views/ProfileView.vue';
 import ApprovalsView from '../views/ApprovalsView.vue';
 import ChatView from '../views/ChatView.vue';
+import IntelligenceView from '../views/IntelligenceView.vue';
+import InterviewView from '../views/InterviewView.vue';
+import ConferencesView from '../views/ConferencesView.vue';
+import SocialView from '../views/SocialView.vue';
+import SwarmView from '../views/SwarmView.vue';
 
 const router = createRouter({
   history: createWebHistory(),
@@ -24,6 +29,11 @@ const router = createRouter({
     { path: '/jobs', component: JobsView, meta: { requiresAuth: true } },
     { path: '/approvals', component: ApprovalsView, meta: { requiresAuth: true } },
     { path: '/chat', component: ChatView, meta: { requiresAuth: true, skipOnboarding: true } },
+    { path: '/intelligence', component: IntelligenceView, meta: { requiresAuth: true, skipOnboarding: true } },
+    { path: '/interview', component: InterviewView, meta: { requiresAuth: true, skipOnboarding: true } },
+    { path: '/conferences', component: ConferencesView, meta: { requiresAuth: true, skipOnboarding: true } },
+    { path: '/social', component: SocialView, meta: { requiresAuth: true, skipOnboarding: true } },
+    { path: '/swarm', component: SwarmView, meta: { requiresAuth: true, skipOnboarding: true } },
     { path: '/applications', component: ApplicationsView, meta: { requiresAuth: true } },
     { path: '/generator', component: GeneratorView, meta: { requiresAuth: true } },
     { path: '/agent', component: AgentView, meta: { requiresAuth: true } },

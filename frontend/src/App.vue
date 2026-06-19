@@ -4,6 +4,7 @@ import { useRoute, useRouter, RouterLink, RouterView } from 'vue-router';
 import { useAuthStore } from './stores/auth';
 import PwaPrompt from './components/PwaPrompt.vue';
 import AppLogo from './components/AppLogo.vue';
+import NotificationBell from './components/NotificationBell.vue';
 import { isProduction, appUrl } from './config';
 
 const route = useRoute();
@@ -15,7 +16,12 @@ const nav = computed(() => {
     { to: '/', label: 'Home', icon: '◉', mobile: true },
     { to: '/jobs', label: 'Jobs', icon: '◎', mobile: true },
     { to: '/approvals', label: 'Apply Queue', icon: '✓', mobile: false },
-    { to: '/chat', label: 'Connect', icon: '💬', mobile: true },
+    { to: '/chat', label: 'Connect', icon: '💬', mobile: false },
+    { to: '/intelligence', label: 'AI Intel', icon: '🧠', mobile: false },
+    { to: '/interview', label: 'Interview', icon: '🎙', mobile: false },
+    { to: '/conferences', label: 'Events', icon: '📅', mobile: false },
+    { to: '/social', label: 'Social', icon: '🤝', mobile: false },
+    { to: '/swarm', label: 'Swarm', icon: '⚡', mobile: false },
     { to: '/applications', label: 'Apps', icon: '▣', mobile: true },
     { to: '/profile', label: 'Profile', icon: '◆', mobile: false },
     { to: '/generator', label: 'Cover Letter', icon: '✦', mobile: false },
@@ -71,7 +77,14 @@ function logout() {
       <!-- Mobile header -->
       <header class="safe-top flex items-center justify-between border-b border-teal-900/30 bg-slate-950/80 px-4 py-3 backdrop-blur lg:hidden">
         <AppLogo size="sm" />
-        <button class="btn-secondary px-3 py-1.5 text-xs" @click="logout">Logout</button>
+        <div class="flex items-center gap-2">
+          <NotificationBell />
+          <button class="btn-secondary px-3 py-1.5 text-xs" @click="logout">Logout</button>
+        </div>
+      </header>
+
+      <header class="hidden items-center justify-end gap-3 border-b border-teal-900/20 bg-slate-950/40 px-8 py-3 lg:flex">
+        <NotificationBell />
       </header>
 
       <main class="flex-1 overflow-y-auto p-4 pb-24 lg:p-8 lg:pb-8">
