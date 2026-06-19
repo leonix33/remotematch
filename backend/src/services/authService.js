@@ -12,11 +12,33 @@ function signAccessToken(user) {
 }
 
 async function login(email, password) {
-  if (!env.mongoUri) {
-    const ok =
-      email.toLowerCase() === env.adminEmail.toLowerCase() &&
-      password === env.adminPassword;
-    if (!ok) throw new Error('Invalid login');
+  const normalizedEmail = email.toLowerCase();
+
+  // Always honor ADMIN_EMAIL / ADMIN_PASSWORD from environment (Render dashboard)
+  if (
+    env.adminEmail &&
+    env.adminPassword &&
+    normalizedEmail === env.adminEmail.toLowerCase() &&
+    password === env.adminPassword
+  ) {
+    if (env.mongoUri) {
+      let user = await User.findOne({ email: normalizedEmail });
+      const passwordHash = await bcrypt.hash(env.adminPassword, 10);
+      if (!user) {
+        user = await User.create({
+          name: 'Admin',
+          email: normalizedEmail,
+          role: 'admin',
+          passwordHash,
+        });
+      } else {
+        user.passwordHash = passwordHash;
+        user.role = 'admin';
+        user.active = true;
+        await user.save();
+      }
+      return { user, accessToken: signAccessToken(user) };
+    }
     const devUser = {
       _id: 'dev-admin',
       name: 'Admin',
@@ -25,7 +47,12 @@ async function login(email, password) {
     };
     return { user: devUser, accessToken: signAccessToken(devUser) };
   }
-  const user = await User.findOne({ email: email.toLowerCase(), active: true });
+
+  if (!env.mongoUri) {
+    throw new Error('Invalid login');
+  }
+
+  const user = await User.findOne({ email: normalizedEmail, active: true });
   if (!user) throw new Error('Invalid login');
   const ok = await bcrypt.compare(password, user.passwordHash);
   if (!ok) throw new Error('Invalid login');
