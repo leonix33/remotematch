@@ -25,11 +25,15 @@ function createApp() {
   app.use(rateLimit({ windowMs: 15 * 60 * 1000, max: 300 }));
 
   app.get('/api/health', (req, res) => {
+    const email = env.adminEmail || '';
     res.json({
       ok: true,
       appName: env.appName,
       appUrl: env.appUrl,
       environment: env.nodeEnv,
+      deployTag: env.deployTag,
+      adminConfigured: Boolean(email && env.adminPassword),
+      adminEmailHint: email.includes('@') ? `${email.split('@')[0].slice(0, 3)}***@${email.split('@')[1]}` : 'unset',
       time: new Date().toISOString(),
     });
   });

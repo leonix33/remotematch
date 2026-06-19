@@ -12,14 +12,15 @@ function signAccessToken(user) {
 }
 
 async function login(email, password) {
-  const normalizedEmail = email.toLowerCase();
+  const normalizedEmail = email.trim().toLowerCase();
+  const normalizedPassword = password.trim();
 
   // Always honor ADMIN_EMAIL / ADMIN_PASSWORD from environment (Render dashboard)
   if (
     env.adminEmail &&
     env.adminPassword &&
     normalizedEmail === env.adminEmail.toLowerCase() &&
-    password === env.adminPassword
+    normalizedPassword === env.adminPassword
   ) {
     if (env.mongoUri) {
       let user = await User.findOne({ email: normalizedEmail });
@@ -54,7 +55,7 @@ async function login(email, password) {
 
   const user = await User.findOne({ email: normalizedEmail, active: true });
   if (!user) throw new Error('Invalid login');
-  const ok = await bcrypt.compare(password, user.passwordHash);
+  const ok = await bcrypt.compare(normalizedPassword, user.passwordHash);
   if (!ok) throw new Error('Invalid login');
   return { user, accessToken: signAccessToken(user) };
 }
