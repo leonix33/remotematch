@@ -6,7 +6,9 @@
     "build": "npm install --prefix frontend && npm run build --prefix frontend",
     "start": "npm start --prefix backend",
     "lint": "npm run lint --prefix frontend 2>/dev/null || true",
-    "test": "npm test --prefix backend"
+    "test": "npm test --prefix backend",
+    "push:render": "node scripts/push-local-data-to-render.js",
+    "sync:mongo": "node scripts/sync-sqlite-to-mongo.js"
   },
   "devDependencies": {
     "concurrently": "^9.1.2"

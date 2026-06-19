@@ -19,4 +19,25 @@ async function listApplications(req, res, next) {
   }
 }
 
-module.exports = { listApplications };
+async function importApplications(req, res, next) {
+  try {
+    if (!env.mongoUri) {
+      return res.status(400).json({ message: 'MongoDB is required for import' });
+    }
+    const applications = req.body.applications;
+    if (!Array.isArray(applications) || !applications.length) {
+      return res.status(400).json({ message: 'applications array is required' });
+    }
+    let imported = 0;
+    for (const app of applications) {
+      if (!app.jobId) continue;
+      await Application.findOneAndUpdate({ jobId: app.jobId }, app, { upsert: true, new: true });
+      imported += 1;
+    }
+    res.json({ imported });
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { listApplications, importApplications };

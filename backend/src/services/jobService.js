@@ -10,7 +10,7 @@ function sqlitePath(name) {
   return path.join(env.agentHome, name);
 }
 
-function readJobsFromSqlite(limit = 500) {
+function readJobsFromSqlite(limit = 5000) {
   const dbFile = sqlitePath('seen_jobs.db');
   if (!fs.existsSync(dbFile)) return [];
   const db = new Database(dbFile, { readonly: true });
@@ -37,7 +37,7 @@ function readJobsFromSqlite(limit = 500) {
   }));
 }
 
-function readApplicationsFromSqlite(limit = 500) {
+function readApplicationsFromSqlite(limit = 5000) {
   const dbFile = sqlitePath('application_tracker.db');
   if (!fs.existsSync(dbFile)) return [];
   const db = new Database(dbFile, { readonly: true });

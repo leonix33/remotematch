@@ -35,4 +35,25 @@ async function syncJobs(req, res, next) {
   }
 }
 
-module.exports = { listJobs, syncJobs };
+async function importJobs(req, res, next) {
+  try {
+    if (!env.mongoUri) {
+      return res.status(400).json({ message: 'MongoDB is required for import' });
+    }
+    const jobs = req.body.jobs;
+    if (!Array.isArray(jobs) || !jobs.length) {
+      return res.status(400).json({ message: 'jobs array is required' });
+    }
+    let imported = 0;
+    for (const job of jobs) {
+      if (!job.jobId) continue;
+      await Job.findOneAndUpdate({ jobId: job.jobId }, job, { upsert: true, new: true });
+      imported += 1;
+    }
+    res.json({ imported });
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { listJobs, syncJobs, importJobs };
