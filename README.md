@@ -36,6 +36,20 @@ Local dev still uses `localhost`. Production uses the URL above — set in `rend
 | Local dev | http://localhost:5173 |
 | Production | https://remotematch.onrender.com |
 
+## Keep production in sync with your Mac
+
+Localhost reads live SQLite from `job-event-agent`. Production reads a **snapshot** bundled in Docker (`agent-data/`).
+
+After your agent finds new jobs or applies to roles, run:
+
+```bash
+npm run deploy:data
+```
+
+This copies your latest `seen_jobs.db` and `application_tracker.db`, commits them, and pushes to GitHub. Render auto-deploys in ~5 minutes.
+
+**Login on production:** use the `ADMIN_EMAIL` and `ADMIN_PASSWORD` from your Render dashboard.
+
 ## Quick start (local)
 
 ```bash

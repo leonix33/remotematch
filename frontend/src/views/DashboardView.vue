@@ -1,18 +1,43 @@
 <script setup>
 import { onMounted, ref } from 'vue';
 import http from '../api/http';
+import { isProduction } from '../config';
 
 const stats = ref(null);
+const syncStatus = ref(null);
 const loading = ref(true);
+const syncing = ref(false);
+const syncMessage = ref('');
 
-onMounted(async () => {
+async function load() {
+  loading.value = true;
   try {
-    const { data } = await http.get('/analytics/summary');
-    stats.value = data;
+    const [statsRes, syncRes] = await Promise.all([
+      http.get('/analytics/summary'),
+      http.get('/sync/status').catch(() => ({ data: null })),
+    ]);
+    stats.value = statsRes.data;
+    syncStatus.value = syncRes.data;
   } finally {
     loading.value = false;
   }
-});
+}
+
+async function syncNow() {
+  syncing.value = true;
+  syncMessage.value = '';
+  try {
+    const { data } = await http.post('/sync/all');
+    syncMessage.value = `Synced ${data.jobs ?? 0} jobs and ${data.applications ?? 0} applications`;
+    await load();
+  } catch (e) {
+    syncMessage.value = e.response?.data?.message || 'Sync failed';
+  } finally {
+    syncing.value = false;
+  }
+}
+
+onMounted(load);
 </script>
 
 <template>
@@ -38,6 +63,23 @@ onMounted(async () => {
         <p class="text-sm text-slate-400">High Match (80%+)</p>
         <p class="mt-1 text-3xl font-bold text-amber-300">{{ stats.highMatch }}</p>
       </div>
+    </div>
+
+    <div v-if="syncStatus" class="mt-8 card p-6">
+      <h3 class="font-semibold text-slate-200">Data sync</h3>
+      <p class="mt-2 text-sm text-slate-400">
+        Source: <span class="text-teal-300">{{ syncStatus.source }}</span>
+        · SQLite: {{ syncStatus.sqliteJobs }} jobs, {{ syncStatus.sqliteApps }} apps
+        <span v-if="syncStatus.mongoJobs"> · MongoDB: {{ syncStatus.mongoJobs }} jobs, {{ syncStatus.mongoApps }} apps</span>
+      </p>
+      <p v-if="syncStatus.inSync" class="mt-2 text-sm text-teal-300">Data is in sync</p>
+      <p v-else-if="isProduction" class="mt-2 text-sm text-amber-300">
+        Production data may be behind your Mac. Run <code class="text-teal-300">npm run sync:render</code> locally to push latest jobs.
+      </p>
+      <button v-if="isProduction && syncStatus.mongoJobs" class="btn-secondary mt-4" :disabled="syncing" @click="syncNow">
+        {{ syncing ? 'Syncing…' : 'Re-sync bundled data to MongoDB' }}
+      </button>
+      <p v-if="syncMessage" class="mt-3 text-sm text-slate-300">{{ syncMessage }}</p>
     </div>
 
     <div v-if="stats" class="mt-8 grid gap-6 lg:grid-cols-2">

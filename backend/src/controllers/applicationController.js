@@ -6,7 +6,7 @@ async function listApplications(req, res, next) {
   try {
     let apps;
     if (env.mongoUri) {
-      apps = await Application.find().sort({ lastAttempted: -1 }).limit(200).lean();
+      apps = await Application.find().sort({ lastAttempted: -1 }).limit(5000).lean();
     } else {
       apps = jobService.readApplicationsFromSqlite();
     }

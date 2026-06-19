@@ -13,13 +13,14 @@ const applicationRoutes = require('./routes/applicationRoutes');
 const agentRoutes = require('./routes/agentRoutes');
 const generationRoutes = require('./routes/generationRoutes');
 const analyticsRoutes = require('./routes/analyticsRoutes');
+const syncRoutes = require('./routes/syncRoutes');
 
 function createApp() {
   const app = express();
 
   app.use(helmet({ contentSecurityPolicy: false }));
   app.use(cors({ origin: env.clientOrigin, credentials: true }));
-  app.use(express.json({ limit: '2mb' }));
+  app.use(express.json({ limit: '10mb' }));
   app.use(cookieParser());
   app.use(morgan('dev'));
   app.use(rateLimit({ windowMs: 15 * 60 * 1000, max: 300 }));
@@ -45,6 +46,7 @@ function createApp() {
   app.use('/api/agent', agentRoutes);
   app.use('/api/generations', generationRoutes);
   app.use('/api/analytics', analyticsRoutes);
+  app.use('/api/sync', syncRoutes);
 
   const distPath = path.join(__dirname, '../../frontend/dist');
   app.use(express.static(distPath));

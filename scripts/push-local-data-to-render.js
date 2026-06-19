@@ -9,8 +9,8 @@ process.env.AGENT_HOME = process.env.AGENT_HOME || '/Users/user/job-event-agent'
 const jobService = require('../backend/src/services/jobService');
 
 const RENDER_URL = (process.env.RENDER_URL || 'https://remotematch.onrender.com').replace(/\/$/, '');
-const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'leonix23@gmail.com';
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'RemoteMatch2026!';
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
 const BATCH_SIZE = Number(process.env.IMPORT_BATCH_SIZE || 100);
 
 async function requestJson(url, options = {}) {
@@ -66,6 +66,10 @@ async function main() {
 
   if (!jobs.length && !applications.length) {
     throw new Error('No local SQLite data found. Check AGENT_HOME.');
+  }
+
+  if (!ADMIN_EMAIL || !ADMIN_PASSWORD) {
+    throw new Error('Set ADMIN_EMAIL and ADMIN_PASSWORD in backend/.env');
   }
 
   console.log('Logging in to Render...');
