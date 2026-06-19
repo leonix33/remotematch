@@ -16,6 +16,8 @@ services:
         value: https://remotematch.onrender.com
       - key: APP_NAME
         value: RemoteMatch
+      - key: AGENT_HOME
+        value: /app/agent-data
       - key: MONGODB_URI
         sync: false
       - key: JWT_ACCESS_SECRET

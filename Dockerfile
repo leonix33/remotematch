@@ -14,7 +14,9 @@ WORKDIR /app
 COPY backend/package*.json ./backend/
 RUN npm install --omit=dev --prefix backend
 COPY backend ./backend
+COPY agent-data ./agent-data
 COPY --from=frontend-build /app/frontend/dist ./frontend/dist
 ENV NODE_ENV=production
+ENV AGENT_HOME=/app/agent-data
 EXPOSE 5100
 CMD ["npm", "start", "--prefix", "backend"]

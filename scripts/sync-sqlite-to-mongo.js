@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 const path = require('path');
-const dotenv = require('dotenv');
+const dotenv = require(path.join(__dirname, '../backend/node_modules/dotenv'));
 
 dotenv.config({ path: path.join(__dirname, '../backend/.env') });
 

@@ -18,5 +18,5 @@ module.exports = {
   appUrl: trim(process.env.APP_URL) || trim(process.env.CLIENT_ORIGIN) || 'https://remotematch.onrender.com',
   agentHome: process.env.AGENT_HOME || path.resolve(__dirname, '../../../..'),
   appName: trim(process.env.APP_NAME) || 'RemoteMatch',
-  deployTag: 'import-sync-v1',
+  deployTag: 'agent-data-v1',
 };
