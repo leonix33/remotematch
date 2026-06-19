@@ -8,6 +8,7 @@ const User = require('./models/User');
 const jobService = require('./services/jobService');
 const { initSocket } = require('./socket');
 const conferenceService = require('./services/conferenceService');
+const { startReminderCron } = require('./services/reminderService');
 
 async function ensureAdmin() {
   if (!env.mongoUri) return;
@@ -58,6 +59,7 @@ async function start() {
 
   server.listen(env.port, () => {
     console.log(`${env.appName} running on port ${env.port} (HTTP + WebSocket)`);
+    startReminderCron();
   });
 }
 

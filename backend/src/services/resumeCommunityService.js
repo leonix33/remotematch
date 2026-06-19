@@ -104,4 +104,23 @@ async function importFromProfile(userId, profile) {
   });
 }
 
-module.exports = { list, getById, mine, create, update, remove, recordCopy, importFromProfile };
+async function createFromPdf(userId, { title, pdfBase64, filename }) {
+  requireMongo();
+  const pdfParse = require('pdf-parse');
+  const buffer = Buffer.from(pdfBase64, 'base64');
+  const data = await pdfParse(buffer);
+  const text = (data.text || '').trim();
+  if (text.length < 50) throw new Error('Could not extract enough text from PDF');
+  const user = await User.findById(userId);
+  return CommunityResume.create({
+    userId,
+    userName: user?.name || 'Member',
+    title: title || filename?.replace(/\.pdf$/i, '') || 'Uploaded Resume',
+    content: text,
+    public: true,
+    notes: `Uploaded PDF: ${filename || 'resume.pdf'}`,
+    tags: ['pdf'],
+  });
+}
+
+module.exports = { list, getById, mine, create, update, remove, recordCopy, importFromProfile, createFromPdf };

@@ -5,6 +5,7 @@ const resumeCommunityController = require('../controllers/resumeCommunityControl
 router.get('/', requireAuth, resumeCommunityController.list);
 router.get('/mine', requireAuth, resumeCommunityController.mine);
 router.post('/import-profile', requireAuth, resumeCommunityController.importProfile);
+router.post('/upload-pdf', requireAuth, resumeCommunityController.uploadPdf);
 router.get('/:id', requireAuth, resumeCommunityController.getOne);
 router.post('/', requireAuth, resumeCommunityController.create);
 router.patch('/:id', requireAuth, resumeCommunityController.update);

@@ -1,5 +1,7 @@
 const Job = require('../models/Job');
 const jobService = require('../services/jobService');
+const profileService = require('../services/profileService');
+const { scoreJobsForProfile } = require('../services/jobScoringService');
 const env = require('../config/env');
 
 async function listJobs(req, res, next) {
@@ -18,8 +20,20 @@ async function listJobs(req, res, next) {
         );
       }
     } else {
-      jobs = jobService.listJobsFromSqlite({ section, minMatch, search });
+      jobs = jobService.listJobsFromSqlite({ section, minMatch: 0, search });
     }
+
+    if (req.user?.sub && env.mongoUri) {
+      const profile = await profileService.getOrCreate(req.user.sub);
+      jobs = scoreJobsForProfile(jobs, profile);
+      if (Number(minMatch) > 0) {
+        jobs = jobs.filter((j) => j.personalMatchPct >= Number(minMatch));
+      }
+      if (section !== 'all') {
+        jobs = jobs.filter((j) => j.emailSection === section);
+      }
+    }
+
     res.json(jobs);
   } catch (err) {
     next(err);

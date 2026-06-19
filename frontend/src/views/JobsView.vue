@@ -132,7 +132,7 @@ watch([section, minMatch], load);
             <p class="text-sm text-slate-400">{{ job.company }} · {{ job.location || 'Remote' }}</p>
           </div>
           <div class="flex flex-wrap gap-2">
-            <span class="badge badge-teal">{{ job.matchPct || 0 }}% match</span>
+            <span class="badge badge-teal">{{ job.personalMatchPct ?? job.matchPct ?? 0 }}% match</span>
             <span class="badge" :class="sectionBadge(job.emailSection)">{{ sectionLabel(job.emailSection) }}</span>
             <span v-if="job.atsType && job.atsType !== 'unknown'" class="badge badge-gold">{{ job.atsType }}</span>
           </div>

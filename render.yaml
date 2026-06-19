@@ -4,6 +4,7 @@ services:
     runtime: docker
     dockerfilePath: ./Dockerfile
     dockerContext: .
+    # Upgrade to starter ($7/mo) in Render dashboard to eliminate cold starts
     plan: free
     healthCheckPath: /api/health
     autoDeploy: true
@@ -30,3 +31,7 @@ services:
         sync: false
       - key: OPENAI_API_KEY
         sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: EMAIL_FROM
+        value: RemoteMatch <onboarding@resend.dev>

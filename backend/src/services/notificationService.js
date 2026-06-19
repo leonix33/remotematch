@@ -5,6 +5,9 @@ const profileService = require('./profileService');
 const ChatRequest = require('../models/ChatRequest');
 const approvalService = require('./approvalService');
 const Watchlist = require('../models/Watchlist');
+const emailService = require('./emailService');
+const { scoreJobsForProfile } = require('./jobScoringService');
+const User = require('../models/User');
 
 function requireMongo() {
   if (!env.mongoUri) throw new Error('MongoDB is required');
@@ -20,6 +23,28 @@ async function create(userId, payload) {
   requireMongo();
   const n = await Notification.create({ userId, ...payload });
   emitToUser(userId.toString(), 'notification', n);
+
+  try {
+    if (payload.type === 'high_match' && payload.meta?.jobId) {
+      const parts = payload.title?.match(/(\d+)% match: (.+)/);
+      await emailService.notifyHighMatch(userId, {
+        matchPct: parts?.[1] || '',
+        title: parts?.[2] || payload.title,
+        company: payload.body?.split(' — ')[0] || '',
+      });
+    }
+    if (payload.type === 'chat_request') {
+      await emailService.sendToUser(
+        userId,
+        payload.title,
+        emailService.wrapHtml?.('Chat invite', payload.body, '/chat') ||
+          `<p>${payload.body}</p>`
+      );
+    }
+  } catch {
+    /* email optional */
+  }
+
   return n;
 }
 
@@ -48,9 +73,10 @@ async function unreadCount(userId) {
 async function scanAndNotify(userId) {
   requireMongo();
   const profile = await profileService.getOrCreate(userId);
-  const minHigh = 85;
-
-  const jobs = jobService.readJobsFromSqlite(100).filter((j) => (j.matchPct || 0) >= minHigh);
+  const minHigh = Math.max(profile.minMatchScore || 60, 85);
+  const jobs = scoreJobsForProfile(jobService.readJobsFromSqlite(200), profile).filter(
+    (j) => j.personalMatchPct >= minHigh
+  );
   for (const job of jobs.slice(0, 3)) {
     const exists = await Notification.findOne({
       userId,
@@ -61,7 +87,7 @@ async function scanAndNotify(userId) {
     if (!exists) {
       await create(userId, {
         type: 'high_match',
-        title: `${job.matchPct}% match: ${job.title}`,
+        title: `${job.personalMatchPct}% match: ${job.title}`,
         body: `${job.company} — review in Apply Queue`,
         link: '/approvals',
         meta: { jobId: job.jobId },

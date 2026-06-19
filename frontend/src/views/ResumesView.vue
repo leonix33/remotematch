@@ -96,6 +96,29 @@ async function submit() {
   }
 }
 
+async function uploadPdf(event) {
+  const file = event.target.files?.[0];
+  if (!file) return;
+  saving.value = true;
+  error.value = '';
+  try {
+    const buf = await file.arrayBuffer();
+    const bytes = new Uint8Array(buf);
+    let binary = '';
+    bytes.forEach((b) => { binary += String.fromCharCode(b); });
+    const pdfBase64 = btoa(binary);
+    await http.post('/resumes/upload-pdf', { pdfBase64, filename: file.name, title: file.name.replace(/\.pdf$/i, '') });
+    success.value = 'PDF uploaded and parsed!';
+    tab.value = 'mine';
+    await Promise.all([loadBrowse(), loadMine()]);
+  } catch (e) {
+    error.value = e.response?.data?.message || 'PDF upload failed';
+  } finally {
+    saving.value = false;
+    event.target.value = '';
+  }
+}
+
 async function importProfile() {
   saving.value = true;
   error.value = '';
@@ -198,6 +221,10 @@ onMounted(async () => {
         <button type="button" class="btn-secondary text-sm" :disabled="saving" @click="importProfile">
           Import from my profile
         </button>
+        <label class="btn-secondary cursor-pointer text-sm">
+          Upload PDF
+          <input type="file" accept=".pdf" class="hidden" @change="uploadPdf" />
+        </label>
       </div>
       <input v-model="form.title" required class="input" placeholder="Resume title e.g. Senior DevOps Resume 2026" />
       <input v-model="form.headline" class="input" placeholder="Headline" />

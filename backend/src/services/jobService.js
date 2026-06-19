@@ -115,7 +115,79 @@ function listJobsFromSqlite(filters = {}) {
   return jobs;
 }
 
-function runAgentScript() {
+function jobToApplyItem(job) {
+  return {
+    id: job.jobId,
+    title: job.title,
+    company: job.company,
+    location: job.location || 'Remote',
+    url: job.url,
+    source: job.source,
+    score: job.score || 50,
+    tier: job.tier || 'SECONDARY',
+    match_pct: job.personalMatchPct || job.matchPct || 0,
+    ats_type: job.atsType || detectAts(job.url),
+    email_section: job.emailSection || 'strong_review',
+  };
+}
+
+function writeApprovedItemsFile(jobs) {
+  const itemsDir = path.join(env.agentHome, 'items');
+  if (!fs.existsSync(itemsDir)) fs.mkdirSync(itemsDir, { recursive: true });
+  const ts = Date.now();
+  const file = path.join(itemsDir, `approved-${ts}.json`);
+  const items = jobs.map(jobToApplyItem);
+  fs.writeFileSync(file, JSON.stringify(items, null, 2));
+  fs.writeFileSync(
+    path.join(env.agentHome, 'approved_jobs.json'),
+    JSON.stringify({ jobIds: jobs.map((j) => j.jobId), itemsFile: file, createdAt: new Date().toISOString() }, null, 2)
+  );
+  return file;
+}
+
+function runApprovedAutoApply(itemsFile) {
+  return new Promise((resolve, reject) => {
+    const script = path.join(env.agentHome, 'apply_approved.sh');
+    const autoApplyPy = path.join(env.agentHome, 'auto_apply.py');
+    let cmd;
+    let args;
+
+    if (fs.existsSync(script)) {
+      cmd = '/bin/bash';
+      args = [script, itemsFile];
+    } else if (fs.existsSync(autoApplyPy)) {
+      cmd = 'python3';
+      args = [
+        autoApplyPy,
+        '--headless',
+        '--items-file',
+        itemsFile,
+        '--tiers',
+        'DATABRICKS_PRIORITY,PRIMARY,SECONDARY',
+      ];
+    } else {
+      return reject(
+        new Error(
+          'Python agent not on this server. Approved jobs saved to approved_jobs.json — run apply from your Mac with AGENT_HOME set.'
+        )
+      );
+    }
+
+    const child = spawn(cmd, args, {
+      cwd: env.agentHome,
+      env: { ...process.env, AGENT_HOME: env.agentHome },
+    });
+    let output = '';
+    child.stdout.on('data', (c) => { output += c.toString(); });
+    child.stderr.on('data', (c) => { output += c.toString(); });
+    child.on('close', (code) => {
+      if (code === 0) resolve(output);
+      else reject(new Error(output || `Apply exited with code ${code}`));
+    });
+  });
+}
+
+function runAgentScript({ autoApply = false } = {}) {
   return new Promise((resolve, reject) => {
     const script = path.join(env.agentHome, 'run_search_and_apply.sh');
     if (!fs.existsSync(script)) {
@@ -123,7 +195,7 @@ function runAgentScript() {
     }
     const child = spawn('/bin/bash', [script], {
       cwd: env.agentHome,
-      env: { ...process.env, AGENT_HOME: env.agentHome },
+      env: { ...process.env, AGENT_HOME: env.agentHome, AUTO_APPLY: autoApply ? '1' : '0' },
     });
     let output = '';
     child.stdout.on('data', (chunk) => { output += chunk.toString(); });
@@ -142,4 +214,7 @@ module.exports = {
   syncApplicationsToMongo,
   listJobsFromSqlite,
   runAgentScript,
+  writeApprovedItemsFile,
+  runApprovedAutoApply,
+  jobToApplyItem,
 };

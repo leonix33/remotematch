@@ -48,6 +48,9 @@ function createApp() {
       deployTag: env.deployTag,
       adminConfigured: Boolean(email && env.adminPassword),
       adminEmailHint: email.includes('@') ? `${email.split('@')[0].slice(0, 3)}***@${email.split('@')[1]}` : 'unset',
+      emailConfigured: Boolean(env.resendApiKey),
+      mongoConfigured: Boolean(env.mongoUri),
+      openaiConfigured: Boolean(env.openaiApiKey),
       time: new Date().toISOString(),
     });
   });

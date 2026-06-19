@@ -40,7 +40,7 @@ async function finish() {
       niceToHaveSkills: form.value.niceToHaveSkills.split('\n').filter(Boolean),
       onboardingComplete: true,
     });
-    router.push('/');
+    router.push('/approvals');
   } catch (e) {
     error.value = e.response?.data?.message || 'Could not save profile';
   } finally {
@@ -60,9 +60,10 @@ async function finish() {
         <div class="h-1 flex-1 rounded-full" :class="step >= 1 ? 'bg-teal-500' : 'bg-slate-800'" />
         <div class="h-1 flex-1 rounded-full" :class="step >= 2 ? 'bg-teal-500' : 'bg-slate-800'" />
         <div class="h-1 flex-1 rounded-full" :class="step >= 3 ? 'bg-teal-500' : 'bg-slate-800'" />
+        <div class="h-1 flex-1 rounded-full" :class="step >= 4 ? 'bg-teal-500' : 'bg-slate-800'" />
       </div>
 
-      <form class="card mt-8 space-y-4 p-6" @submit.prevent="step < 3 ? step++ : finish()">
+      <form class="card mt-8 space-y-4 p-6" @submit.prevent="step < 4 ? step++ : finish()">
         <template v-if="step === 1">
           <h2 class="font-semibold text-slate-200">About you</h2>
           <input v-model="form.displayName" required class="input" placeholder="Your name" />
@@ -88,10 +89,20 @@ async function finish() {
           </div>
         </template>
 
-        <template v-else>
+        <template v-else-if="step === 3">
           <h2 class="font-semibold text-slate-200">Resume summary</h2>
           <p class="text-sm text-slate-500">Paste key resume bullets so AI cover letters sound like you.</p>
           <textarea v-model="form.resumeText" rows="8" class="input text-sm" placeholder="Paste resume highlights…" />
+        </template>
+
+        <template v-else>
+          <h2 class="font-semibold text-slate-200">Your apply workflow</h2>
+          <ol class="list-decimal space-y-3 pl-5 text-sm text-slate-400">
+            <li><strong class="text-teal-300">Browse Jobs</strong> — scored to your profile</li>
+            <li><strong class="text-teal-300">Apply Queue</strong> — approve roles you want</li>
+            <li><strong class="text-teal-300">Apply Approved</strong> — agent submits only those</li>
+          </ol>
+          <p class="text-sm text-slate-500">Next you'll land on your approval queue to review matches.</p>
         </template>
 
         <p v-if="error" class="text-sm text-red-300">{{ error }}</p>
@@ -99,7 +110,7 @@ async function finish() {
         <div class="flex gap-3 pt-2">
           <button v-if="step > 1" type="button" class="btn-secondary" @click="step--">Back</button>
           <button type="submit" class="btn-primary flex-1" :disabled="saving">
-            {{ step < 3 ? 'Continue' : saving ? 'Saving…' : 'Finish setup' }}
+            {{ step < 4 ? 'Continue' : saving ? 'Saving…' : 'Go to Apply Queue' }}
           </button>
         </div>
       </form>

@@ -94,4 +94,20 @@ async function importProfile(req, res, next) {
   }
 }
 
-module.exports = { list, mine, getOne, create, update, remove, copy, importProfile };
+async function uploadPdf(req, res, next) {
+  try {
+    const body = z
+      .object({
+        title: z.string().optional(),
+        filename: z.string().optional(),
+        pdfBase64: z.string().min(100),
+      })
+      .parse(req.body);
+    const resume = await resumeCommunityService.createFromPdf(req.user.sub, body);
+    res.status(201).json(resume);
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { list, mine, getOne, create, update, remove, copy, importProfile, uploadPdf };

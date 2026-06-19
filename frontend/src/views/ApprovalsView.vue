@@ -10,6 +10,8 @@ const status = ref('pending');
 const error = ref('');
 const whisper = ref([]);
 const whisperLoading = ref(false);
+const applying = ref(false);
+const applyMessage = ref('');
 
 async function loadWhisper() {
   whisperLoading.value = true;
@@ -44,6 +46,23 @@ async function load() {
     items.value = [];
   } finally {
     loading.value = false;
+  }
+}
+
+async function applyApproved() {
+  applying.value = true;
+  applyMessage.value = '';
+  error.value = '';
+  try {
+    const { data } = await http.post('/agent/apply-approved');
+    applyMessage.value = data.message || `Applied to ${data.count} jobs`;
+    await load();
+  } catch (e) {
+    const d = e.response?.data;
+    applyMessage.value = d?.message || d?.hint || 'Apply failed';
+    if (d?.hint) error.value = d.hint;
+  } finally {
+    applying.value = false;
   }
 }
 
@@ -99,6 +118,14 @@ watch(status, load);
           <p class="text-2xl font-bold text-teal-300">{{ counts.approved }}</p>
           <p class="text-xs text-slate-500">approved</p>
         </div>
+        <button
+          v-if="counts.approved > 0"
+          class="btn-primary self-center px-4 py-2 text-sm"
+          :disabled="applying"
+          @click="applyApproved"
+        >
+          {{ applying ? 'Applying…' : `Apply ${counts.approved} approved` }}
+        </button>
       </div>
     </div>
 
@@ -115,6 +142,7 @@ watch(status, load);
     </div>
 
     <p v-if="error" class="mt-4 rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-300">{{ error }}</p>
+    <p v-if="applyMessage" class="mt-4 rounded-lg bg-teal-500/10 px-3 py-2 text-sm text-teal-200">{{ applyMessage }}</p>
 
     <div v-if="whisper.length && status === 'pending'" class="mt-6 card p-4">
       <div class="flex items-center justify-between">
@@ -138,7 +166,8 @@ watch(status, load);
             <p class="text-sm text-slate-400">{{ job.company }}</p>
           </div>
           <div class="flex flex-wrap gap-2">
-            <span class="badge badge-teal">{{ job.matchPct || 0 }}% match</span>
+            <span class="badge badge-teal">{{ job.personalMatchPct || job.matchPct || 0 }}% match</span>
+            <span v-if="job.agentMatchPct && job.personalMatchPct !== job.agentMatchPct" class="badge badge-slate text-[10px]">agent {{ job.agentMatchPct }}%</span>
             <span v-if="job.emailSection" class="badge" :class="sectionBadge(job.emailSection)">{{ job.emailSection }}</span>
             <span v-if="job.atsType && job.atsType !== 'unknown'" class="badge badge-gold">{{ job.atsType }}</span>
             <span v-if="job.status && job.status !== 'pending'" class="badge badge-slate">{{ job.status }}</span>

@@ -37,15 +37,15 @@ onMounted(loadRuns);
 <template>
   <div>
     <h2 class="text-2xl font-bold">Run Agent</h2>
-    <p class="mt-1 text-slate-400">Trigger job search and auto-apply from your Python agent</p>
+    <p class="mt-1 text-slate-400">Search for new jobs — approve matches, then apply only what you approved</p>
 
     <div class="mt-8 card p-6">
       <p class="text-sm text-slate-400">
-        This runs <code class="text-teal-300">run_search_and_apply.sh</code> in your job-event-agent folder.
-        It may take several minutes. Greenhouse/Lever/Ashby jobs with high match scores are auto-applied.
+        <strong class="text-teal-300">Search only</strong> — runs your Python agent to fetch and score jobs.
+        Auto-apply is <em>disabled</em> until you approve roles in the Apply Queue and click Apply Approved.
       </p>
       <button class="btn-primary mt-6" :disabled="running" @click="runAgent">
-        {{ running ? 'Running agent…' : '▶ Run search & apply' }}
+        {{ running ? 'Searching…' : '▶ Run job search' }}
       </button>
       <p v-if="error" class="mt-4 rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-300">{{ error }}</p>
       <pre v-if="output" class="mt-4 max-h-64 overflow-auto rounded-xl bg-slate-950 p-4 text-xs text-slate-400">{{ output }}</pre>

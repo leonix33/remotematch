@@ -3,6 +3,7 @@ const Job = require('../models/Job');
 const env = require('../config/env');
 const jobService = require('./jobService');
 const profileService = require('./profileService');
+const { scoreJobsForProfile } = require('./jobScoringService');
 
 async function loadJobs(minMatch = 60) {
   if (env.mongoUri) {
@@ -19,7 +20,8 @@ async function loadJobs(minMatch = 60) {
 async function listForUser(userId, statusFilter = 'pending') {
   const profile = await profileService.getOrCreate(userId);
   const minMatch = profile.minMatchScore || 60;
-  const jobs = await loadJobs(minMatch);
+  let jobs = await loadJobs(minMatch);
+  jobs = scoreJobsForProfile(jobs, profile).filter((j) => j.personalMatchPct >= minMatch);
 
   if (!env.mongoUri) {
     return jobs
@@ -89,4 +91,35 @@ async function counts(userId) {
   };
 }
 
-module.exports = { listForUser, setStatus, counts };
+async function listApproved(userId) {
+  requireMongo();
+  const approvals = await JobApproval.find({ userId, status: 'approved' }).lean();
+  const allJobs = jobService.readJobsFromSqlite(5000);
+  const jobMap = new Map(allJobs.map((j) => [j.jobId, j]));
+  return approvals.map((a) => {
+    const job = jobMap.get(a.jobId) || {
+      jobId: a.jobId,
+      title: a.title,
+      company: a.company,
+      url: a.url,
+      matchPct: a.matchPct,
+      atsType: a.atsType,
+      source: a.source,
+      tier: 'SECONDARY',
+      score: 50,
+      location: 'Remote',
+      emailSection: 'strong_review',
+    };
+    return { ...job, approvalId: a._id, notes: a.notes };
+  });
+}
+
+async function markApplied(userId, jobIds) {
+  requireMongo();
+  await JobApproval.updateMany(
+    { userId, jobId: { $in: jobIds }, status: 'approved' },
+    { status: 'applied', reviewedAt: new Date() }
+  );
+}
+
+module.exports = { listForUser, setStatus, counts, listApproved, markApplied };

@@ -66,12 +66,24 @@ async function sendDmRequest(fromUserId, toUserId, introMessage = '') {
   const toUser = await User.findById(toUserId);
   if (!toUser || !toUser.active) throw new Error('User not found');
 
+  const fromUser = await User.findById(fromUserId);
   const request = await ChatRequest.create({
     fromUserId,
     toUserId,
     type: 'dm',
     introMessage: introMessage.trim(),
   });
+
+  try {
+    const emailService = require('./emailService');
+    await emailService.notifyChatInvite(toUserId, {
+      fromName: fromUser?.name || 'A teammate',
+      intro: introMessage.trim(),
+    });
+  } catch {
+    /* optional */
+  }
+
   return request;
 }
 

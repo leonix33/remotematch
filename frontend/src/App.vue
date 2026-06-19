@@ -24,6 +24,7 @@ const nav = computed(() => {
     { to: '/conferences', label: 'Events', icon: '📅', mobile: false },
     { to: '/social', label: 'Social', icon: '🤝', mobile: false },
     { to: '/swarm', label: 'Swarm', icon: '⚡', mobile: false },
+    { to: '/outcomes', label: 'Outcomes', icon: '📈', mobile: false },
     { to: '/applications', label: 'Apps', icon: '▣', mobile: true },
     { to: '/profile', label: 'Profile', icon: '◆', mobile: false },
     { to: '/generator', label: 'Cover Letter', icon: '✦', mobile: false },
