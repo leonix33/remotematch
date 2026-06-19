@@ -1,7 +1,7 @@
 const jwt = require('jsonwebtoken');
-const env = require('../config/env');
-const chatService = require('./chatService');
-const notificationService = require('./notificationService');
+const env = require('./config/env');
+const chatService = require('./services/chatService');
+const notificationService = require('./services/notificationService');
 
 const typingUsers = new Map();
 
@@ -47,7 +47,7 @@ function initSocket(io) {
         const message = await chatService.sendMessage(conversationId, socket.userId, content);
         io.to(`conv:${conversationId}`).emit('new_message', { conversationId, message });
 
-        const conversation = await require('../models/Conversation').findById(conversationId);
+        const conversation = await require('./models/Conversation').findById(conversationId);
         if (conversation) {
           for (const m of conversation.members) {
             if (m.userId.toString() !== socket.userId.toString()) {
