@@ -2,7 +2,9 @@
 import { onMounted, ref } from 'vue';
 import http from '../api/http';
 import { isProduction } from '../config';
+import { useProfileStore } from '../stores/profile';
 
+const profileStore = useProfileStore();
 const stats = ref(null);
 const syncStatus = ref(null);
 const loading = ref(true);
@@ -37,13 +39,24 @@ async function syncNow() {
   }
 }
 
-onMounted(load);
+onMounted(async () => {
+  if (!profileStore.loaded) await profileStore.fetch().catch(() => {});
+  load();
+});
 </script>
 
 <template>
   <div>
     <h2 class="text-2xl font-bold text-slate-100">Dashboard</h2>
     <p class="mt-1 text-slate-400">Your remote job search at a glance</p>
+
+    <div v-if="profileStore.profile?.displayName" class="mt-6 card flex flex-wrap items-center justify-between gap-4 p-4">
+      <div>
+        <p class="font-medium text-slate-200">{{ profileStore.profile.displayName }}</p>
+        <p class="text-sm text-slate-500">{{ profileStore.profile.headline || 'Add a headline in Profile' }}</p>
+      </div>
+      <RouterLink to="/profile" class="btn-secondary text-sm">Edit profile</RouterLink>
+    </div>
 
     <div v-if="loading" class="mt-8 text-slate-400">Loading…</div>
     <div v-else-if="stats" class="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">

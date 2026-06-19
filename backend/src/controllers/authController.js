@@ -6,6 +6,11 @@ const loginSchema = z.object({
   password: z.string().min(8),
 });
 
+const changePasswordSchema = z.object({
+  currentPassword: z.string().min(8),
+  newPassword: z.string().min(8),
+});
+
 async function login(req, res, next) {
   try {
     const body = loginSchema.parse(req.body);
@@ -38,4 +43,14 @@ async function me(req, res, next) {
   }
 }
 
-module.exports = { login, me };
+async function changePassword(req, res, next) {
+  try {
+    const body = changePasswordSchema.parse(req.body);
+    await authService.changePassword(req.user.sub, body.currentPassword, body.newPassword);
+    res.json({ message: 'Password updated' });
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { login, me, changePassword };

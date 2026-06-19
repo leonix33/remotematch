@@ -3,7 +3,8 @@ import { computed } from 'vue';
 import { useRoute, useRouter, RouterLink, RouterView } from 'vue-router';
 import { useAuthStore } from './stores/auth';
 import PwaPrompt from './components/PwaPrompt.vue';
-import { appName, appUrl, isProduction } from './config';
+import AppLogo from './components/AppLogo.vue';
+import { isProduction, appUrl } from './config';
 
 const route = useRoute();
 const router = useRouter();
@@ -13,12 +14,14 @@ const nav = computed(() => {
   const items = [
     { to: '/', label: 'Home', icon: '◉', mobile: true },
     { to: '/jobs', label: 'Jobs', icon: '◎', mobile: true },
+    { to: '/approvals', label: 'Apply Queue', icon: '✓', mobile: true },
     { to: '/applications', label: 'Apps', icon: '▣', mobile: true },
+    { to: '/profile', label: 'Profile', icon: '◆', mobile: false },
     { to: '/generator', label: 'Cover Letter', icon: '✦', mobile: false },
     { to: '/agent', label: 'Run Agent', icon: '▶', mobile: false },
     { to: '/analytics', label: 'Analytics', icon: '◈', mobile: true },
   ];
-  if (auth.isAdmin) items.push({ to: '/users', label: 'Users', icon: '◇', mobile: false });
+  if (auth.isAdmin) items.push({ to: '/users', label: 'Team', icon: '◇', mobile: false });
   return items;
 });
 
@@ -40,9 +43,8 @@ function logout() {
     <!-- Desktop sidebar -->
     <aside class="hidden w-64 shrink-0 border-r border-teal-900/40 bg-slate-950/80 p-6 lg:flex lg:flex-col">
       <div class="mb-10">
-        <p class="text-xs font-semibold uppercase tracking-widest text-teal-400">Remote</p>
-        <h1 class="text-xl font-bold text-amber-300">Match</h1>
-        <p class="mt-1 text-xs text-slate-400">Remote job search & apply</p>
+        <AppLogo size="md" />
+        <p class="mt-3 text-xs text-slate-400">AI-powered remote job intelligence</p>
         <p v-if="isProduction" class="mt-2 truncate text-[10px] text-slate-600">{{ appUrl }}</p>
       </div>
       <nav class="space-y-1">
@@ -67,10 +69,7 @@ function logout() {
     <div class="flex flex-1 flex-col">
       <!-- Mobile header -->
       <header class="safe-top flex items-center justify-between border-b border-teal-900/30 bg-slate-950/80 px-4 py-3 backdrop-blur lg:hidden">
-        <div>
-          <p class="text-xs uppercase tracking-widest text-teal-400">Remote</p>
-          <p class="text-sm font-bold text-amber-300">Match</p>
-        </div>
+        <AppLogo size="sm" />
         <button class="btn-secondary px-3 py-1.5 text-xs" @click="logout">Logout</button>
       </header>
 

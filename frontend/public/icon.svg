@@ -1,12 +1,25 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
   <defs>
-    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#0f172a"/>
-      <stop offset="100%" style="stop-color:#134e4a"/>
+    <linearGradient id="rm-bg" x1="64" y1="48" x2="448" y2="464" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0f172a"/>
+      <stop offset="1" stop-color="#134e4a"/>
+    </linearGradient>
+    <linearGradient id="rm-glow" x1="160" y1="120" x2="360" y2="392" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#14b8a6"/>
+      <stop offset="1" stop-color="#2dd4bf"/>
+    </linearGradient>
+    <linearGradient id="rm-gold" x1="200" y1="180" x2="312" y2="340" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#fbbf24"/>
+      <stop offset="1" stop-color="#f59e0b"/>
     </linearGradient>
   </defs>
-  <rect width="512" height="512" rx="96" fill="url(#bg)"/>
-  <circle cx="256" cy="256" r="140" fill="none" stroke="#14b8a6" stroke-width="24"/>
-  <path d="M180 300 L256 180 L332 300" fill="none" stroke="#fbbf24" stroke-width="28" stroke-linecap="round" stroke-linejoin="round"/>
-  <text x="256" y="380" text-anchor="middle" font-family="system-ui,sans-serif" font-size="72" font-weight="700" fill="#fbbf24">RM</text>
+  <rect width="512" height="512" rx="112" fill="url(#rm-bg)"/>
+  <circle cx="256" cy="256" r="168" stroke="url(#rm-glow)" stroke-width="6" opacity="0.35"/>
+  <circle cx="256" cy="256" r="120" stroke="url(#rm-glow)" stroke-width="10" opacity="0.55"/>
+  <path d="M256 136 L256 376 M136 256 L376 256" stroke="#14b8a6" stroke-width="4" opacity="0.25"/>
+  <circle cx="176" cy="200" r="28" fill="#0f172a" stroke="url(#rm-glow)" stroke-width="8"/>
+  <circle cx="336" cy="200" r="28" fill="#0f172a" stroke="url(#rm-glow)" stroke-width="8"/>
+  <circle cx="256" cy="320" r="32" fill="#0f172a" stroke="url(#rm-gold)" stroke-width="10"/>
+  <path d="M200 210 C228 248 284 248 312 210" stroke="url(#rm-gold)" stroke-width="10" stroke-linecap="round"/>
+  <circle cx="256" cy="256" r="14" fill="url(#rm-gold)"/>
 </svg>

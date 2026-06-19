@@ -1,0 +1,143 @@
+<script setup>
+import { onMounted, ref, watch } from 'vue';
+import http from '../api/http';
+
+const items = ref([]);
+const counts = ref({ pending: 0, approved: 0, rejected: 0 });
+const loading = ref(true);
+const acting = ref('');
+const status = ref('pending');
+const error = ref('');
+
+async function loadSummary() {
+  try {
+    const { data } = await http.get('/approvals/summary');
+    counts.value = data;
+  } catch {
+    /* optional when mongo unavailable */
+  }
+}
+
+async function load() {
+  loading.value = true;
+  error.value = '';
+  try {
+    const { data } = await http.get('/approvals', { params: { status } });
+    items.value = data;
+    await loadSummary();
+  } catch (e) {
+    error.value = e.response?.data?.message || 'Could not load approval queue';
+    items.value = [];
+  } finally {
+    loading.value = false;
+  }
+}
+
+async function approve(jobId) {
+  acting.value = jobId;
+  try {
+    await http.post(`/approvals/${encodeURIComponent(jobId)}/approve`);
+    await load();
+  } catch (e) {
+    error.value = e.response?.data?.message || 'Approve failed';
+  } finally {
+    acting.value = '';
+  }
+}
+
+async function reject(jobId) {
+  acting.value = jobId;
+  try {
+    await http.post(`/approvals/${encodeURIComponent(jobId)}/reject`);
+    await load();
+  } catch (e) {
+    error.value = e.response?.data?.message || 'Reject failed';
+  } finally {
+    acting.value = '';
+  }
+}
+
+function sectionBadge(s) {
+  if (s === 'apply_today') return 'badge-gold';
+  if (s === 'strong_review') return 'badge-teal';
+  return 'badge-slate';
+}
+
+onMounted(load);
+watch(status, load);
+</script>
+
+<template>
+  <div>
+    <div class="flex flex-wrap items-start justify-between gap-4">
+      <div>
+        <h2 class="text-2xl font-bold text-slate-100">Apply queue</h2>
+        <p class="mt-1 max-w-xl text-slate-400">
+          Review high-match jobs before they go to auto-apply. Approve roles you want the agent to submit.
+        </p>
+      </div>
+      <div class="flex gap-3">
+        <div class="card px-4 py-3 text-center">
+          <p class="text-2xl font-bold text-amber-300">{{ counts.pending }}</p>
+          <p class="text-xs text-slate-500">pending</p>
+        </div>
+        <div class="card px-4 py-3 text-center">
+          <p class="text-2xl font-bold text-teal-300">{{ counts.approved }}</p>
+          <p class="text-xs text-slate-500">approved</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="mt-6 flex flex-wrap gap-2">
+      <button
+        v-for="tab in ['pending', 'approved', 'rejected', 'all']"
+        :key="tab"
+        class="rounded-xl px-4 py-2 text-sm capitalize transition"
+        :class="status === tab ? 'bg-teal-500/20 text-teal-200' : 'text-slate-400 hover:bg-slate-800/60'"
+        @click="status = tab"
+      >
+        {{ tab }}
+      </button>
+    </div>
+
+    <p v-if="error" class="mt-4 rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-300">{{ error }}</p>
+
+    <div v-if="loading" class="mt-8 text-slate-400">Loading queue…</div>
+    <div v-else class="mt-6 space-y-3">
+      <div v-for="job in items" :key="job.jobId" class="card p-4">
+        <div class="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h3 class="font-semibold text-slate-100">{{ job.title }}</h3>
+            <p class="text-sm text-slate-400">{{ job.company }}</p>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <span class="badge badge-teal">{{ job.matchPct || 0 }}% match</span>
+            <span v-if="job.emailSection" class="badge" :class="sectionBadge(job.emailSection)">{{ job.emailSection }}</span>
+            <span v-if="job.atsType && job.atsType !== 'unknown'" class="badge badge-gold">{{ job.atsType }}</span>
+            <span v-if="job.status && job.status !== 'pending'" class="badge badge-slate">{{ job.status }}</span>
+          </div>
+        </div>
+        <div class="mt-3 flex flex-wrap items-center gap-3 text-sm">
+          <a v-if="job.url" :href="job.url" target="_blank" rel="noopener" class="text-teal-400 hover:underline">View job →</a>
+          <template v-if="status === 'pending' || job.status === 'pending'">
+            <button
+              class="btn-primary px-3 py-1.5 text-xs"
+              :disabled="acting === job.jobId"
+              @click="approve(job.jobId)"
+            >
+              Approve apply
+            </button>
+            <button
+              class="btn-secondary px-3 py-1.5 text-xs"
+              :disabled="acting === job.jobId"
+              @click="reject(job.jobId)"
+            >
+              Skip
+            </button>
+          </template>
+        </div>
+      </div>
+      <p v-if="!items.length" class="text-slate-500">No jobs in this queue. Run the agent or lower your min match score in Profile.</p>
+    </div>
+  </div>
+</template>

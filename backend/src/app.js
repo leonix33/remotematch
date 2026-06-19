@@ -14,6 +14,8 @@ const agentRoutes = require('./routes/agentRoutes');
 const generationRoutes = require('./routes/generationRoutes');
 const analyticsRoutes = require('./routes/analyticsRoutes');
 const syncRoutes = require('./routes/syncRoutes');
+const profileRoutes = require('./routes/profileRoutes');
+const approvalRoutes = require('./routes/approvalRoutes');
 
 function createApp() {
   const app = express();
@@ -47,6 +49,8 @@ function createApp() {
   app.use('/api/generations', generationRoutes);
   app.use('/api/analytics', analyticsRoutes);
   app.use('/api/sync', syncRoutes);
+  app.use('/api/profile', profileRoutes);
+  app.use('/api/approvals', approvalRoutes);
 
   const distPath = path.join(__dirname, '../../frontend/dist');
   app.use(express.static(distPath));

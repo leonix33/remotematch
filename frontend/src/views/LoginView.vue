@@ -2,6 +2,7 @@
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '../stores/auth';
+import AppLogo from '../components/AppLogo.vue';
 
 const email = ref('');
 const password = ref('');
@@ -19,9 +20,9 @@ async function submit() {
   } catch (e) {
     const status = e.response?.status;
     if (status === 404) {
-      error.value = 'API not reachable. Wait for Render deploy to finish, then hard-refresh (Cmd+Shift+R).';
+      error.value = 'API not reachable. Wait for deploy to finish, then hard-refresh.';
     } else if (status === 400) {
-      error.value = 'Wrong email or password. Use the ADMIN_EMAIL and ADMIN_PASSWORD from your Render environment.';
+      error.value = 'Wrong email or password. Contact your admin for access.';
     } else {
       error.value = e.response?.data?.message || e.message || 'Login failed';
     }
@@ -34,9 +35,8 @@ async function submit() {
 <template>
   <div class="flex min-h-screen items-center justify-center p-4">
     <div class="card w-full max-w-md p-8">
-      <p class="text-xs font-semibold uppercase tracking-widest text-teal-400">Remote</p>
-      <h1 class="mt-1 text-2xl font-bold text-amber-300">Match</h1>
-      <p class="mt-2 text-sm text-slate-400">Sign in to find and apply to remote jobs</p>
+      <AppLogo size="lg" />
+      <p class="mt-4 text-sm text-slate-400">Sign in to your remote job command center</p>
 
       <form class="mt-8 space-y-4" @submit.prevent="submit">
         <div>
@@ -52,9 +52,7 @@ async function submit() {
           {{ loading ? 'Signing in…' : 'Sign in' }}
         </button>
       </form>
-      <p class="mt-6 text-center text-xs text-slate-500">
-        Use the ADMIN_EMAIL and ADMIN_PASSWORD from your Render dashboard (not localhost .env)
-      </p>
+      <p class="mt-6 text-center text-xs text-slate-500">Invite-only access · Admin creates accounts</p>
     </div>
   </div>
 </template>

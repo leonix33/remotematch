@@ -69,4 +69,23 @@ async function getMe(userId) {
   return user;
 }
 
-module.exports = { login, signAccessToken, getMe };
+async function changePassword(userId, currentPassword, newPassword) {
+  if (!env.mongoUri) throw new Error('MongoDB is required to change password');
+  const user = await User.findById(userId);
+  if (!user) throw new Error('User not found');
+  const ok = await bcrypt.compare(currentPassword, user.passwordHash);
+  if (!ok) throw new Error('Current password is incorrect');
+  user.passwordHash = await bcrypt.hash(newPassword, 10);
+  await user.save();
+}
+
+async function resetPassword(targetUserId, newPassword) {
+  if (!env.mongoUri) throw new Error('MongoDB is required to reset password');
+  const user = await User.findById(targetUserId);
+  if (!user) throw new Error('User not found');
+  user.passwordHash = await bcrypt.hash(newPassword, 10);
+  await user.save();
+  return { id: user._id, email: user.email };
+}
+
+module.exports = { login, signAccessToken, getMe, changePassword, resetPassword };

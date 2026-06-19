@@ -26,10 +26,10 @@ export default defineConfig(({ mode }) => {
           scope: '/',
           start_url: '/',
           categories: ['business', 'productivity'],
-          icons: [
-            { src: '/icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any' },
-            { src: '/icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'maskable' },
-          ],
+        icons: [
+          { src: '/logo.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+          { src: '/icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'maskable' },
+        ],
         },
         workbox: {
           navigateFallback: '/index.html',

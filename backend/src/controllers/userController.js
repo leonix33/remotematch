@@ -41,4 +41,43 @@ async function createUser(req, res, next) {
   }
 }
 
-module.exports = { listUsers, createUser };
+const patchUserSchema = z.object({
+  name: z.string().min(2).optional(),
+  role: z.enum(['admin', 'user']).optional(),
+  active: z.boolean().optional(),
+});
+
+async function updateUser(req, res, next) {
+  try {
+    const body = patchUserSchema.parse(req.body);
+    const user = await User.findById(req.params.id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    if (user._id.toString() === req.user.sub && body.active === false) {
+      return res.status(400).json({ message: 'You cannot disable your own account' });
+    }
+    if (body.name) user.name = body.name;
+    if (body.role) user.role = body.role;
+    if (typeof body.active === 'boolean') user.active = body.active;
+    await user.save();
+    res.json({ id: user._id, name: user.name, email: user.email, role: user.role, active: user.active });
+  } catch (err) {
+    next(err);
+  }
+}
+
+const resetPasswordSchema = z.object({
+  password: z.string().min(8),
+});
+
+async function resetPassword(req, res, next) {
+  try {
+    const body = resetPasswordSchema.parse(req.body);
+    const authService = require('../services/authService');
+    const result = await authService.resetPassword(req.params.id, body.password);
+    res.json({ message: 'Password reset', email: result.email });
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { listUsers, createUser, updateUser, resetPassword };
