@@ -12,6 +12,7 @@ import AnalyticsView from '../views/AnalyticsView.vue';
 import UsersView from '../views/UsersView.vue';
 import ProfileView from '../views/ProfileView.vue';
 import ApprovalsView from '../views/ApprovalsView.vue';
+import ChatView from '../views/ChatView.vue';
 
 const router = createRouter({
   history: createWebHistory(),
@@ -22,6 +23,7 @@ const router = createRouter({
     { path: '/profile', component: ProfileView, meta: { requiresAuth: true, skipOnboarding: true } },
     { path: '/jobs', component: JobsView, meta: { requiresAuth: true } },
     { path: '/approvals', component: ApprovalsView, meta: { requiresAuth: true } },
+    { path: '/chat', component: ChatView, meta: { requiresAuth: true, skipOnboarding: true } },
     { path: '/applications', component: ApplicationsView, meta: { requiresAuth: true } },
     { path: '/generator', component: GeneratorView, meta: { requiresAuth: true } },
     { path: '/agent', component: AgentView, meta: { requiresAuth: true } },

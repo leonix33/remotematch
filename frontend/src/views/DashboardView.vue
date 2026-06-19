@@ -119,6 +119,8 @@ onMounted(async () => {
       <h3 class="font-semibold text-slate-200">Quick actions</h3>
       <div class="mt-4 flex flex-wrap gap-3">
         <RouterLink to="/jobs" class="btn-primary">Browse Jobs</RouterLink>
+        <RouterLink to="/chat" class="btn-secondary">AI Coach & Chat</RouterLink>
+        <RouterLink to="/approvals" class="btn-secondary">Apply Queue</RouterLink>
         <RouterLink to="/agent" class="btn-secondary">Run Agent</RouterLink>
         <RouterLink to="/generator" class="btn-secondary">Write Cover Letter</RouterLink>
       </div>

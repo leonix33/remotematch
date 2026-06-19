@@ -16,6 +16,8 @@ const analyticsRoutes = require('./routes/analyticsRoutes');
 const syncRoutes = require('./routes/syncRoutes');
 const profileRoutes = require('./routes/profileRoutes');
 const approvalRoutes = require('./routes/approvalRoutes');
+const aiRoutes = require('./routes/aiRoutes');
+const chatRoutes = require('./routes/chatRoutes');
 
 function createApp() {
   const app = express();
@@ -51,6 +53,8 @@ function createApp() {
   app.use('/api/sync', syncRoutes);
   app.use('/api/profile', profileRoutes);
   app.use('/api/approvals', approvalRoutes);
+  app.use('/api/ai', aiRoutes);
+  app.use('/api/chat', chatRoutes);
 
   const distPath = path.join(__dirname, '../../frontend/dist');
   app.use(express.static(distPath));
