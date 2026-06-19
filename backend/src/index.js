@@ -8,12 +8,20 @@ const jobService = require('./services/jobService');
 async function ensureAdmin() {
   if (!env.mongoUri) return;
   if (!env.adminEmail || !env.adminPassword) return;
-  const existing = await User.findOne({ email: env.adminEmail.toLowerCase() });
-  if (existing) return;
+  const email = env.adminEmail.toLowerCase();
   const passwordHash = await bcrypt.hash(env.adminPassword, 10);
+  const existing = await User.findOne({ email });
+  if (existing) {
+    existing.passwordHash = passwordHash;
+    existing.role = 'admin';
+    existing.active = true;
+    await existing.save();
+    console.log('Admin user synced from environment');
+    return;
+  }
   await User.create({
     name: 'Admin',
-    email: env.adminEmail,
+    email,
     role: 'admin',
     passwordHash,
   });
