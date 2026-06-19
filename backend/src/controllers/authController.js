@@ -1,0 +1,41 @@
+const { z } = require('zod');
+const authService = require('../services/authService');
+
+const loginSchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(8),
+});
+
+async function login(req, res, next) {
+  try {
+    const body = loginSchema.parse(req.body);
+    const result = await authService.login(body.email, body.password);
+    res.json({
+      accessToken: result.accessToken,
+      user: {
+        id: result.user._id,
+        name: result.user.name,
+        email: result.user.email,
+        role: result.user.role,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function me(req, res, next) {
+  try {
+    const user = await authService.getMe(req.user.sub);
+    res.json({
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { login, me };

@@ -1,0 +1,42 @@
+@import 'tailwindcss';
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  min-height: 100dvh;
+  background: linear-gradient(160deg, #0f172a 0%, #134e4a 50%, #0f172a 100%);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+
+.safe-top {
+  padding-top: env(safe-area-inset-top, 0);
+}
+
+.card {
+  @apply rounded-2xl border border-teal-900/40 bg-slate-900/70 backdrop-blur-sm shadow-xl;
+}
+
+.btn-primary {
+  @apply min-h-[44px] rounded-xl bg-teal-500 px-4 py-2 font-semibold text-slate-950 transition hover:bg-teal-400 active:scale-[0.98] disabled:opacity-50;
+}
+
+.btn-secondary {
+  @apply min-h-[44px] rounded-xl border border-teal-700/50 px-4 py-2 text-teal-200 transition hover:bg-teal-900/30 active:scale-[0.98];
+}
+
+.input {
+  @apply w-full min-h-[44px] rounded-xl border border-slate-700 bg-slate-800/80 px-4 py-2.5 text-base text-slate-100 placeholder-slate-500 outline-none focus:border-teal-500;
+}
+
+.badge {
+  @apply inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium;
+}
+
+.badge-gold { @apply bg-amber-500/20 text-amber-300; }
+.badge-teal { @apply bg-teal-500/20 text-teal-300; }
+.badge-red { @apply bg-red-500/20 text-red-300; }
+.badge-slate { @apply bg-slate-500/20 text-slate-300; }
