@@ -16,6 +16,8 @@ const extLoading = ref(false);
 const extApiUrl = ref(appUrl || 'https://remotematch.onrender.com');
 const extToken = ref('');
 const extCopied = ref('');
+const extConnected = ref(false);
+const extConnectMsg = ref('');
 
 const form = ref({
   displayName: '',
@@ -49,9 +51,35 @@ function loadForm(p) {
   };
 }
 
+async function connectExtension() {
+  extConnectMsg.value = '';
+  extConnected.value = false;
+  await loadExtensionToken();
+  window.postMessage(
+    {
+      type: 'REMOTEMATCH_EXT_CONFIG',
+      apiBase: extApiUrl.value,
+      accessToken: extToken.value,
+    },
+    window.location.origin
+  );
+  setTimeout(() => {
+    if (!extConnected.value) {
+      extConnectMsg.value =
+        'Extension not detected. Load it once in chrome://extensions (Load unpacked), then click Connect again.';
+    }
+  }, 800);
+}
+
 onMounted(async () => {
   const p = await profileStore.fetch();
   loadForm(p);
+  window.addEventListener('message', (e) => {
+    if (e.data?.type === 'REMOTEMATCH_EXT_CONFIGURED') {
+      extConnected.value = true;
+      extConnectMsg.value = 'Extension connected! Open any job page and click the RemoteMatch icon.';
+    }
+  });
 });
 
 async function save() {
@@ -183,6 +211,10 @@ async function copyExt(value, label) {
       <button type="button" class="btn-primary" :disabled="extLoading" @click="loadExtensionToken">
         {{ extLoading ? 'Generating…' : 'Get extension token (valid 90 days)' }}
       </button>
+      <button type="button" class="btn-secondary" :disabled="extLoading" @click="connectExtension">
+        Connect extension automatically
+      </button>
+      <p v-if="extConnectMsg" class="text-sm" :class="extConnected ? 'text-teal-300' : 'text-amber-300'">{{ extConnectMsg }}</p>
       <div v-if="extToken" class="space-y-3 rounded-xl bg-slate-950/50 p-4 text-sm">
         <div>
           <p class="text-slate-500">API base URL</p>

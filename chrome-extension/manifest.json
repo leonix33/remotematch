@@ -15,6 +15,15 @@
       "matches": ["<all_urls>"],
       "js": ["content.js"],
       "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://remotematch.onrender.com/*",
+        "http://localhost:5173/*",
+        "http://127.0.0.1:5173/*"
+      ],
+      "js": ["setup-bridge.js"],
+      "run_at": "document_idle"
     }
   ],
   "icons": {
