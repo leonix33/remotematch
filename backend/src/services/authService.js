@@ -11,6 +11,14 @@ function signAccessToken(user) {
   );
 }
 
+function signExtensionToken(user) {
+  return jwt.sign(
+    { sub: user._id.toString(), role: user.role, email: user.email, name: user.name, type: 'extension' },
+    env.jwtAccessSecret,
+    { expiresIn: '90d' }
+  );
+}
+
 async function login(email, password) {
   const normalizedEmail = email.trim().toLowerCase();
   const normalizedPassword = password.trim();
@@ -88,4 +96,4 @@ async function resetPassword(targetUserId, newPassword) {
   return { id: user._id, email: user.email };
 }
 
-module.exports = { login, signAccessToken, getMe, changePassword, resetPassword };
+module.exports = { login, signAccessToken, signExtensionToken, getMe, changePassword, resetPassword };

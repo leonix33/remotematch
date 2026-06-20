@@ -1,5 +1,6 @@
 const { z } = require('zod');
 const authService = require('../services/authService');
+const env = require('../config/env');
 
 const loginSchema = z.object({
   email: z.string().email(),
@@ -53,4 +54,19 @@ async function changePassword(req, res, next) {
   }
 }
 
-module.exports = { login, me, changePassword };
+async function extensionToken(req, res, next) {
+  try {
+    const user = await authService.getMe(req.user.sub);
+    const token = authService.signExtensionToken(user);
+    res.json({
+      apiUrl: env.appUrl,
+      accessToken: token,
+      expiresIn: '90 days',
+      instructions: 'Paste both values into the Chrome extension Settings page.',
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { login, me, changePassword, extensionToken };

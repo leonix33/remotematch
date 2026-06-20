@@ -6,6 +6,7 @@ const jobService = require('./jobService');
 const profileService = require('./profileService');
 const { scoreJobsForProfile } = require('./jobScoringService');
 const teamService = require('./teamService');
+const externalQueueService = require('./externalQueueService');
 
 function requireMongo() {
   if (!env.mongoUri) throw new Error('MongoDB is required');
@@ -30,9 +31,24 @@ async function listForUser(userId, statusFilter = 'pending') {
   jobs = scoreJobsForProfile(jobs, profile).filter((j) => j.personalMatchPct >= minMatch);
 
   if (!env.mongoUri) {
-    return jobs
+    const external = externalQueueService.listForUser(userId);
+    const sqliteJobs = jobs
       .filter((j) => (statusFilter === 'all' ? true : statusFilter === 'pending'))
       .map((j) => ({ ...j, status: 'pending' }));
+    const externalRows = external
+      .filter((e) => statusFilter === 'all' || e.status === statusFilter)
+      .map((e) => ({
+        jobId: e.jobId,
+        title: e.title,
+        company: e.company,
+        url: e.url,
+        matchPct: e.matchPct || 0,
+        source: e.source || 'chrome-extension',
+        status: e.status || 'pending',
+        notes: e.notes || '',
+        personalMatchPct: e.matchPct || 0,
+      }));
+    return [...externalRows, ...sqliteJobs];
   }
 
   const approvals = await JobApproval.find({ userId }).lean();
@@ -78,7 +94,21 @@ async function listForUser(userId, statusFilter = 'pending') {
 
 async function setStatus(userId, jobId, status, notes = '') {
   if (!env.mongoUri) {
-    throw new Error('MongoDB is required for apply approvals');
+    const ext = externalQueueService.find(userId, jobId);
+    if (ext || jobId.startsWith('ext-')) {
+      const row = externalQueueService.upsert(userId, {
+        ...ext,
+        jobId,
+        status,
+        notes,
+        title: ext?.title || 'External job',
+        company: ext?.company || 'Unknown',
+        url: ext?.url || '',
+        source: ext?.source || 'chrome-extension',
+      });
+      return row;
+    }
+    throw new Error('MongoDB is required for apply approvals on agent jobs');
   }
   if (status === 'approved') {
     await teamService.checkLimit(userId, 'approval');
@@ -164,25 +194,25 @@ async function markApplied(userId, jobIds) {
 }
 
 async function addExternal(userId, { url, title, company }) {
-  requireMongo();
   if (!url) throw new Error('URL is required');
   const jobId = `ext-${crypto.createHash('sha256').update(url).digest('hex').slice(0, 16)}`;
-  const approval = await JobApproval.findOneAndUpdate(
-    { userId, jobId },
-    {
-      userId,
-      jobId,
-      title: title || 'External job',
-      company: company || 'Unknown',
-      url,
-      matchPct: 0,
-      source: 'chrome-extension',
-      status: 'pending',
-      notes: 'Queued from browser extension',
-    },
-    { upsert: true, new: true }
-  );
-  return approval;
+  const row = {
+    userId,
+    jobId,
+    title: title || 'External job',
+    company: company || 'Unknown',
+    url,
+    matchPct: 0,
+    source: 'chrome-extension',
+    status: 'pending',
+    notes: 'Queued from browser extension',
+  };
+
+  if (env.mongoUri) {
+    return JobApproval.findOneAndUpdate({ userId, jobId }, row, { upsert: true, new: true });
+  }
+
+  return externalQueueService.upsert(userId, row);
 }
 
 module.exports = { listForUser, setStatus, counts, listApproved, markApplied, addExternal };

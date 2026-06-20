@@ -35,3 +35,9 @@ services:
         sync: false
       - key: EMAIL_FROM
         value: RemoteMatch <onboarding@resend.dev>
+      - key: VAPID_PUBLIC_KEY
+        sync: false
+      - key: VAPID_PRIVATE_KEY
+        sync: false
+      - key: VAPID_SUBJECT
+        value: mailto:leonix23@gmail.com

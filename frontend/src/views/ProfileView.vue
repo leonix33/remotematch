@@ -2,6 +2,7 @@
 import { onMounted, ref } from 'vue';
 import http from '../api/http';
 import { useProfileStore } from '../stores/profile';
+import { appUrl } from '../config';
 
 const profileStore = useProfileStore();
 const saving = ref(false);
@@ -11,6 +12,10 @@ const pwdSaving = ref(false);
 const pwdError = ref('');
 const pwdSuccess = ref('');
 const pwdForm = ref({ currentPassword: '', newPassword: '', confirmPassword: '' });
+const extLoading = ref(false);
+const extApiUrl = ref(appUrl || 'https://remotematch.onrender.com');
+const extToken = ref('');
+const extCopied = ref('');
 
 const form = ref({
   displayName: '',
@@ -91,6 +96,23 @@ async function changePassword() {
     pwdSaving.value = false;
   }
 }
+
+async function loadExtensionToken() {
+  extLoading.value = true;
+  try {
+    const { data } = await http.post('/auth/extension-token');
+    extApiUrl.value = data.apiUrl;
+    extToken.value = data.accessToken;
+  } finally {
+    extLoading.value = false;
+  }
+}
+
+async function copyExt(value, label) {
+  await navigator.clipboard.writeText(value);
+  extCopied.value = label;
+  setTimeout(() => { extCopied.value = ''; }, 2000);
+}
 </script>
 
 <template>
@@ -151,6 +173,37 @@ async function changePassword() {
       <p v-if="success" class="text-sm text-teal-300">{{ success }}</p>
       <button type="submit" class="btn-primary" :disabled="saving">{{ saving ? 'Saving…' : 'Save profile' }}</button>
     </form>
+
+    <div class="card mt-8 space-y-4 p-6">
+      <h3 class="font-semibold text-slate-200">Chrome extension setup</h3>
+      <p class="text-sm text-slate-500">
+        Load the extension from <code class="text-teal-400">chrome-extension/</code> in Chrome →
+        <code class="text-teal-400">chrome://extensions</code> → Load unpacked. Then copy these two values into extension Settings.
+      </p>
+      <button type="button" class="btn-primary" :disabled="extLoading" @click="loadExtensionToken">
+        {{ extLoading ? 'Generating…' : 'Get extension token (valid 90 days)' }}
+      </button>
+      <div v-if="extToken" class="space-y-3 rounded-xl bg-slate-950/50 p-4 text-sm">
+        <div>
+          <p class="text-slate-500">API base URL</p>
+          <div class="mt-1 flex gap-2">
+            <input :value="extApiUrl" readonly class="input flex-1 font-mono text-xs" />
+            <button type="button" class="btn-secondary shrink-0 text-xs" @click="copyExt(extApiUrl, 'url')">
+              {{ extCopied === 'url' ? 'Copied' : 'Copy' }}
+            </button>
+          </div>
+        </div>
+        <div>
+          <p class="text-slate-500">Access token</p>
+          <div class="mt-1 flex gap-2">
+            <input :value="extToken" readonly class="input flex-1 font-mono text-xs" />
+            <button type="button" class="btn-secondary shrink-0 text-xs" @click="copyExt(extToken, 'token')">
+              {{ extCopied === 'token' ? 'Copied' : 'Copy' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
 
     <form class="card mt-8 space-y-4 p-6" @submit.prevent="changePassword">
       <h3 class="font-semibold text-slate-200">Change password</h3>
