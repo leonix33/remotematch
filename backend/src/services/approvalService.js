@@ -28,7 +28,19 @@ async function listForUser(userId, statusFilter = 'pending') {
   const profile = await profileService.getOrCreate(userId);
   const minMatch = profile.minMatchScore || 60;
   let jobs = await loadJobs(minMatch);
-  jobs = scoreJobsForProfile(jobs, profile).filter((j) => j.personalMatchPct >= minMatch);
+
+  const profileEmpty = !(profile?.targetTitles?.length || profile?.mustHaveSkills?.length);
+  if (profileEmpty) {
+    jobs = jobs
+      .filter((j) => (j.matchPct || 0) >= minMatch)
+      .map((j) => ({
+        ...j,
+        personalMatchPct: j.matchPct || 0,
+        matchPct: j.matchPct || 0,
+      }));
+  } else {
+    jobs = scoreJobsForProfile(jobs, profile).filter((j) => j.personalMatchPct >= minMatch);
+  }
 
   if (!env.mongoUri) {
     const external = externalQueueService.listForUser(userId);
