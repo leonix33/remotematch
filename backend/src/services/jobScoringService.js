@@ -1,6 +1,8 @@
 /**
  * Per-user job scoring — mirrors Python profile scoring at a high level.
  */
+const { extractSkillsFromText } = require('./resumeParseService');
+
 function normalize(text = '') {
   return String(text).toLowerCase();
 }
@@ -9,12 +11,18 @@ function scoreJobForProfile(job, profile) {
   const title = normalize(job.title);
   const company = normalize(job.company);
   const location = normalize(job.location);
-  const blob = normalize(`${job.title} ${job.company} ${job.source}`);
+  const resumeBlob = normalize(profile?.resumeText || '');
+  const blob = normalize(`${job.title} ${job.company} ${job.source} ${job.description || ''}`);
 
   const targetTitles = (profile?.targetTitles || []).map(normalize).filter(Boolean);
   const mustSkills = (profile?.mustHaveSkills || []).map(normalize).filter(Boolean);
   const niceSkills = (profile?.niceToHaveSkills || []).map(normalize).filter(Boolean);
   const targetCompanies = (profile?.targetCompanies || []).map(normalize).filter(Boolean);
+  const resumeSkills = (
+    profile?.extractedSkills?.length
+      ? profile.extractedSkills
+      : extractSkillsFromText(profile?.resumeText || '').all
+  ).map(normalize);
 
   let score = 0;
   const strengths = [];
@@ -25,11 +33,17 @@ function scoreJobForProfile(job, profile) {
     strengths.push('Title match');
   } else if (targetTitles.length) {
     gaps.push('Title stretch');
+  } else if (resumeBlob && targetTitles.length === 0) {
+    const resumeTitles = ['devops', 'sre', 'platform', 'cloud', 'infrastructure'];
+    if (resumeTitles.some((t) => title.includes(t) && resumeBlob.includes(t))) {
+      score += 20;
+      strengths.push('Resume role fit');
+    }
   }
 
   let mustHits = 0;
   for (const skill of mustSkills) {
-    if (blob.includes(skill)) {
+    if (blob.includes(skill) || resumeBlob.includes(skill)) {
       mustHits += 1;
       score += Math.min(35 / Math.max(mustSkills.length, 1), 12);
     } else {
@@ -39,8 +53,17 @@ function scoreJobForProfile(job, profile) {
   if (mustHits >= 3) strengths.push(`${mustHits} must-have skills`);
 
   for (const skill of niceSkills) {
-    if (blob.includes(skill)) score += 2;
+    if (blob.includes(skill) || resumeBlob.includes(skill)) score += 2;
   }
+
+  let resumeHits = 0;
+  for (const skill of resumeSkills.slice(0, 20)) {
+    if (blob.includes(skill)) {
+      resumeHits += 1;
+      score += 2;
+    }
+  }
+  if (resumeHits >= 4) strengths.push(`${resumeHits} resume skills match`);
 
   if (/remote|anywhere|distributed/.test(location) || /remote/.test(blob)) {
     score += 15;

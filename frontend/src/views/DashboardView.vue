@@ -1,30 +1,99 @@
 <script setup>
-import { onMounted, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { RouterLink } from 'vue-router';
 import http from '../api/http';
 import { useProfileStore } from '../stores/profile';
+import ResumeUpload from '../components/ResumeUpload.vue';
 
 const profileStore = useProfileStore();
-const stats = ref(null);
-const queue = ref({ pending: 0, approved: 0 });
-const topJobs = ref([]);
-const marketPulse = ref(null);
+const recommendedJobs = ref([]);
+const applications = ref([]);
+const followUps = ref([]);
 const loading = ref(true);
+
+const savedJobs = computed(() => profileStore.profile?.savedJobs || []);
+const extractedSkills = computed(() => profileStore.extractedSkills.slice(0, 10));
+
+const firstName = computed(() => {
+  const name = profileStore.profile?.displayName?.trim();
+  return name ? name.split(' ')[0] : '';
+});
+
+const profileIncomplete = computed(() => !profileStore.complete);
+
+const resumeScoreLabel = computed(() => {
+  const score = profileStore.resumeScore;
+  if (score >= 80) return 'Strong';
+  if (score >= 50) return 'Good start';
+  if (score > 0) return 'Needs work';
+  return 'Not started';
+});
+
+const resumeScoreColor = computed(() => {
+  const score = profileStore.resumeScore;
+  if (score >= 80) return 'text-teal-300';
+  if (score >= 50) return 'text-amber-300';
+  return 'text-slate-400';
+});
+
+function matchPct(job) {
+  return job.personalMatchPct || job.matchPct || 0;
+}
+
+function statusClass(status) {
+  if (status === 'submitted') return 'badge-teal';
+  if (status === 'bot-blocked') return 'badge-red';
+  return 'badge-slate';
+}
+
+function formatDate(dateStr) {
+  return new Date(dateStr).toLocaleDateString(undefined, {
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+  });
+}
+
+function followUpIcon(type) {
+  if (type === 'application') return '📋';
+  if (type === 'interview') return '🎙';
+  if (type === 'deadline') return '⏰';
+  return '📌';
+}
+
+async function loadRecommendedJobs() {
+  try {
+    const { data } = await http.get('/approvals', {
+      params: { status: 'pending', limit: 5, minMatch: 70 },
+    });
+    const items = data?.items || data || [];
+    if (items.length) {
+      recommendedJobs.value = items;
+      return;
+    }
+  } catch {
+    /* fall through to jobs list */
+  }
+  try {
+    const { data } = await http.get('/jobs', { params: { minMatch: 75 } });
+    recommendedJobs.value = (data || []).slice(0, 5);
+  } catch {
+    recommendedJobs.value = [];
+  }
+}
 
 async function load() {
   loading.value = true;
   try {
-    const [statsRes, summaryRes, jobsRes, pulseRes] = await Promise.all([
-      http.get('/analytics/summary'),
-      http.get('/approvals/summary'),
-      http.get('/approvals', { params: { status: 'pending', limit: 5, minMatch: 85 } }),
-      http.get('/intelligence/market-pulse').catch(() => ({ data: null })),
+    const [appsRes, followUpsRes] = await Promise.all([
+      http.get('/applications'),
+      http.get('/calendar/upcoming', { params: { days: 14 } }).catch(() => ({ data: [] })),
     ]);
-    stats.value = statsRes.data;
-    queue.value = summaryRes.data;
-    const payload = jobsRes.data;
-    topJobs.value = payload?.items || payload || [];
-    marketPulse.value = pulseRes.data;
+    applications.value = (appsRes.data || []).slice(0, 5);
+    followUps.value = (followUpsRes.data || [])
+      .filter((e) => e.type === 'application' || e.type === 'interview' || e.type === 'deadline')
+      .slice(0, 5);
+    await loadRecommendedJobs();
   } finally {
     loading.value = false;
   }
@@ -38,97 +107,211 @@ onMounted(async () => {
 
 <template>
   <div>
-    <h2 class="text-2xl font-bold text-slate-100">Good to see you{{ profileStore.profile?.displayName ? `, ${profileStore.profile.displayName.split(' ')[0]}` : '' }}</h2>
-    <p class="mt-1 text-slate-400">Your remote job search command center</p>
-
-    <!-- Primary action -->
-    <div v-if="queue.pending > 0" class="mt-8 card border-teal-600/30 bg-gradient-to-r from-teal-950/80 to-slate-900/80 p-6">
-      <div class="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <p class="text-sm font-medium uppercase tracking-wider text-teal-400">Today's focus</p>
-          <h3 class="mt-1 text-xl font-bold text-slate-100">{{ queue.pending }} jobs waiting for your review</h3>
-          <p class="mt-2 text-sm text-slate-400">
-            {{ queue.approved }} already approved
-            <span v-if="queue.approved > 0"> — ready to apply when you are</span>
-          </p>
-        </div>
-        <RouterLink to="/approvals" class="btn-primary px-6 py-3">Review apply queue →</RouterLink>
-      </div>
-    </div>
-
-    <div v-else-if="queue.approved > 0" class="mt-8 card border-amber-600/30 p-6">
-      <h3 class="text-xl font-bold text-amber-300">{{ queue.approved }} jobs approved — ready to apply</h3>
-      <p class="mt-2 text-sm text-slate-400">Head to Apply Queue and click Apply Approved.</p>
-      <RouterLink to="/approvals" class="btn-primary mt-4 inline-block">Go to queue →</RouterLink>
-    </div>
-
-    <div v-if="loading" class="mt-8 text-slate-400">Loading…</div>
-
-    <template v-else>
-      <div v-if="stats" class="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <div class="card p-5">
-          <p class="text-sm text-slate-400">Jobs tracked</p>
-          <p class="mt-1 text-3xl font-bold text-teal-300">{{ stats.totalJobs }}</p>
-        </div>
-        <div class="card p-5">
-          <p class="text-sm text-slate-400">Apply today</p>
-          <p class="mt-1 text-3xl font-bold text-amber-300">{{ stats.applyToday }}</p>
-        </div>
-        <div class="card p-5">
-          <p class="text-sm text-slate-400">Submitted</p>
-          <p class="mt-1 text-3xl font-bold text-teal-300">{{ stats.submitted }}</p>
-        </div>
-        <div class="card p-5">
-          <p class="text-sm text-slate-400">80%+ match</p>
-          <p class="mt-1 text-3xl font-bold text-amber-300">{{ stats.highMatch }}</p>
-        </div>
-      </div>
-
-      <div v-if="topJobs.length" class="mt-8 card p-6">
-        <div class="flex items-center justify-between">
-          <h3 class="font-semibold text-slate-200">Top matches to review</h3>
-          <RouterLink to="/approvals" class="text-sm text-teal-400 hover:underline">See all →</RouterLink>
-        </div>
-        <div class="mt-4 space-y-3">
-          <div v-for="job in topJobs" :key="job.jobId" class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800/80 pb-3 last:border-0">
-            <div>
-              <p class="font-medium text-slate-200">{{ job.title }}</p>
-              <p class="text-sm text-slate-500">{{ job.company }}</p>
+    <!-- Top card -->
+    <div class="card border-teal-600/30 bg-gradient-to-r from-teal-950/80 to-slate-900/80 p-6">
+      <div class="flex flex-wrap items-start justify-between gap-6">
+        <div class="min-w-0 flex-1">
+          <h2 class="mt-1 text-2xl font-bold text-slate-100">
+            Welcome back{{ firstName ? `, ${firstName}` : '' }}
+          </h2>
+          <div class="mt-4 max-w-sm">
+            <div class="flex items-center justify-between text-sm">
+              <span class="text-slate-400">Profile completion</span>
+              <span class="font-semibold text-teal-300">{{ profileStore.completionPct }}%</span>
             </div>
-            <div class="flex items-center gap-2">
-              <span class="badge badge-teal">{{ job.personalMatchPct || job.matchPct }}%</span>
-              <RouterLink to="/approvals" class="btn-secondary px-2 py-1 text-xs">Review</RouterLink>
+            <div class="mt-2 h-2 overflow-hidden rounded-full bg-slate-800">
+              <div
+                class="h-full rounded-full bg-teal-500 transition-all"
+                :style="{ width: `${profileStore.completionPct}%` }"
+              />
             </div>
           </div>
         </div>
+        <RouterLink to="/jobs" class="btn-primary btn-continue shrink-0 px-6 py-3">
+          <span>Find matches</span>
+          <span aria-hidden="true">→</span>
+        </RouterLink>
       </div>
+    </div>
 
-      <div v-if="!profileStore.profile?.complete" class="mt-8 card border-amber-700/30 p-6">
-        <h3 class="font-semibold text-amber-200">Complete your profile for better matches</h3>
-        <p class="mt-2 text-sm text-slate-400">Add your skills and target titles so jobs are scored to you — not just the agent default.</p>
-        <RouterLink to="/profile" class="btn-primary mt-4 inline-block">Set up profile</RouterLink>
-      </div>
+    <!-- Profile incomplete empty state -->
+    <div
+      v-if="profileIncomplete"
+      class="mt-6 card border-amber-700/40 bg-amber-950/20 p-5"
+    >
+      <p class="font-medium text-amber-200">Complete your profile to unlock better matches.</p>
+      <p class="mt-1 text-sm text-slate-400">
+        Add your skills, target roles, and resume so we can score jobs to you.
+      </p>
+      <RouterLink to="/onboarding" class="btn-secondary mt-4 inline-block text-sm">Complete profile →</RouterLink>
+    </div>
 
-      <div v-if="marketPulse" class="mt-8 card p-6">
-        <h3 class="font-semibold text-slate-200">Market pulse</h3>
-        <p class="mt-2 text-sm text-slate-400">
-          {{ marketPulse.totalJobs }} jobs · {{ marketPulse.remotePercent }}% remote · Avg {{ marketPulse.avgMatchPct }}% match
-        </p>
-        <p class="mt-3 text-sm text-slate-500">
-          Hot:
-          <span v-for="s in marketPulse.trendingSkills?.slice(0, 6)" :key="s.skill" class="ml-2 badge badge-teal">{{ s.skill }}</span>
-        </p>
-        <RouterLink to="/intelligence" class="mt-3 inline-block text-sm text-teal-400">Full intelligence hub →</RouterLink>
-      </div>
+    <div v-if="loading" class="mt-8 text-slate-400">Loading your dashboard…</div>
 
-      <div class="mt-8 card p-6">
-        <h3 class="font-semibold text-slate-200">Quick actions</h3>
-        <div class="mt-4 flex flex-wrap gap-3">
-          <RouterLink to="/approvals" class="btn-primary">Apply Queue</RouterLink>
-          <RouterLink to="/jobs" class="btn-secondary">Browse jobs</RouterLink>
-          <RouterLink to="/agent" class="btn-secondary">Run agent</RouterLink>
-          <RouterLink to="/intelligence" class="btn-secondary">AI intel</RouterLink>
-          <RouterLink to="/chat" class="btn-secondary">AI coach</RouterLink>
+    <template v-else>
+      <div class="mt-8 space-y-6">
+        <!-- 1. Recommended Jobs -->
+        <section class="card p-6">
+          <div class="flex items-center justify-between">
+            <h3 class="font-semibold text-slate-200">Recommended Jobs</h3>
+            <RouterLink to="/jobs" class="text-sm text-teal-400 hover:underline">Browse all →</RouterLink>
+          </div>
+          <div v-if="recommendedJobs.length" class="mt-4 space-y-3">
+            <div
+              v-for="job in recommendedJobs"
+              :key="job.jobId || job._id"
+              class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800/80 pb-3 last:border-0"
+            >
+              <div class="min-w-0">
+                <p class="font-medium text-slate-200">{{ job.title }}</p>
+                <p class="text-sm text-slate-500">{{ job.company }}</p>
+              </div>
+              <div class="flex items-center gap-2">
+                <span class="badge badge-teal">{{ matchPct(job) }}%</span>
+                <RouterLink
+                  :to="job.status === 'pending' ? '/approvals' : '/jobs'"
+                  class="btn-secondary px-2 py-1 text-xs"
+                >
+                  View
+                </RouterLink>
+              </div>
+            </div>
+          </div>
+          <p v-else class="mt-4 text-sm text-slate-500">
+            No matches yet.
+            <RouterLink to="/agent" class="text-teal-400 hover:underline">Run the agent</RouterLink>
+            to discover jobs, or
+            <RouterLink to="/jobs" class="text-teal-400 hover:underline">browse the board</RouterLink>.
+          </p>
+        </section>
+
+        <!-- 2 & 3: Application Tracker + AI Resume Score -->
+        <div class="grid gap-6 lg:grid-cols-2">
+          <section class="card p-6">
+            <div class="flex items-center justify-between">
+              <h3 class="font-semibold text-slate-200">Application Tracker</h3>
+              <RouterLink to="/applications" class="text-sm text-teal-400 hover:underline">See all →</RouterLink>
+            </div>
+            <div v-if="applications.length" class="mt-4 space-y-3">
+              <div
+                v-for="app in applications"
+                :key="app.jobId || app._id"
+                class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800/80 pb-3 last:border-0"
+              >
+                <div class="min-w-0">
+                  <p class="truncate font-medium text-slate-200">{{ app.title }}</p>
+                  <p class="text-xs text-slate-500">{{ app.lastAttempted || 'No attempts yet' }}</p>
+                </div>
+                <span class="badge shrink-0" :class="statusClass(app.status)">{{ app.status }}</span>
+              </div>
+            </div>
+            <p v-else class="mt-4 text-sm text-slate-500">
+              No applications yet. Approve jobs from your
+              <RouterLink to="/approvals" class="text-teal-400 hover:underline">apply queue</RouterLink>
+              to get started.
+            </p>
+          </section>
+
+          <section class="card p-6">
+            <div class="flex items-center justify-between">
+              <h3 class="font-semibold text-slate-200">AI Resume Score</h3>
+              <RouterLink to="/profile" class="text-sm text-teal-400 hover:underline">Improve →</RouterLink>
+            </div>
+            <div class="mt-4 flex items-end gap-4">
+              <p class="text-5xl font-bold" :class="resumeScoreColor">{{ profileStore.resumeScore }}</p>
+              <div>
+                <p class="font-medium text-slate-300">{{ resumeScoreLabel }}</p>
+                <p class="text-sm text-slate-500">Based on your profile &amp; resume</p>
+              </div>
+            </div>
+            <div class="mt-4 h-2 overflow-hidden rounded-full bg-slate-800">
+              <div
+                class="h-full rounded-full bg-teal-500/80 transition-all"
+                :style="{ width: `${profileStore.resumeScore}%` }"
+              />
+            </div>
+            <div v-if="extractedSkills.length" class="mt-4 flex flex-wrap gap-2">
+              <span v-for="skill in extractedSkills" :key="skill" class="badge badge-teal">{{ skill }}</span>
+            </div>
+            <ResumeUpload
+              class="mt-4"
+              :model-value="profileStore.profile?.resumeText || ''"
+              :apply-to-profile="true"
+              :merge-skills="true"
+              :show-preview="false"
+              @parsed="load"
+            />
+            <p v-if="profileStore.resumeScore < 80" class="mt-4 text-sm text-slate-500">
+              Upload a PDF resume or add more skills to raise your score and improve job matches.
+            </p>
+            <p v-else class="mt-4 text-sm text-slate-500">
+              Your resume is in good shape. Use per-job resume diff on the jobs page to tailor further.
+            </p>
+          </section>
+        </div>
+
+        <!-- 4 & 5: Saved Jobs + Upcoming Follow-ups -->
+        <div class="grid gap-6 lg:grid-cols-2">
+          <section class="card p-6">
+            <div class="flex items-center justify-between">
+              <h3 class="font-semibold text-slate-200">Saved Jobs</h3>
+              <RouterLink to="/jobs" class="text-sm text-teal-400 hover:underline">Browse jobs →</RouterLink>
+            </div>
+            <div v-if="savedJobs.length" class="mt-4 space-y-3">
+              <div
+                v-for="job in savedJobs.slice(0, 5)"
+                :key="job.jobId"
+                class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800/80 pb-3 last:border-0"
+              >
+                <div class="min-w-0">
+                  <p class="font-medium text-slate-200">{{ job.title }}</p>
+                  <p class="text-sm text-slate-500">{{ job.company }}</p>
+                </div>
+                <div class="flex items-center gap-2">
+                  <span v-if="job.matchPct" class="badge badge-teal">{{ job.matchPct }}%</span>
+                  <a
+                    v-if="job.url"
+                    :href="job.url"
+                    target="_blank"
+                    rel="noopener"
+                    class="btn-secondary px-2 py-1 text-xs"
+                  >
+                    Open
+                  </a>
+                </div>
+              </div>
+            </div>
+            <div v-else class="mt-4 rounded-xl border border-dashed border-slate-700 bg-slate-800/30 p-6 text-center">
+              <p class="text-sm text-slate-400">No saved jobs yet.</p>
+              <p class="mt-1 text-xs text-slate-500">Save jobs from the board to revisit them here.</p>
+              <RouterLink to="/jobs" class="btn-secondary mt-4 inline-block text-sm">Find jobs to save</RouterLink>
+            </div>
+          </section>
+
+          <section class="card p-6">
+            <div class="flex items-center justify-between">
+              <h3 class="font-semibold text-slate-200">Upcoming Follow-ups</h3>
+              <RouterLink to="/calendar" class="text-sm text-teal-400 hover:underline">Calendar →</RouterLink>
+            </div>
+            <div v-if="followUps.length" class="mt-4 space-y-3">
+              <div
+                v-for="event in followUps"
+                :key="event.id"
+                class="flex items-start gap-3 border-b border-slate-800/80 pb-3 last:border-0"
+              >
+                <span class="text-lg leading-none">{{ followUpIcon(event.type) }}</span>
+                <div class="min-w-0 flex-1">
+                  <p class="font-medium text-slate-200">{{ event.title }}</p>
+                  <p class="text-sm text-slate-500">{{ formatDate(event.startDate) }}</p>
+                </div>
+              </div>
+            </div>
+            <p v-else class="mt-4 text-sm text-slate-500">
+              No follow-ups scheduled.
+              <RouterLink to="/calendar" class="text-teal-400 hover:underline">Add one on the calendar</RouterLink>
+              to stay on top of applications.
+            </p>
+          </section>
         </div>
       </div>
     </template>

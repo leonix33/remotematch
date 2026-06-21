@@ -1,7 +1,9 @@
 <script setup>
 import { onMounted, ref, watch } from 'vue';
 import http from '../api/http';
+import { useProfileStore } from '../stores/profile';
 
+const profileStore = useProfileStore();
 const jobs = ref([]);
 const contacts = ref([]);
 const loading = ref(true);
@@ -15,6 +17,20 @@ const resumeDiff = ref(null);
 const squadJob = ref(null);
 const squadMembers = ref([]);
 const aiLoading = ref(false);
+const savingJobId = ref('');
+
+async function toggleSave(job) {
+  savingJobId.value = job.jobId;
+  try {
+    await profileStore.toggleSavedJob(job);
+  } finally {
+    savingJobId.value = '';
+  }
+}
+
+function isSaved(jobId) {
+  return profileStore.isJobSaved(jobId);
+}
 
 async function load() {
   loading.value = true;
@@ -96,6 +112,7 @@ function sectionLabel(s) {
 }
 
 onMounted(() => {
+  profileStore.fetch().catch(() => {});
   load();
   loadContacts();
 });
@@ -140,6 +157,13 @@ watch([section, minMatch], load);
         <div class="mt-3 flex flex-wrap gap-2 text-sm">
           <span class="text-slate-500">{{ job.source }}</span>
           <a v-if="job.url" :href="job.url" target="_blank" rel="noopener" class="text-teal-400 hover:underline">View job →</a>
+          <button
+            class="btn-secondary px-2 py-1 text-xs"
+            :disabled="savingJobId === job.jobId"
+            @click="toggleSave(job)"
+          >
+            {{ isSaved(job.jobId) ? '★ Saved' : '☆ Save' }}
+          </button>
           <button class="btn-secondary px-2 py-1 text-xs" @click="runCopilot(job)">Match Copilot</button>
           <button class="btn-secondary px-2 py-1 text-xs" @click="runResumeDiff(job)">Resume diff</button>
           <button class="btn-secondary px-2 py-1 text-xs" @click="openSquad(job)">Apply squad</button>

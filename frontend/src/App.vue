@@ -91,25 +91,38 @@ function logout() {
         <NotificationBell />
       </header>
 
-      <main class="flex-1 overflow-y-auto p-4 pb-24 lg:p-8 lg:pb-8">
+      <main
+        class="flex-1 overflow-y-auto p-4 lg:p-8"
+        :class="route.path === '/onboarding' ? 'pb-4 lg:pb-8' : 'pb-24 lg:pb-8'"
+      >
         <RouterView />
         <p v-if="!isProduction" class="mt-8 text-center text-xs text-slate-600">
           Local dev — production: <span class="text-teal-500">remotematch.onrender.com</span>
         </p>
       </main>
 
-      <!-- Mobile bottom tab bar -->
+      <!-- Mobile bottom tab bar (hidden during onboarding) -->
       <nav
+        v-if="route.path !== '/onboarding'"
         class="safe-bottom fixed inset-x-0 bottom-0 z-40 flex border-t border-teal-900/40 bg-slate-950/95 backdrop-blur lg:hidden"
       >
         <RouterLink
           v-for="item in mobileNav"
           :key="item.to"
           :to="item.to"
-          class="flex flex-1 flex-col items-center gap-0.5 py-2 text-[10px] transition"
-          :class="route.path === item.to ? 'text-teal-300' : 'text-slate-500'"
+          class="flex flex-1 flex-col items-center gap-1 py-2.5 text-[11px] font-medium transition"
+          :class="
+            route.path === item.to
+              ? 'bg-teal-500/10 text-teal-200'
+              : 'text-slate-400 hover:text-slate-300'
+          "
         >
-          <span class="text-lg">{{ item.icon }}</span>
+          <span
+            class="text-xl leading-none"
+            :class="route.path === item.to ? 'text-teal-300' : 'text-slate-500'"
+          >
+            {{ item.icon }}
+          </span>
           {{ item.label }}
         </RouterLink>
       </nav>

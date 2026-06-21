@@ -16,6 +16,9 @@ const DEFAULT = {
   resumeText: '',
   minMatchScore: 60,
   onboardingComplete: false,
+  extractedSkills: [],
+  resumeFileName: '',
+  savedJobs: [],
 };
 
 function storePath() {

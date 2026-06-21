@@ -16,6 +16,22 @@ const profileSchema = new mongoose.Schema(
     resumeText: { type: String, default: '' },
     minMatchScore: { type: Number, default: 60 },
     onboardingComplete: { type: Boolean, default: false },
+    extractedSkills: { type: [String], default: [] },
+    resumeFileName: { type: String, default: '' },
+    resumeParsedAt: { type: Date },
+    savedJobs: {
+      type: [
+        {
+          jobId: { type: String, required: true },
+          title: String,
+          company: String,
+          url: String,
+          matchPct: { type: Number, default: 0 },
+          savedAt: { type: Date, default: Date.now },
+        },
+      ],
+      default: [],
+    },
   },
   { timestamps: true }
 );

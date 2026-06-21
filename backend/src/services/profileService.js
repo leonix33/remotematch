@@ -1,6 +1,7 @@
 const Profile = require('../models/Profile');
 const env = require('../config/env');
 const profileFileService = require('./profileFileService');
+const { enrichProfileResponse } = require('./resumeParseService');
 
 function isComplete(profile) {
   return Boolean(
@@ -13,11 +14,11 @@ function isComplete(profile) {
 
 function toResponse(profile) {
   const doc = profile.toObject ? profile.toObject() : profile;
-  return {
+  return enrichProfileResponse({
     ...doc,
     complete: isComplete(doc),
     mongoRequired: false,
-  };
+  });
 }
 
 async function getOrCreate(userId) {

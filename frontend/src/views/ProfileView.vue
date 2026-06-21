@@ -3,6 +3,7 @@ import { onMounted, ref } from 'vue';
 import http from '../api/http';
 import { useProfileStore } from '../stores/profile';
 import { appUrl } from '../config';
+import ResumeUpload from '../components/ResumeUpload.vue';
 
 const profileStore = useProfileStore();
 const saving = ref(false);
@@ -156,14 +157,14 @@ async function copyExt(value, label) {
         </div>
         <div>
           <label class="mb-1 block text-sm text-slate-400">Headline</label>
-          <input v-model="form.headline" class="input" placeholder="DevOps · Cloud · SRE" />
+          <input v-model="form.headline" class="input" placeholder="Platform Engineer | Azure | Databricks | Terraform" />
         </div>
       </div>
 
       <div class="grid gap-4 md:grid-cols-3">
-        <input v-model="form.linkedin" class="input" placeholder="LinkedIn" />
-        <input v-model="form.github" class="input" placeholder="GitHub" />
-        <input v-model="form.portfolio" class="input" placeholder="Portfolio" />
+        <input v-model="form.linkedin" class="input" placeholder="https://linkedin.com/in/your-profile" />
+        <input v-model="form.github" class="input" placeholder="https://github.com/your-username" />
+        <input v-model="form.portfolio" class="input" placeholder="https://your-portfolio.com" />
       </div>
 
       <div>
@@ -188,8 +189,17 @@ async function copyExt(value, label) {
       </div>
 
       <div>
-        <label class="mb-1 block text-sm text-slate-400">Resume highlights</label>
-        <textarea v-model="form.resumeText" rows="6" class="input text-sm" />
+        <label class="mb-1 block text-sm text-slate-400">Resume</label>
+        <ResumeUpload
+          v-model="form.resumeText"
+          :apply-to-profile="true"
+          :merge-skills="true"
+          @parsed="() => profileStore.profile && loadForm(profileStore.profile)"
+        />
+        <textarea v-model="form.resumeText" rows="6" class="input mt-3 text-sm" placeholder="Or paste resume text…" />
+        <p v-if="profileStore.extractedSkills.length" class="mt-2 text-xs text-slate-500">
+          {{ profileStore.extractedSkills.length }} skills detected from your resume
+        </p>
       </div>
 
       <div>

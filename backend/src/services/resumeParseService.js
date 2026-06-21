@@ -1,0 +1,252 @@
+const pdf = require('pdf-parse');
+
+const MUST_HAVE_CATALOG = [
+  'kubernetes',
+  'k8s',
+  'terraform',
+  'aws',
+  'azure',
+  'gcp',
+  'google cloud',
+  'docker',
+  'linux',
+  'python',
+  'go',
+  'golang',
+  'java',
+  'ci/cd',
+  'cicd',
+  'jenkins',
+  'github actions',
+  'gitlab',
+  'ansible',
+  'puppet',
+  'chef',
+  'helm',
+  'argocd',
+  'argo cd',
+  'devops',
+  'sre',
+  'site reliability',
+  'platform engineer',
+  'cloud engineer',
+  'infrastructure',
+  'networking',
+  'bash',
+  'shell',
+  'sql',
+  'postgresql',
+  'mysql',
+  'mongodb',
+  'redis',
+  'nginx',
+  'apache',
+  'istio',
+  'service mesh',
+  'vpc',
+  'iam',
+  'lambda',
+  'ecs',
+  'eks',
+  'aks',
+  'gke',
+  'pulumi',
+  'cloudformation',
+  'bicep',
+  'vault',
+  'consul',
+];
+
+const NICE_TO_HAVE_CATALOG = [
+  'databricks',
+  'spark',
+  'kafka',
+  'prometheus',
+  'grafana',
+  'datadog',
+  'new relic',
+  'splunk',
+  'elk',
+  'elasticsearch',
+  'opentelemetry',
+  'observability',
+  'mlops',
+  'machine learning',
+  'airflow',
+  'dbt',
+  'snowflake',
+  'bigquery',
+  'redis',
+  'rabbitmq',
+  'graphql',
+  'typescript',
+  'node.js',
+  'nodejs',
+  'react',
+  'vue',
+  'rust',
+  'security',
+  'soc2',
+  'hipaa',
+  'pci',
+  'finops',
+  'cost optimization',
+];
+
+const TITLE_HINTS = [
+  'devops engineer',
+  'site reliability engineer',
+  'platform engineer',
+  'cloud engineer',
+  'infrastructure engineer',
+  'systems engineer',
+  'software engineer',
+  'backend engineer',
+  'security engineer',
+  'data engineer',
+];
+
+function normalize(text = '') {
+  return String(text).toLowerCase().replace(/\s+/g, ' ').trim();
+}
+
+function includesSkill(text, skill) {
+  const hay = normalize(text);
+  const needle = normalize(skill);
+  if (!needle) return false;
+  if (hay.includes(needle)) return true;
+  if (needle.includes('/') || needle.includes(' ')) return hay.includes(needle);
+  const re = new RegExp(`\\b${needle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
+  return re.test(hay);
+}
+
+function uniqueSkills(list) {
+  const seen = new Set();
+  const out = [];
+  for (const item of list) {
+    const key = normalize(item);
+    if (!key || seen.has(key)) continue;
+    seen.add(key);
+    out.push(item);
+  }
+  return out;
+}
+
+function scanCatalog(text, catalog) {
+  return uniqueSkills(catalog.filter((skill) => includesSkill(text, skill)));
+}
+
+function extractSkillsFromText(text) {
+  const mustHave = scanCatalog(text, MUST_HAVE_CATALOG);
+  const niceToHave = scanCatalog(text, NICE_TO_HAVE_CATALOG).filter(
+    (skill) => !mustHave.some((m) => normalize(m) === normalize(skill))
+  );
+  return {
+    mustHave,
+    niceToHave,
+    all: uniqueSkills([...mustHave, ...niceToHave]),
+  };
+}
+
+function suggestTitles(text) {
+  const normalized = normalize(text);
+  return uniqueSkills(TITLE_HINTS.filter((title) => normalized.includes(title)));
+}
+
+function suggestHeadline(text, extractedSkills) {
+  const top = (extractedSkills.mustHave.length ? extractedSkills.mustHave : extractedSkills.all).slice(0, 4);
+  if (!top.length) return '';
+  const role =
+    suggestTitles(text).find((t) => /engineer|devops|sre|platform|cloud/i.test(t)) || 'Platform Engineer';
+  return top.map((s) => s.replace(/\b\w/g, (c) => c.toUpperCase())).join(' | ').replace(/^/, `${role} | `).slice(0, 120);
+}
+
+function computeResumeScore(profile) {
+  const text = (profile?.resumeText || '').trim();
+  const extracted = profile?.extractedSkills?.length
+    ? profile.extractedSkills
+    : extractSkillsFromText(text).all;
+
+  let score = 0;
+  const len = text.length;
+
+  if (len > 0) score += 15;
+  if (len >= 200) score += 15;
+  if (len >= 500) score += 10;
+  if (len >= 1200) score += 10;
+
+  const mustCount = profile?.mustHaveSkills?.length || 0;
+  const niceCount = profile?.niceToHaveSkills?.length || 0;
+  if (mustCount >= 3) score += 15;
+  if (mustCount >= 6) score += 5;
+  if (niceCount >= 2) score += 5;
+
+  if (profile?.headline?.trim()) score += 10;
+  if (profile?.targetTitles?.length) score += 10;
+  if (extracted.length >= 5) score += 10;
+  if (extracted.length >= 10) score += 5;
+
+  return Math.min(100, score);
+}
+
+async function extractTextFromBuffer(buffer, filename = '') {
+  const name = filename.toLowerCase();
+  if (name.endsWith('.pdf')) {
+    const data = await pdf(buffer);
+    return (data.text || '').replace(/\s+/g, ' ').trim();
+  }
+  return buffer.toString('utf8').trim();
+}
+
+function mergeSkillLists(existing, incoming) {
+  const lines = String(existing || '')
+    .split('\n')
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const merged = uniqueSkills([...lines, ...incoming]);
+  return merged.join('\n');
+}
+
+async function parseResumeFile(buffer, filename = 'resume.pdf') {
+  const resumeText = await extractTextFromBuffer(buffer, filename);
+  if (!resumeText || resumeText.length < 20) {
+    const err = new Error('Could not extract readable text from this file. Try a text-based PDF or paste your resume.');
+    err.status = 400;
+    throw err;
+  }
+
+  const extractedSkills = extractSkillsFromText(resumeText);
+  const suggestedTitles = suggestTitles(resumeText);
+  const suggestedHeadline = suggestHeadline(resumeText, extractedSkills);
+
+  return {
+    resumeText,
+    extractedSkills,
+    suggestedTitles,
+    suggestedHeadline,
+    wordCount: resumeText.split(/\s+/).filter(Boolean).length,
+    charCount: resumeText.length,
+  };
+}
+
+function enrichProfileResponse(profile) {
+  const extractedSkills =
+    profile.extractedSkills?.length > 0
+      ? profile.extractedSkills
+      : extractSkillsFromText(profile.resumeText || '').all;
+
+  const enriched = {
+    ...profile,
+    extractedSkills,
+    resumeScore: computeResumeScore({ ...profile, extractedSkills }),
+  };
+  return enriched;
+}
+
+module.exports = {
+  extractSkillsFromText,
+  computeResumeScore,
+  parseResumeFile,
+  enrichProfileResponse,
+  mergeSkillLists,
+};

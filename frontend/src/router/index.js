@@ -29,9 +29,9 @@ const router = createRouter({
     { path: '/welcome', component: LandingView, meta: { guest: true } },
     { path: '/login', component: LoginView, meta: { guest: true } },
     { path: '/onboarding', component: OnboardingView, meta: { requiresAuth: true, skipOnboarding: true } },
-    { path: '/', component: DashboardView, meta: { requiresAuth: true } },
+    { path: '/', component: DashboardView, meta: { requiresAuth: true, skipOnboarding: true } },
     { path: '/profile', component: ProfileView, meta: { requiresAuth: true, skipOnboarding: true } },
-    { path: '/jobs', component: JobsView, meta: { requiresAuth: true } },
+    { path: '/jobs', component: JobsView, meta: { requiresAuth: true, skipOnboarding: true } },
     { path: '/approvals', component: ApprovalsView, meta: { requiresAuth: true } },
     { path: '/chat', component: ChatView, meta: { requiresAuth: true, skipOnboarding: true } },
     { path: '/intelligence', component: IntelligenceView, meta: { requiresAuth: true, skipOnboarding: true } },
@@ -42,7 +42,7 @@ const router = createRouter({
     { path: '/swarm', component: SwarmView, meta: { requiresAuth: true, skipOnboarding: true } },
     { path: '/resumes', component: ResumesView, meta: { requiresAuth: true, skipOnboarding: true } },
     { path: '/calendar', component: CalendarView, meta: { requiresAuth: true, skipOnboarding: true } },
-    { path: '/applications', component: ApplicationsView, meta: { requiresAuth: true } },
+    { path: '/applications', component: ApplicationsView, meta: { requiresAuth: true, skipOnboarding: true } },
     { path: '/generator', component: GeneratorView, meta: { requiresAuth: true } },
     { path: '/agent', component: AgentView, meta: { requiresAuth: true } },
     { path: '/analytics', component: AnalyticsView, meta: { requiresAuth: true } },
@@ -65,7 +65,12 @@ router.beforeEach(async (to) => {
         return true;
       }
     }
-    if (!profileStore.complete && !profileStore.profile?.mongoRequired && to.path !== '/onboarding') {
+    if (
+      !profileStore.complete &&
+      !profileStore.profile?.mongoRequired &&
+      !profileStore.profile?.onboardingComplete &&
+      to.path !== '/onboarding'
+    ) {
       return '/onboarding';
     }
   }

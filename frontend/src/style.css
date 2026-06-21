@@ -21,7 +21,11 @@ body {
 }
 
 .btn-primary {
-  @apply min-h-[44px] rounded-xl bg-teal-500 px-4 py-2 font-semibold text-slate-950 transition hover:bg-teal-400 active:scale-[0.98] disabled:opacity-50;
+  @apply min-h-[48px] rounded-xl bg-teal-500 px-4 py-2.5 font-semibold text-slate-950 shadow-lg shadow-teal-900/40 transition hover:bg-teal-400 hover:shadow-teal-800/50 active:scale-[0.98] disabled:opacity-50;
+}
+
+.btn-continue {
+  @apply flex items-center justify-center gap-1;
 }
 
 .btn-secondary {
