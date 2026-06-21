@@ -37,10 +37,14 @@ async function loadSummary() {
 async function load() {
   loading.value = true;
   error.value = '';
+  const currentStatus = status.value;
   try {
-    const { data } = await http.get('/approvals', { params: { status } });
-    items.value = data;
-    await loadSummary();
+    const [listRes, summaryRes] = await Promise.all([
+      http.get('/approvals', { params: { status: currentStatus } }),
+      http.get('/approvals/summary'),
+    ]);
+    items.value = Array.isArray(listRes.data) ? listRes.data : [];
+    counts.value = summaryRes.data;
   } catch (e) {
     const msg = e.response?.data?.message || e.message || 'Could not load approval queue';
     error.value = `${msg} — try logging out and back in, or click Refresh below.`;
@@ -98,7 +102,7 @@ function sectionBadge(s) {
 }
 
 onMounted(() => { load(); loadWhisper(); });
-watch(status, load);
+watch(status, () => load());
 </script>
 
 <template>
