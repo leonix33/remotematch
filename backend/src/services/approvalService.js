@@ -311,6 +311,33 @@ async function addExternal(userId, { url, title, company }) {
   return localApprovalService.set(userId, jobId, row);
 }
 
+async function queueJob(userId, { jobId, title, company, url, matchPct = 0, atsType, source = 'user' }) {
+  if (!jobId) throw new Error('jobId is required');
+
+  let job = (await loadJobs(0)).find((j) => j.jobId === jobId);
+  const row = {
+    title: job?.title || title || 'Job',
+    company: job?.company || company || 'Unknown',
+    url: job?.url || url || '',
+    matchPct: job?.personalMatchPct ?? job?.matchPct ?? matchPct ?? 0,
+    atsType: job?.atsType || atsType,
+    source: job?.source || source,
+    status: 'pending',
+    notes: '',
+    reviewedAt: null,
+  };
+
+  if (!env.mongoUri) {
+    return localApprovalService.set(userId, jobId, row);
+  }
+
+  return JobApproval.findOneAndUpdate(
+    { userId, jobId },
+    { userId, jobId, ...row },
+    { upsert: true, new: true }
+  );
+}
+
 module.exports = {
   listForUser,
   setStatus,
@@ -319,4 +346,5 @@ module.exports = {
   listApproved,
   markApplied,
   addExternal,
+  queueJob,
 };

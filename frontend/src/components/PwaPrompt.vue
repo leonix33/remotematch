@@ -63,6 +63,9 @@ onMounted(() => {
       <span class="text-slate-200">Enable push for matches &amp; messages</span>
       <button class="btn-primary shrink-0 py-1.5 text-sm" @click="enablePush">Enable</button>
     </div>
+    <p v-if="showPush && !subscribed" class="rounded-xl bg-slate-900/90 px-4 py-2 text-center text-[11px] text-slate-500">
+      Notifications are optional. We only send job matches, apply updates, and messages — never ads.
+    </p>
     <p v-if="error" class="text-center text-xs text-red-300">{{ error }}</p>
   </div>
 </template>

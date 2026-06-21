@@ -22,17 +22,20 @@ import LandingView from '../views/LandingView.vue';
 import OutcomesView from '../views/OutcomesView.vue';
 import ResumesView from '../views/ResumesView.vue';
 import CalendarView from '../views/CalendarView.vue';
+import LegalView from '../views/LegalView.vue';
 
 const router = createRouter({
   history: createWebHistory(),
   routes: [
     { path: '/welcome', component: LandingView, meta: { guest: true } },
     { path: '/login', component: LoginView, meta: { guest: true } },
+    { path: '/privacy', component: LegalView, meta: { guest: true } },
+    { path: '/terms', component: LegalView, meta: { guest: true } },
     { path: '/onboarding', component: OnboardingView, meta: { requiresAuth: true, skipOnboarding: true } },
     { path: '/', component: DashboardView, meta: { requiresAuth: true, skipOnboarding: true } },
     { path: '/profile', component: ProfileView, meta: { requiresAuth: true, skipOnboarding: true } },
     { path: '/jobs', component: JobsView, meta: { requiresAuth: true, skipOnboarding: true } },
-    { path: '/approvals', component: ApprovalsView, meta: { requiresAuth: true } },
+    { path: '/approvals', component: ApprovalsView, meta: { requiresAuth: true, skipOnboarding: true } },
     { path: '/chat', component: ChatView, meta: { requiresAuth: true, skipOnboarding: true } },
     { path: '/intelligence', component: IntelligenceView, meta: { requiresAuth: true, skipOnboarding: true } },
     { path: '/interview', component: InterviewView, meta: { requiresAuth: true, skipOnboarding: true } },
@@ -53,7 +56,7 @@ const router = createRouter({
 router.beforeEach(async (to) => {
   const auth = useAuthStore();
   if (to.meta.requiresAuth && !auth.accessToken) return '/login';
-  if (to.meta.guest && auth.accessToken && to.path !== '/welcome') return '/';
+  if (to.meta.guest && auth.accessToken && !['/welcome', '/privacy', '/terms'].includes(to.path)) return '/';
   if (to.meta.adminOnly && auth.user?.role !== 'admin') return '/';
 
   if (auth.accessToken && to.meta.requiresAuth && !to.meta.skipOnboarding) {

@@ -45,7 +45,7 @@ function logout() {
 </script>
 
 <template>
-  <div v-if="route.path === '/login'" class="min-h-screen safe-top safe-bottom">
+  <div v-if="route.path === '/login' || route.path === '/privacy' || route.path === '/terms'" class="min-h-screen safe-top safe-bottom">
     <RouterView />
   </div>
   <div v-else class="flex min-h-screen min-h-dvh">
@@ -70,10 +70,14 @@ function logout() {
           {{ item.label }}
         </RouterLink>
       </nav>
-      <div class="mt-auto pt-10">
+      <div class="mt-auto space-y-4 pt-10">
         <p class="text-sm font-medium text-slate-200">{{ auth.user?.name }}</p>
         <p class="text-xs text-slate-500">{{ auth.user?.role }}</p>
-        <button class="btn-secondary mt-4 w-full text-sm" @click="logout">Logout</button>
+        <div class="flex gap-3 text-[11px] text-slate-600">
+          <RouterLink to="/privacy" class="hover:text-teal-500">Privacy</RouterLink>
+          <RouterLink to="/terms" class="hover:text-teal-500">Terms</RouterLink>
+        </div>
+        <button class="btn-secondary w-full text-sm" @click="logout">Logout</button>
       </div>
     </aside>
 

@@ -1,5 +1,6 @@
 const { z } = require('zod');
 const authService = require('../services/authService');
+const userDataService = require('../services/userDataService');
 const env = require('../config/env');
 
 const loginSchema = z.object({
@@ -69,4 +70,25 @@ async function extensionToken(req, res, next) {
   }
 }
 
-module.exports = { login, me, changePassword, extensionToken };
+async function exportData(req, res, next) {
+  try {
+    const data = await userDataService.exportUserData(req.user.sub);
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Content-Disposition', 'attachment; filename="remotematch-data-export.json"');
+    res.json(data);
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function deleteAccount(req, res, next) {
+  try {
+    const body = z.object({ password: z.string().min(8) }).parse(req.body);
+    const result = await userDataService.deleteUserAccount(req.user.sub, body.password);
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { login, me, changePassword, extensionToken, exportData, deleteAccount };

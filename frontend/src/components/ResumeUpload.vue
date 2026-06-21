@@ -25,9 +25,18 @@ async function fileToBase64(file) {
   return btoa(binary);
 }
 
+const MAX_RESUME_BYTES = 8 * 1024 * 1024;
+
 async function handleFile(event) {
   const file = event.target.files?.[0];
   if (!file) return;
+
+  if (file.size > MAX_RESUME_BYTES) {
+    localError.value = 'Resume must be 8 MB or smaller. Try a shorter PDF or paste text instead.';
+    emit('error', localError.value);
+    event.target.value = '';
+    return;
+  }
 
   localError.value = '';
   parseSummary.value = null;
@@ -74,7 +83,7 @@ async function handleFile(event) {
       <span class="mt-2 text-sm font-medium text-slate-300">
         {{ parsing ? 'Parsing resume…' : fileName || 'Upload resume (PDF, .txt, .md)' }}
       </span>
-      <span class="mt-1 text-xs text-slate-500">We extract skills and improve your match score</span>
+      <span class="mt-1 text-xs text-slate-500">PDF, .txt, or .md · max 8 MB</span>
       <input
         type="file"
         accept=".pdf,.txt,.md,.text,application/pdf"

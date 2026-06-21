@@ -54,6 +54,11 @@ async function submit() {
         </button>
       </form>
       <p class="mt-6 text-center text-xs text-slate-500">Invite-only access · Admin creates accounts</p>
+      <p class="mt-3 text-center text-xs text-slate-600">
+        <RouterLink to="/privacy" class="text-teal-500 hover:underline">Privacy</RouterLink>
+        ·
+        <RouterLink to="/terms" class="text-teal-500 hover:underline">Terms</RouterLink>
+      </p>
       <p class="mt-3 text-center text-sm">
         <RouterLink to="/welcome" class="text-teal-400 hover:underline">← Back to home</RouterLink>
       </p>

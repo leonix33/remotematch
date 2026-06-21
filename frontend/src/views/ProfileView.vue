@@ -1,11 +1,15 @@
 <script setup>
 import { onMounted, ref } from 'vue';
+import { useRouter } from 'vue-router';
 import http from '../api/http';
 import { useProfileStore } from '../stores/profile';
+import { useAuthStore } from '../stores/auth';
 import { appUrl } from '../config';
 import ResumeUpload from '../components/ResumeUpload.vue';
 
+const router = useRouter();
 const profileStore = useProfileStore();
+const auth = useAuthStore();
 const saving = ref(false);
 const error = ref('');
 const success = ref('');
@@ -19,6 +23,10 @@ const extToken = ref('');
 const extCopied = ref('');
 const extConnected = ref(false);
 const extConnectMsg = ref('');
+const exportLoading = ref(false);
+const deleteLoading = ref(false);
+const deleteError = ref('');
+const deletePassword = ref('');
 
 const form = ref({
   displayName: '',
@@ -50,6 +58,44 @@ function loadForm(p) {
     resumeText: p.resumeText || '',
     minMatchScore: p.minMatchScore || 60,
   };
+}
+
+async function exportData() {
+  exportLoading.value = true;
+  try {
+    const { data } = await http.get('/auth/export-data');
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'remotematch-data-export.json';
+    a.click();
+    URL.revokeObjectURL(url);
+  } catch (e) {
+    error.value = e.response?.data?.message || 'Could not export data';
+  } finally {
+    exportLoading.value = false;
+  }
+}
+
+async function deleteAccount() {
+  deleteError.value = '';
+  if (!deletePassword.value) {
+    deleteError.value = 'Enter your password to confirm deletion';
+    return;
+  }
+  if (!confirm('Delete your account permanently? This removes your profile, queue, and calendar data.')) return;
+  deleteLoading.value = true;
+  try {
+    await http.delete('/auth/account', { data: { password: deletePassword.value } });
+    auth.logout();
+    profileStore.reset();
+    router.push('/login');
+  } catch (e) {
+    deleteError.value = e.response?.data?.message || 'Could not delete account';
+  } finally {
+    deleteLoading.value = false;
+  }
 }
 
 async function connectExtension() {
@@ -257,5 +303,31 @@ async function copyExt(value, label) {
       <p v-if="pwdSuccess" class="text-sm text-teal-300">{{ pwdSuccess }}</p>
       <button type="submit" class="btn-secondary" :disabled="pwdSaving">{{ pwdSaving ? 'Updating…' : 'Update password' }}</button>
     </form>
+
+    <div class="card mt-8 space-y-4 p-6">
+      <h3 class="font-semibold text-slate-200">Your data</h3>
+      <p class="text-sm text-slate-500">
+        Export a copy of your profile, apply queue, and calendar events. You can also permanently delete your account.
+      </p>
+      <div class="flex flex-wrap gap-3">
+        <button type="button" class="btn-secondary" :disabled="exportLoading" @click="exportData">
+          {{ exportLoading ? 'Preparing…' : 'Export my data' }}
+        </button>
+      </div>
+      <div class="border-t border-slate-800 pt-4">
+        <p class="text-sm font-medium text-red-300">Delete account</p>
+        <p class="mt-1 text-xs text-slate-500">This cannot be undone. Your profile, queue, and calendar data will be removed.</p>
+        <input v-model="deletePassword" type="password" class="input mt-3" placeholder="Confirm with your password" />
+        <p v-if="deleteError" class="mt-2 text-sm text-red-300">{{ deleteError }}</p>
+        <button type="button" class="btn-secondary mt-3 border-red-800 text-red-300" :disabled="deleteLoading" @click="deleteAccount">
+          {{ deleteLoading ? 'Deleting…' : 'Delete my account' }}
+        </button>
+      </div>
+      <p class="text-xs text-slate-600">
+        <router-link to="/privacy" class="text-teal-500 hover:underline">Privacy Policy</router-link>
+        ·
+        <router-link to="/terms" class="text-teal-500 hover:underline">Terms of Use</router-link>
+      </p>
+    </div>
   </div>
 </template>

@@ -4,12 +4,17 @@ import { RouterLink } from 'vue-router';
 import http from '../api/http';
 import { useProfileStore } from '../stores/profile';
 import ResumeUpload from '../components/ResumeUpload.vue';
+import ApplyWorkflowBanner from '../components/ApplyWorkflowBanner.vue';
+import { useApplyQueue } from '../composables/useApplyQueue';
 
 const profileStore = useProfileStore();
+const { queueing, addToQueue } = useApplyQueue();
 const recommendedJobs = ref([]);
 const applications = ref([]);
 const followUps = ref([]);
 const loading = ref(true);
+const queueMessage = ref('');
+const queueError = ref('');
 
 const savedJobs = computed(() => profileStore.profile?.savedJobs || []);
 const extractedSkills = computed(() => profileStore.extractedSkills.slice(0, 10));
@@ -59,6 +64,18 @@ function followUpIcon(type) {
   if (type === 'interview') return '🎙';
   if (type === 'deadline') return '⏰';
   return '📌';
+}
+
+async function queueJob(job) {
+  queueMessage.value = '';
+  queueError.value = '';
+  try {
+    await addToQueue(job, 'dashboard');
+    queueMessage.value = `${job.title} added to your apply queue`;
+    await loadRecommendedJobs();
+  } catch (e) {
+    queueError.value = e.response?.data?.message || 'Could not add to queue';
+  }
 }
 
 async function loadRecommendedJobs() {
@@ -134,6 +151,11 @@ onMounted(async () => {
       </div>
     </div>
 
+    <ApplyWorkflowBanner class="mt-6" />
+
+    <p v-if="queueMessage" class="mt-4 rounded-lg bg-teal-500/10 px-3 py-2 text-sm text-teal-200">{{ queueMessage }}</p>
+    <p v-if="queueError" class="mt-4 rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-300">{{ queueError }}</p>
+
     <!-- Profile incomplete empty state -->
     <div
       v-if="profileIncomplete"
@@ -168,12 +190,14 @@ onMounted(async () => {
               </div>
               <div class="flex items-center gap-2">
                 <span class="badge badge-teal">{{ matchPct(job) }}%</span>
-                <RouterLink
-                  :to="job.status === 'pending' ? '/approvals' : '/jobs'"
-                  class="btn-secondary px-2 py-1 text-xs"
+                <button
+                  class="btn-primary px-2 py-1 text-xs"
+                  :disabled="queueing === job.jobId"
+                  @click="queueJob(job)"
                 >
-                  View
-                </RouterLink>
+                  {{ queueing === job.jobId ? '…' : 'Queue' }}
+                </button>
+                <RouterLink to="/approvals" class="btn-secondary px-2 py-1 text-xs">Review</RouterLink>
               </div>
             </div>
           </div>
@@ -202,7 +226,9 @@ onMounted(async () => {
                   <p class="truncate font-medium text-slate-200">{{ app.title }}</p>
                   <p class="text-xs text-slate-500">{{ app.lastAttempted || 'No attempts yet' }}</p>
                 </div>
-                <span class="badge shrink-0" :class="statusClass(app.status)">{{ app.status }}</span>
+                <span class="badge shrink-0" :class="statusClass(app.status)">
+                  <RouterLink to="/applications" class="hover:underline">{{ app.status }}</RouterLink>
+                </span>
               </div>
             </div>
             <p v-else class="mt-4 text-sm text-slate-500">
@@ -269,6 +295,13 @@ onMounted(async () => {
                 </div>
                 <div class="flex items-center gap-2">
                   <span v-if="job.matchPct" class="badge badge-teal">{{ job.matchPct }}%</span>
+                  <button
+                    class="btn-primary px-2 py-1 text-xs"
+                    :disabled="queueing === job.jobId"
+                    @click="queueJob(job)"
+                  >
+                    {{ queueing === job.jobId ? '…' : 'Queue' }}
+                  </button>
                   <a
                     v-if="job.url"
                     :href="job.url"

@@ -148,7 +148,10 @@ watch([viewYear, viewMonth], load);
 <template>
   <div>
     <h2 class="text-2xl font-bold text-slate-100">Calendar</h2>
-    <p class="mt-1 text-slate-400">Interviews, deadlines, conferences, and personal reminders — all in one place</p>
+    <p class="mt-1 text-slate-400">Interviews, deadlines, conferences, and application follow-ups — all in one place.</p>
+    <p class="mt-2 text-xs text-slate-500">
+      Calendar data is stored on your account to power follow-up reminders. Optional push notifications require browser permission.
+    </p>
 
     <p v-if="error" class="mt-4 text-sm text-red-300">{{ error }}</p>
 

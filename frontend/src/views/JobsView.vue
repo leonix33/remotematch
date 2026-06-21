@@ -1,9 +1,12 @@
 <script setup>
 import { onMounted, ref, watch } from 'vue';
+import { RouterLink } from 'vue-router';
 import http from '../api/http';
 import { useProfileStore } from '../stores/profile';
+import { useApplyQueue } from '../composables/useApplyQueue';
 
 const profileStore = useProfileStore();
+const { queueing, addToQueue } = useApplyQueue();
 const jobs = ref([]);
 const contacts = ref([]);
 const loading = ref(true);
@@ -18,6 +21,19 @@ const squadJob = ref(null);
 const squadMembers = ref([]);
 const aiLoading = ref(false);
 const savingJobId = ref('');
+const queueMessage = ref('');
+const queueError = ref('');
+
+async function addJobToQueue(job) {
+  queueMessage.value = '';
+  queueError.value = '';
+  try {
+    await addToQueue(job, 'jobs');
+    queueMessage.value = `Added "${job.title}" to your apply queue`;
+  } catch (e) {
+    queueError.value = e.response?.data?.message || 'Could not add to queue';
+  }
+}
 
 async function toggleSave(job) {
   savingJobId.value = job.jobId;
@@ -122,7 +138,13 @@ watch([section, minMatch], load);
 <template>
   <div>
     <h2 class="text-2xl font-bold">Jobs</h2>
-    <p class="mt-1 text-slate-400">Matched remote roles — Match Copilot, resume diff, apply squads</p>
+    <p class="mt-1 text-slate-400">Save roles you like, add strong matches to your apply queue, then approve in one place.</p>
+
+    <p v-if="queueMessage" class="mt-4 rounded-lg bg-teal-500/10 px-3 py-2 text-sm text-teal-200">
+      {{ queueMessage }}
+      <RouterLink to="/approvals" class="ml-2 underline">Open queue →</RouterLink>
+    </p>
+    <p v-if="queueError" class="mt-4 rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-300">{{ queueError }}</p>
 
     <div class="mt-6 flex flex-wrap gap-3">
       <select v-model="section" class="input w-auto">
@@ -164,12 +186,22 @@ watch([section, minMatch], load);
           >
             {{ isSaved(job.jobId) ? '★ Saved' : '☆ Save' }}
           </button>
+          <button
+            class="btn-primary px-2 py-1 text-xs"
+            :disabled="queueing === job.jobId"
+            @click="addJobToQueue(job)"
+          >
+            {{ queueing === job.jobId ? '…' : '+ Queue' }}
+          </button>
           <button class="btn-secondary px-2 py-1 text-xs" @click="runCopilot(job)">Match Copilot</button>
           <button class="btn-secondary px-2 py-1 text-xs" @click="runResumeDiff(job)">Resume diff</button>
           <button class="btn-secondary px-2 py-1 text-xs" @click="openSquad(job)">Apply squad</button>
         </div>
       </div>
-      <p v-if="!jobs.length" class="text-slate-500">No jobs found. Run the agent to fetch new listings.</p>
+      <p v-if="!jobs.length" class="rounded-xl border border-dashed border-slate-700 bg-slate-800/30 p-6 text-center text-slate-500">
+        No jobs match your filters.
+        <span class="mt-2 block text-sm">Run the agent to fetch new listings, or lower the match threshold.</span>
+      </p>
     </div>
 
     <div v-if="copilotJob" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" @click.self="copilotJob = null">

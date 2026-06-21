@@ -10,6 +10,25 @@ async function queueExternal(req, res, next) {
   }
 }
 
+async function queueJob(req, res, next) {
+  try {
+    const { jobId, title, company, url, matchPct, atsType, source } = req.body;
+    if (!jobId) return res.status(400).json({ message: 'jobId is required' });
+    const item = await approvalService.queueJob(req.user.sub, {
+      jobId,
+      title,
+      company,
+      url,
+      matchPct,
+      atsType,
+      source,
+    });
+    res.status(201).json({ message: 'Added to apply queue', item });
+  } catch (err) {
+    next(err);
+  }
+}
+
 async function list(req, res, next) {
   try {
     const result = await approvalService.listForUser(req.user.sub, {
@@ -80,4 +99,4 @@ async function bulkReject(req, res, next) {
   }
 }
 
-module.exports = { list, summary, approve, reject, queueExternal, bulkApprove, bulkReject };
+module.exports = { list, summary, approve, reject, queueExternal, queueJob, bulkApprove, bulkReject };
