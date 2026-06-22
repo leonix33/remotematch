@@ -1,37 +1,81 @@
 const Job = require('../models/Job');
 const jobService = require('../services/jobService');
+const jobIngestService = require('../services/jobs/jobIngestService');
 const profileService = require('../services/profileService');
 const { scoreJobsForProfile } = require('../services/jobScoringService');
 const env = require('../config/env');
 
+function applyJobFilters(jobs, { section, minMatch, minQuality, source, freshness, search }) {
+  let list = jobs;
+  if (section && section !== 'all') {
+    list = list.filter((j) => j.emailSection === section);
+  }
+  if (Number(minMatch) > 0) {
+    list = list.filter((j) => (j.personalMatchPct ?? j.matchPct ?? 0) >= Number(minMatch));
+  }
+  if (Number(minQuality) > 0) {
+    list = list.filter((j) => (j.qualityScore || 0) >= Number(minQuality));
+  }
+  if (source && source !== 'all') {
+    const needle = source.toLowerCase();
+    list = list.filter((j) => (j.source || '').toLowerCase().includes(needle));
+  }
+  if (freshness) {
+    list = list.filter((j) => j.freshnessLabel === freshness);
+  }
+  if (search) {
+    const needle = search.toLowerCase();
+    list = list.filter((j) =>
+      [j.title, j.company, j.location, j.source, (j.skills || []).join(' ')]
+        .join(' ')
+        .toLowerCase()
+        .includes(needle)
+    );
+  }
+  return list;
+}
+
 async function listJobs(req, res, next) {
   try {
-    const { section = 'all', minMatch = '0', search = '' } = req.query;
+    const {
+      section = 'all',
+      minMatch = '0',
+      minQuality = '0',
+      source = 'all',
+      freshness = '',
+      search = '',
+    } = req.query;
     let jobs;
     if (env.mongoUri) {
       const query = {};
       if (section !== 'all') query.emailSection = section;
       if (Number(minMatch) > 0) query.matchPct = { $gte: Number(minMatch) };
-      jobs = await Job.find(query).sort({ matchPct: -1, score: -1 }).limit(5000).lean();
+      if (Number(minQuality) > 0) query.qualityScore = { $gte: Number(minQuality) };
+      if (source !== 'all') query.source = new RegExp(source, 'i');
+      if (freshness) query.freshnessLabel = freshness;
+      jobs = await Job.find(query)
+        .sort({ qualityScore: -1, freshnessScore: -1, matchPct: -1 })
+        .limit(5000)
+        .lean();
       if (search) {
-        const needle = search.toLowerCase();
-        jobs = jobs.filter((j) =>
-          [j.title, j.company, j.location, j.source].join(' ').toLowerCase().includes(needle)
-        );
+        jobs = applyJobFilters(jobs, {
+          section: 'all',
+          minMatch: 0,
+          minQuality: 0,
+          source: 'all',
+          freshness: '',
+          search,
+        });
       }
     } else {
       jobs = jobService.listJobsFromSqlite({ section, minMatch: 0, search });
+      jobs = applyJobFilters(jobs, { section, minMatch, minQuality, source, freshness, search });
     }
 
     if (req.user?.sub && env.mongoUri) {
       const profile = await profileService.getOrCreate(req.user.sub);
       jobs = scoreJobsForProfile(jobs, profile);
-      if (Number(minMatch) > 0) {
-        jobs = jobs.filter((j) => j.personalMatchPct >= Number(minMatch));
-      }
-      if (section !== 'all') {
-        jobs = jobs.filter((j) => j.emailSection === section);
-      }
+      jobs = applyJobFilters(jobs, { section, minMatch, minQuality, source, freshness, search });
     }
 
     res.json(jobs);
@@ -70,4 +114,34 @@ async function importJobs(req, res, next) {
   }
 }
 
-module.exports = { listJobs, syncJobs, importJobs };
+async function ingestJobs(req, res, next) {
+  try {
+    const sources = req.body?.sources;
+    const dryRun = req.query.dryRun === 'true' || req.body?.dryRun === true;
+    const result = await jobIngestService.ingestJobs({ sources, persist: !dryRun, dryRun });
+    res.json({
+      saved: result.saved || 0,
+      fetched: result.totals?.fetched || 0,
+      deduped: result.totals?.deduped || 0,
+      errors: result.errors || [],
+      sources: result.sources || {},
+      dryRun,
+      sample: (result.jobs || []).slice(0, 5),
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function ingestStatus(req, res, next) {
+  try {
+    res.json({
+      lastIngest: jobIngestService.getIngestStatus(),
+      sources: jobIngestService.listConfiguredSources(),
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { listJobs, syncJobs, importJobs, ingestJobs, ingestStatus };

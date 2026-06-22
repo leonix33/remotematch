@@ -75,6 +75,14 @@ function scoreJobForProfile(job, profile) {
     strengths.push('Target company');
   }
 
+  if (job.freshnessScore >= 75) {
+    score += 5;
+    strengths.push('Fresh posting');
+  }
+
+  if (job.description) score += Math.min(10, Math.floor(job.description.length / 200));
+  if ((job.qualityScore || 0) >= 60) score += 5;
+
   const personalMatchPct = Math.min(100, Math.round(score));
   const minMatch = profile?.minMatchScore || 60;
   let emailSection = 'manual_browse';

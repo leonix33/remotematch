@@ -1,10 +1,11 @@
 const router = require('express').Router();
 const { requireAuth, requireAdmin } = require('../middleware/authMiddleware');
+const { requireMongo } = require('../middleware/mongoMiddleware');
 const userController = require('../controllers/userController');
 
-router.get('/', requireAuth, requireAdmin, userController.listUsers);
-router.post('/', requireAuth, requireAdmin, userController.createUser);
-router.patch('/:id', requireAuth, requireAdmin, userController.updateUser);
-router.post('/:id/reset-password', requireAuth, requireAdmin, userController.resetPassword);
+router.get('/', requireAuth, requireAdmin, requireMongo, userController.listUsers);
+router.post('/', requireAuth, requireAdmin, requireMongo, userController.createUser);
+router.patch('/:id', requireAuth, requireAdmin, requireMongo, userController.updateUser);
+router.post('/:id/reset-password', requireAuth, requireAdmin, requireMongo, userController.resetPassword);
 
 module.exports = router;

@@ -3,6 +3,8 @@ const { requireAuth } = require('../middleware/authMiddleware');
 const jobController = require('../controllers/jobController');
 
 router.get('/', requireAuth, jobController.listJobs);
+router.get('/ingest/status', requireAuth, jobController.ingestStatus);
+router.post('/ingest', requireAuth, jobController.ingestJobs);
 router.post('/sync', requireAuth, jobController.syncJobs);
 router.post('/import', requireAuth, jobController.importJobs);
 

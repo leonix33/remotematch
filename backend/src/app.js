@@ -52,7 +52,9 @@ function createApp() {
   app.use(rateLimit({ windowMs: 15 * 60 * 1000, max: 300 }));
 
   app.get('/api/health', (req, res) => {
+    const mongoose = require('mongoose');
     const email = env.adminEmail || '';
+    const mongoConnected = mongoose.connection.readyState === 1;
     res.json({
       ok: true,
       appName: env.appName,
@@ -63,6 +65,7 @@ function createApp() {
       adminEmailHint: email.includes('@') ? `${email.split('@')[0].slice(0, 3)}***@${email.split('@')[1]}` : 'unset',
       emailConfigured: Boolean(env.resendApiKey),
       mongoConfigured: Boolean(env.mongoUri),
+      mongoConnected,
       openaiConfigured: Boolean(env.openaiApiKey),
       pushConfigured: Boolean(env.vapidPublicKey && env.vapidPrivateKey),
       customDomain: env.customDomain || null,

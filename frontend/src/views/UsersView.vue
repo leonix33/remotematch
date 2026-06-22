@@ -15,6 +15,9 @@ const resetPassword = ref('');
 const resetSaving = ref(false);
 const teamUsage = ref(null);
 const upgrading = ref(false);
+const loginUrl = import.meta.env.VITE_APP_URL
+  ? `${import.meta.env.VITE_APP_URL.replace(/\/$/, '')}/login`
+  : `${window.location.origin}/login`;
 
 async function load() {
   loading.value = true;
@@ -49,9 +52,11 @@ async function createUser() {
   success.value = '';
   saving.value = true;
   try {
-    await http.post('/users', form.value);
+    const { data } = await http.post('/users', form.value);
     form.value = { name: '', email: '', password: '', role: 'user' };
-    success.value = 'User invited successfully. Share their email and password securely.';
+    success.value = data.inviteEmailSent
+      ? `Invite email sent to ${data.email}. They can log in at ${loginUrl}.`
+      : `Account created for ${data.email}. Email is not configured — share the login URL and password manually.`;
     await load();
   } catch (e) {
     error.value = e.response?.data?.message || 'Could not create user';
@@ -84,8 +89,11 @@ async function submitReset() {
   success.value = '';
   try {
     const id = resetTarget.value._id || resetTarget.value.id;
-    await http.post(`/users/${id}/reset-password`, { password: resetPassword.value });
-    success.value = `Password reset for ${resetTarget.value.email}. Share the new password securely.`;
+    const email = resetTarget.value.email;
+    const { data } = await http.post(`/users/${id}/reset-password`, { password: resetPassword.value });
+    success.value = data.resetEmailSent
+      ? `Password reset email sent to ${email}.`
+      : `Password reset for ${email}. Email is not configured — share the new password manually.`;
     resetTarget.value = null;
     resetPassword.value = '';
   } catch (e) {
@@ -157,6 +165,7 @@ onMounted(load);
       <form class="card p-6" @submit.prevent="createUser">
         <h3 class="font-semibold text-slate-200">Invite a user</h3>
         <p class="mt-1 text-sm text-slate-500">Only admins can create accounts. No public signup.</p>
+        <p class="mt-1 text-xs text-slate-600">If email is configured, an invite is sent automatically with login details.</p>
 
         <div class="mt-6 space-y-4">
           <div>
@@ -170,7 +179,7 @@ onMounted(load);
           <div>
             <label class="mb-1 block text-sm text-slate-400">Temporary password</label>
             <input v-model="form.password" type="password" required minlength="8" class="input" placeholder="8+ characters" />
-            <p class="mt-1 text-xs text-slate-500">Share this once. They can change it later.</p>
+            <p class="mt-1 text-xs text-slate-500">Share this once if invite email is not configured.</p>
           </div>
           <div>
             <label class="mb-1 block text-sm text-slate-400">Role</label>

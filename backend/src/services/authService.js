@@ -69,8 +69,17 @@ async function login(email, password) {
 }
 
 async function getMe(userId) {
-  if (!env.mongoUri && userId === 'dev-admin') {
-    return { _id: 'dev-admin', name: 'Admin', email: env.adminEmail, role: 'admin' };
+  if (userId === 'dev-admin') {
+    if (!env.mongoUri) {
+      return { _id: 'dev-admin', name: 'Admin', email: env.adminEmail, role: 'admin' };
+    }
+    const admin = await User.findOne({
+      email: env.adminEmail?.toLowerCase(),
+      role: 'admin',
+      active: true,
+    }).select('-passwordHash');
+    if (!admin) throw new Error('User not found');
+    return admin;
   }
   const user = await User.findById(userId).select('-passwordHash');
   if (!user) throw new Error('User not found');

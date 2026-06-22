@@ -3,6 +3,7 @@ const bcrypt = require('bcryptjs');
 const User = require('../models/User');
 const teamService = require('../services/teamService');
 const Team = require('../models/Team');
+const emailService = require('../services/emailService');
 
 const createUserSchema = z.object({
   name: z.string().min(2),
@@ -45,11 +46,28 @@ async function createUser(req, res, next) {
       passwordHash,
       teamId: adminTeam?._id,
     });
+
+    let inviteEmailSent = false;
+    try {
+      const inviter = await User.findById(req.user.sub).select('name');
+      const result = await emailService.notifyTeamInvite({
+        to: user.email,
+        name: user.name,
+        email: user.email,
+        password: body.password,
+        invitedByName: inviter?.name,
+      });
+      inviteEmailSent = Boolean(result.sent);
+    } catch (err) {
+      console.warn('Invite email failed:', err.message);
+    }
+
     res.status(201).json({
       id: user._id,
       name: user.name,
       email: user.email,
       role: user.role,
+      inviteEmailSent,
     });
   } catch (err) {
     next(err);
@@ -88,8 +106,24 @@ async function resetPassword(req, res, next) {
   try {
     const body = resetPasswordSchema.parse(req.body);
     const authService = require('../services/authService');
+    const user = await User.findById(req.params.id).select('name email');
+    if (!user) return res.status(404).json({ message: 'User not found' });
     const result = await authService.resetPassword(req.params.id, body.password);
-    res.json({ message: 'Password reset', email: result.email });
+
+    let resetEmailSent = false;
+    try {
+      const emailResult = await emailService.notifyPasswordReset({
+        to: user.email,
+        name: user.name,
+        email: user.email,
+        password: body.password,
+      });
+      resetEmailSent = Boolean(emailResult.sent);
+    } catch (err) {
+      console.warn('Password reset email failed:', err.message);
+    }
+
+    res.json({ message: 'Password reset', email: result.email, resetEmailSent });
   } catch (err) {
     next(err);
   }
