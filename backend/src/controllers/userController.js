@@ -4,6 +4,7 @@ const User = require('../models/User');
 const teamService = require('../services/teamService');
 const Team = require('../models/Team');
 const emailService = require('../services/emailService');
+const userDataService = require('../services/userDataService');
 
 const createUserSchema = z.object({
   name: z.string().min(2),
@@ -48,6 +49,7 @@ async function createUser(req, res, next) {
     });
 
     let inviteEmailSent = false;
+    let inviteEmailError = null;
     try {
       const inviter = await User.findById(req.user.sub).select('name');
       const result = await emailService.notifyTeamInvite({
@@ -58,8 +60,10 @@ async function createUser(req, res, next) {
         invitedByName: inviter?.name,
       });
       inviteEmailSent = Boolean(result.sent);
+      if (!result.sent) inviteEmailError = result.reason || 'Email is not configured';
     } catch (err) {
       console.warn('Invite email failed:', err.message);
+      inviteEmailError = err.message;
     }
 
     res.status(201).json({
@@ -68,6 +72,7 @@ async function createUser(req, res, next) {
       email: user.email,
       role: user.role,
       inviteEmailSent,
+      inviteEmailError,
     });
   } catch (err) {
     next(err);
@@ -88,11 +93,40 @@ async function updateUser(req, res, next) {
     if (user._id.toString() === req.user.sub && body.active === false) {
       return res.status(400).json({ message: 'You cannot disable your own account' });
     }
+    if (user._id.toString() === req.user.sub && body.role && body.role !== user.role) {
+      return res.status(400).json({ message: 'You cannot change your own role' });
+    }
+    if (body.role === 'user' && user.role === 'admin') {
+      const admins = await userDataService.countActiveAdmins(user._id);
+      if (admins === 0) {
+        return res.status(400).json({ message: 'Cannot demote the last admin' });
+      }
+    }
     if (body.name) user.name = body.name;
     if (body.role) user.role = body.role;
     if (typeof body.active === 'boolean') user.active = body.active;
     await user.save();
     res.json({ id: user._id, name: user.name, email: user.email, role: user.role, active: user.active });
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function deleteUser(req, res, next) {
+  try {
+    if (req.params.id === req.user.sub) {
+      return res.status(400).json({ message: 'You cannot delete your own account here' });
+    }
+    const user = await User.findById(req.params.id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    if (user.role === 'admin') {
+      const admins = await userDataService.countActiveAdmins(user._id);
+      if (admins === 0) {
+        return res.status(400).json({ message: 'Cannot delete the last admin' });
+      }
+    }
+    await userDataService.adminRemoveUser(user._id);
+    res.json({ message: 'User deleted', email: user.email });
   } catch (err) {
     next(err);
   }
@@ -129,4 +163,4 @@ async function resetPassword(req, res, next) {
   }
 }
 
-module.exports = { listUsers, createUser, updateUser, resetPassword };
+module.exports = { listUsers, createUser, updateUser, deleteUser, resetPassword };

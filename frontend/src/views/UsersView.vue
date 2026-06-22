@@ -15,6 +15,9 @@ const resetPassword = ref('');
 const resetSaving = ref(false);
 const teamUsage = ref(null);
 const upgrading = ref(false);
+const deleteTarget = ref(null);
+const deleteSaving = ref(false);
+const roleSaving = ref('');
 const loginUrl = import.meta.env.VITE_APP_URL
   ? `${import.meta.env.VITE_APP_URL.replace(/\/$/, '')}/login`
   : `${window.location.origin}/login`;
@@ -56,7 +59,9 @@ async function createUser() {
     form.value = { name: '', email: '', password: '', role: 'user' };
     success.value = data.inviteEmailSent
       ? `Invite email sent to ${data.email}. They can log in at ${loginUrl}.`
-      : `Account created for ${data.email}. Email is not configured — share the login URL and password manually.`;
+      : data.inviteEmailError
+        ? `Account created for ${data.email}, but the invite email failed: ${data.inviteEmailError}. Share the login URL and password manually.`
+        : `Account created for ${data.email}. Email is not configured — share the login URL and password manually.`;
     await load();
   } catch (e) {
     error.value = e.response?.data?.message || 'Could not create user';
@@ -67,8 +72,58 @@ async function createUser() {
 
 async function toggleActive(user) {
   if (user._id === auth.user?.id || user.id === auth.user?.id) return;
-  await http.patch(`/users/${user._id || user.id}`, { active: !user.active });
-  await load();
+  error.value = '';
+  success.value = '';
+  try {
+    await http.patch(`/users/${user._id || user.id}`, { active: !user.active });
+    success.value = `${user.name} is now ${user.active !== false ? 'disabled' : 'active'}.`;
+    await load();
+  } catch (e) {
+    error.value = e.response?.data?.message || 'Could not update user';
+  }
+}
+
+async function changeRole(user, role) {
+  const id = user._id || user.id;
+  if (id === auth.user?.id || user.role === role) return;
+  roleSaving.value = id;
+  error.value = '';
+  success.value = '';
+  try {
+    await http.patch(`/users/${id}`, { role });
+    success.value = `${user.name} is now ${role === 'admin' ? 'an admin' : 'a user'}.`;
+    await load();
+  } catch (e) {
+    error.value = e.response?.data?.message || 'Could not change role';
+    await load();
+  } finally {
+    roleSaving.value = '';
+  }
+}
+
+function openDelete(user) {
+  deleteTarget.value = user;
+  error.value = '';
+  success.value = '';
+}
+
+async function confirmDelete() {
+  if (!deleteTarget.value) return;
+  deleteSaving.value = true;
+  error.value = '';
+  success.value = '';
+  try {
+    const id = deleteTarget.value._id || deleteTarget.value.id;
+    const email = deleteTarget.value.email;
+    await http.delete(`/users/${id}`);
+    success.value = `Removed ${email}. You can invite them again with the same email.`;
+    deleteTarget.value = null;
+    await load();
+  } catch (e) {
+    error.value = e.response?.data?.message || 'Could not delete user';
+  } finally {
+    deleteSaving.value = false;
+  }
 }
 
 function roleClass(role) {
@@ -161,6 +216,9 @@ onMounted(load);
       </div>
     </div>
 
+    <p v-if="error && !resetTarget && !deleteTarget" class="mt-4 rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-300">{{ error }}</p>
+    <p v-if="success && !resetTarget && !deleteTarget" class="mt-4 rounded-lg bg-teal-500/10 px-3 py-2 text-sm text-teal-200">{{ success }}</p>
+
     <div class="mt-8 grid gap-8 xl:grid-cols-2">
       <form class="card p-6" @submit.prevent="createUser">
         <h3 class="font-semibold text-slate-200">Invite a user</h3>
@@ -189,9 +247,6 @@ onMounted(load);
             </select>
           </div>
         </div>
-
-        <p v-if="error" class="mt-4 rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-300">{{ error }}</p>
-        <p v-if="success" class="mt-4 rounded-lg bg-teal-500/10 px-3 py-2 text-sm text-teal-200">{{ success }}</p>
 
         <button type="submit" class="btn-primary mt-6" :disabled="saving">
           {{ saving ? 'Creating…' : 'Create account' }}
@@ -229,17 +284,32 @@ onMounted(load);
               <p class="font-medium text-slate-200">{{ u.name }}</p>
               <p class="text-slate-500">{{ u.email }}</p>
             </td>
-            <td class="px-6 py-4"><span class="badge" :class="roleClass(u.role)">{{ u.role }}</span></td>
+            <td class="px-6 py-4">
+              <select
+                v-if="(u._id || u.id) !== auth.user?.id"
+                class="input py-1.5 text-xs capitalize"
+                :value="u.role"
+                :disabled="roleSaving === (u._id || u.id)"
+                @change="changeRole(u, $event.target.value)"
+              >
+                <option value="user">User</option>
+                <option value="admin">Admin</option>
+              </select>
+              <span v-else class="badge" :class="roleClass(u.role)">{{ u.role }} (you)</span>
+            </td>
             <td class="px-6 py-4">
               <span class="badge" :class="u.active !== false ? 'badge-teal' : 'badge-slate'">
                 {{ u.active !== false ? 'Active' : 'Disabled' }}
               </span>
             </td>
             <td class="px-6 py-4 text-right">
-              <div v-if="(u._id || u.id) !== auth.user?.id" class="flex justify-end gap-2">
+              <div v-if="(u._id || u.id) !== auth.user?.id" class="flex flex-wrap justify-end gap-2">
                 <button class="btn-secondary px-3 py-1.5 text-xs" @click="openReset(u)">Reset pwd</button>
                 <button class="btn-secondary px-3 py-1.5 text-xs" @click="toggleActive(u)">
                   {{ u.active !== false ? 'Disable' : 'Enable' }}
+                </button>
+                <button class="btn-secondary px-3 py-1.5 text-xs text-red-300 hover:text-red-200" @click="openDelete(u)">
+                  Delete
                 </button>
               </div>
               <span v-else class="text-xs text-slate-500">You</span>
@@ -272,6 +342,27 @@ onMounted(load);
           </button>
         </div>
       </form>
+    </div>
+
+    <div
+      v-if="deleteTarget"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+      @click.self="deleteTarget = null"
+    >
+      <div class="card w-full max-w-md p-6">
+        <h3 class="font-semibold text-slate-200">Delete user?</h3>
+        <p class="mt-2 text-sm text-slate-400">
+          Remove <strong class="text-slate-200">{{ deleteTarget.name }}</strong> ({{ deleteTarget.email }})?
+          Their profile, queue, and activity data will be permanently deleted. You can invite them again later.
+        </p>
+        <p v-if="error" class="mt-4 rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-300">{{ error }}</p>
+        <div class="mt-6 flex gap-3">
+          <button type="button" class="btn-secondary flex-1" @click="deleteTarget = null">Cancel</button>
+          <button type="button" class="btn-primary flex-1 bg-red-600 hover:bg-red-500" :disabled="deleteSaving" @click="confirmDelete">
+            {{ deleteSaving ? 'Deleting…' : 'Delete user' }}
+          </button>
+        </div>
+      </div>
     </div>
   </div>
 </template>

@@ -33,7 +33,14 @@ async function sendEmail({ to, subject, html }) {
 
   if (!res.ok) {
     const err = await res.text();
-    throw new Error(`Email failed: ${err}`);
+    let reason = err;
+    try {
+      const parsed = JSON.parse(err);
+      reason = parsed.message || parsed.error || err;
+    } catch {
+      // keep raw text
+    }
+    return { sent: false, reason };
   }
   return { sent: true };
 }

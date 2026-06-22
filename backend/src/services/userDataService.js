@@ -78,4 +78,33 @@ async function deleteUserAccount(userId, password) {
   return { message: 'Account deleted. Your profile, queue, and calendar data were removed.' };
 }
 
-module.exports = { exportUserData, deleteUserAccount };
+async function adminRemoveUser(userId) {
+  requireMongo();
+  const models = [
+    require('../models/Profile'),
+    require('../models/JobApproval'),
+    require('../models/CalendarEvent'),
+    require('../models/Notification'),
+    require('../models/AiChatSession'),
+    require('../models/PushSubscription'),
+    require('../models/Watchlist'),
+    require('../models/CommunityResume'),
+    require('../models/Outcome'),
+    require('../models/InterviewSession'),
+    require('../models/SwarmRun'),
+    require('../models/Victory'),
+    require('../models/Pod'),
+  ];
+
+  await Promise.all(models.map((Model) => Model.deleteMany({ userId })));
+  await User.deleteOne({ _id: userId });
+  return { message: 'User removed' };
+}
+
+async function countActiveAdmins(excludeUserId) {
+  const query = { role: 'admin', active: true };
+  if (excludeUserId) query._id = { $ne: excludeUserId };
+  return User.countDocuments(query);
+}
+
+module.exports = { exportUserData, deleteUserAccount, adminRemoveUser, countActiveAdmins };
