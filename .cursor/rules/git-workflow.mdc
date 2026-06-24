@@ -1,0 +1,16 @@
+---
+description: Git branching workflow — always branch before committing
+alwaysApply: true
+---
+
+# Git workflow
+
+Never commit or push directly to `main`.
+
+1. `git checkout main && git pull origin main`
+2. `git checkout -b feat|fix|chore/short-description`
+3. Commit source only — never `.env`, `node_modules/`, `dist/`, or `*.log`
+4. `git push -u origin <branch>`
+5. Merge to `main`, then `git push origin main`
+
+See `CONTRIBUTING.md`. Python agent repo: `leonix33/remote-job-agent`.
