@@ -1,4 +1,4 @@
-const OpenAI = require('openai');
+const openaiService = require('./openaiService');
 const env = require('../config/env');
 const InterviewSession = require('../models/InterviewSession');
 const profileService = require('./profileService');
@@ -31,16 +31,15 @@ async function respond(userId, sessionId, candidateAnswer) {
 
   session.turns.push({ role: 'candidate', content: candidateAnswer });
 
+  const live = await openaiService.isLive(userId);
   let reply;
-  if (env.openaiApiKey) {
+  if (live) {
     const profile = await profileService.getOrCreate(userId);
-    const client = new OpenAI({ apiKey: env.openaiApiKey });
     const history = session.turns.slice(-8).map((t) => ({
       role: t.role === 'interviewer' ? 'assistant' : 'user',
       content: t.content,
     }));
-    const response = await client.chat.completions.create({
-      model: 'gpt-4o-mini',
+    reply = await openaiService.chatCompletion(userId, {
       messages: [
         {
           role: 'system',
@@ -50,7 +49,7 @@ async function respond(userId, sessionId, candidateAnswer) {
       ],
       max_tokens: 300,
     });
-    reply = response.choices[0]?.message?.content?.trim() || 'Interesting. Tell me more.';
+    reply = reply || 'Interesting. Tell me more.';
   } else {
     reply = `[Demo] Good answer. How would you design observability for a distributed system at ${session.company}?`;
   }
@@ -65,19 +64,18 @@ async function endSession(userId, sessionId) {
   const session = await InterviewSession.findOne({ _id: sessionId, userId });
   if (!session) throw new Error('Session not found');
 
+  const live = await openaiService.isLive(userId);
   let feedback;
-  if (env.openaiApiKey) {
-    const client = new OpenAI({ apiKey: env.openaiApiKey });
+  if (live) {
     const transcript = session.turns.map((t) => `${t.role}: ${t.content}`).join('\n');
-    const response = await client.chat.completions.create({
-      model: 'gpt-4o-mini',
+    feedback = await openaiService.chatCompletion(userId, {
       messages: [
         { role: 'system', content: 'Score interview 0-100. Give strengths, improvements, and overall verdict in markdown.' },
         { role: 'user', content: transcript },
       ],
       max_tokens: 500,
     });
-    feedback = response.choices[0]?.message?.content?.trim() || 'Session complete.';
+    feedback = feedback || 'Session complete.';
     const scoreMatch = feedback.match(/(\d{1,3})\s*\/\s*100|score[:\s]+(\d{1,3})/i);
     session.score = scoreMatch ? Number(scoreMatch[1] || scoreMatch[2]) : 70;
   } else {

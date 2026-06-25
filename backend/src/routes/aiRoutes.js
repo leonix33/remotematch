@@ -5,5 +5,6 @@ const aiController = require('../controllers/aiController');
 router.post('/chat', requireAuth, aiController.send);
 router.get('/history', requireAuth, aiController.history);
 router.delete('/history', requireAuth, aiController.clear);
+router.get('/status', requireAuth, aiController.status);
 
 module.exports = router;

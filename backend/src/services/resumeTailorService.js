@@ -1,4 +1,4 @@
-const OpenAI = require('openai');
+const openaiService = require('./openaiService');
 const env = require('../config/env');
 const { contactHeader, contactSignature } = require('./applicantContactService');
 const { HUMAN_WRITING_PROMPT, humanizeKit } = require('./humanizeWritingService');
@@ -32,9 +32,8 @@ function highMatchPromptBlock(targetPct = 90) {
 - Goal: maximize keyword overlap so combined base resume + supplement reads as ~${targetPct}% fit to the JD.`;
 }
 
-function getClient() {
-  if (!env.openaiApiKey) return null;
-  return new OpenAI({ apiKey: env.openaiApiKey });
+async function getClient(userId) {
+  return openaiService.getClient(userId);
 }
 
 function normalize(text = '') {
@@ -263,6 +262,7 @@ function normalizeKit(kit, profile, job, jobDescription, missingKeywords, contac
 }
 
 async function generateAdditiveKit({
+  userId,
   profile,
   job,
   jobDescription,
@@ -275,7 +275,7 @@ async function generateAdditiveKit({
   const pageTarget = clampPageCount(supplementPages);
   const options = { supplementPages: pageTarget, tailorMode, highMatchTarget };
   const missingKeywords = inferMissingKeywords(profile, jobDescription);
-  const client = getClient();
+  const client = userId ? await getClient(userId) : null;
   const fullJd = jobDescription.slice(0, 14000);
 
   if (!client) {

@@ -27,6 +27,12 @@ const exportLoading = ref(false);
 const deleteLoading = ref(false);
 const deleteError = ref('');
 const deletePassword = ref('');
+const openaiKey = ref('');
+const openaiSaving = ref(false);
+const openaiTesting = ref(false);
+const openaiMsg = ref('');
+const openaiError = ref('');
+const aiStatus = ref(null);
 
 const form = ref({
   displayName: '',
@@ -139,6 +145,7 @@ async function connectExtension() {
 onMounted(async () => {
   const p = await profileStore.fetch();
   loadForm(p);
+  await loadAiStatus();
   window.addEventListener('message', (e) => {
     if (e.data?.type === 'REMOTEMATCH_EXT_CONFIGURED') {
       extConnected.value = true;
@@ -210,6 +217,64 @@ async function copyExt(value, label) {
   await navigator.clipboard.writeText(value);
   extCopied.value = label;
   setTimeout(() => { extCopied.value = ''; }, 2000);
+}
+
+async function loadAiStatus() {
+  try {
+    const { data } = await http.get('/ai/status');
+    aiStatus.value = data;
+  } catch {
+    aiStatus.value = null;
+  }
+}
+
+async function saveOpenAiKey() {
+  openaiError.value = '';
+  openaiMsg.value = '';
+  if (!openaiKey.value.trim()) {
+    openaiError.value = 'Paste your OpenAI API key (starts with sk-)';
+    return;
+  }
+  openaiSaving.value = true;
+  try {
+    const { data } = await http.post('/profile/me/openai-key', { apiKey: openaiKey.value.trim() });
+    openaiKey.value = '';
+    openaiMsg.value = data.message || 'OpenAI connected — live AI is enabled.';
+    await profileStore.fetch();
+    await loadAiStatus();
+  } catch (e) {
+    openaiError.value = e.response?.data?.message || 'Could not save API key';
+  } finally {
+    openaiSaving.value = false;
+  }
+}
+
+async function testOpenAiKey() {
+  openaiError.value = '';
+  openaiMsg.value = '';
+  openaiTesting.value = true;
+  try {
+    const { data } = await http.post('/profile/me/openai-key/test');
+    openaiMsg.value = `Connection OK — model ${data.model}, reply: ${data.reply}`;
+  } catch (e) {
+    openaiError.value = e.response?.data?.message || 'Connection test failed';
+  } finally {
+    openaiTesting.value = false;
+  }
+}
+
+async function removeOpenAiKey() {
+  if (!confirm('Remove your OpenAI API key from RemoteMatch?')) return;
+  openaiError.value = '';
+  openaiMsg.value = '';
+  try {
+    await http.delete('/profile/me/openai-key');
+    openaiMsg.value = 'API key removed.';
+    await profileStore.fetch();
+    await loadAiStatus();
+  } catch (e) {
+    openaiError.value = e.response?.data?.message || 'Could not remove key';
+  }
 }
 </script>
 
@@ -360,6 +425,76 @@ async function copyExt(value, label) {
         <router-link to="/tailored-resumes" class="mt-4 inline-block text-sm text-teal-400 hover:underline">
           View all tailored resumes →
         </router-link>
+      </div>
+
+      <div class="rounded-xl border border-violet-900/40 bg-gradient-to-br from-slate-950/80 to-violet-950/20 p-4">
+        <div class="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h3 class="font-semibold text-slate-200">AI Integration</h3>
+            <p class="mt-1 text-sm text-slate-500">
+              Connect your OpenAI account for live coaching, resume tailoring, cover letters, interview practice, and intel.
+            </p>
+          </div>
+          <span
+            class="badge"
+            :class="profileStore.profile?.openaiConnected || aiStatus?.configured ? 'badge-teal' : 'badge-gold'"
+          >
+            {{ profileStore.profile?.openaiConnected || aiStatus?.configured ? 'Live AI' : 'Demo mode' }}
+          </span>
+        </div>
+
+        <p v-if="profileStore.profile?.openaiKeyHint" class="mt-3 text-sm text-slate-400">
+          Connected key: <code class="text-violet-300">{{ profileStore.profile.openaiKeyHint }}</code>
+          <span v-if="profileStore.profile?.openaiKeySource === 'server'" class="text-slate-600"> (server)</span>
+        </p>
+        <p v-if="aiStatus?.model" class="mt-1 text-xs text-slate-600">Model: {{ aiStatus.model }}</p>
+
+        <ul class="mt-4 grid gap-2 text-xs text-slate-500 sm:grid-cols-2">
+          <li v-for="feature in (aiStatus?.features || ['AI Coach', 'Resume kits', 'Cover letters', 'Interview prep'])" :key="feature">
+            ✓ {{ feature }}
+          </li>
+        </ul>
+
+        <div class="mt-4">
+          <label class="mb-1 block text-sm text-slate-400">OpenAI API key</label>
+          <input
+            v-model="openaiKey"
+            type="password"
+            class="input font-mono text-sm"
+            placeholder="sk-..."
+            autocomplete="off"
+          />
+          <p class="mt-1 text-xs text-slate-600">
+            Get a key at
+            <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener" class="text-teal-400 hover:underline">platform.openai.com/api-keys</a>.
+            Stored encrypted — never shared or committed to git.
+          </p>
+        </div>
+
+        <div class="mt-4 flex flex-wrap gap-2">
+          <button type="button" class="btn-primary" :disabled="openaiSaving" @click="saveOpenAiKey">
+            {{ openaiSaving ? 'Connecting…' : 'Connect OpenAI' }}
+          </button>
+          <button
+            v-if="profileStore.profile?.openaiConnected"
+            type="button"
+            class="btn-secondary"
+            :disabled="openaiTesting"
+            @click="testOpenAiKey"
+          >
+            {{ openaiTesting ? 'Testing…' : 'Test connection' }}
+          </button>
+          <button
+            v-if="profileStore.profile?.openaiKeySource === 'user'"
+            type="button"
+            class="btn-secondary text-red-300"
+            @click="removeOpenAiKey"
+          >
+            Remove key
+          </button>
+        </div>
+        <p v-if="openaiMsg" class="mt-3 text-sm text-teal-300">{{ openaiMsg }}</p>
+        <p v-if="openaiError" class="mt-3 text-sm text-red-300">{{ openaiError }}</p>
       </div>
 
       <p v-if="error" class="text-sm text-red-300">{{ error }}</p>

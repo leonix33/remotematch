@@ -1,5 +1,4 @@
-const OpenAI = require('openai');
-const env = require('../config/env');
+const openaiService = require('./openaiService');
 const AiChatSession = require('../models/AiChatSession');
 const profileService = require('./profileService');
 
@@ -9,6 +8,7 @@ Keep answers concise (2-4 short paragraphs max). Be specific and actionable. Ref
 If you lack context, ask one clarifying question. Never invent job listings or company facts.`;
 
 function requireMongo() {
+  const env = require('../config/env');
   if (!env.mongoUri) throw new Error('MongoDB is required for AI chat');
 }
 
@@ -33,11 +33,10 @@ async function chat(userId, userMessage) {
   session.messages.push({ role: 'user', content: userMessage });
   const history = session.messages.slice(-20).map((m) => ({ role: m.role, content: m.content }));
 
+  const live = await openaiService.isLive(userId);
   let reply;
-  if (env.openaiApiKey) {
-    const client = new OpenAI({ apiKey: env.openaiApiKey });
-    const response = await client.chat.completions.create({
-      model: 'gpt-4o-mini',
+  if (live) {
+    reply = await openaiService.chatCompletion(userId, {
       messages: [
         { role: 'system', content: SYSTEM_PROMPT + profileContext },
         ...history,
@@ -45,9 +44,9 @@ async function chat(userId, userMessage) {
       temperature: 0.7,
       max_tokens: 600,
     });
-    reply = response.choices[0]?.message?.content?.trim() || 'I could not generate a response. Try again.';
+    reply = reply || 'I could not generate a response. Try again.';
   } else {
-    reply = `[Demo mode — set OPENAI_API_KEY for live AI]\n\nGreat question about "${userMessage.slice(0, 80)}". Focus on quantifying impact on your resume, tailor each application to the job description, and prioritize roles with 65%+ skill overlap. Want help with a specific company or interview round?`;
+    reply = `[Demo mode — add your OpenAI API key in Profile → AI Integration]\n\nGreat question about "${userMessage.slice(0, 80)}". Focus on quantifying impact on your resume, tailor each application to the job description, and prioritize roles with 65%+ skill overlap. Want help with a specific company or interview round?`;
   }
 
   session.messages.push({ role: 'assistant', content: reply });
@@ -56,7 +55,7 @@ async function chat(userId, userMessage) {
   }
   await session.save();
 
-  return { reply, demo: !env.openaiApiKey };
+  return { reply, demo: !live };
 }
 
 async function getHistory(userId) {

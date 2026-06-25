@@ -266,7 +266,7 @@ watch(
           >
             {{ kit.useForApply !== false ? 'Will use on apply' : 'Base resume only' }}
           </span>
-          <p v-if="kit.demo" class="text-xs text-amber-300">Demo mode — set OPENAI_API_KEY for live AI tailoring.</p>
+          <p v-if="kit.demo" class="text-xs text-amber-300">Demo mode — connect OpenAI in Profile → AI Integration for live tailoring.</p>
         </div>
 
         <p v-if="kit.contactEmail" class="text-xs text-teal-300/90">Contact: {{ kit.contactName }} · {{ kit.contactEmail }}</p>

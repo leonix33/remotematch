@@ -274,7 +274,7 @@ watch(tab, () => { error.value = ''; });
 
     <p v-if="error" class="mt-4 rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-300">{{ error }}</p>
     <p v-if="aiDemo && tab === 'ai'" class="mt-4 rounded-lg bg-amber-500/10 px-3 py-2 text-sm text-amber-200">
-      Demo mode — add OPENAI_API_KEY on the server for live AI coaching.
+      Demo mode — connect OpenAI in Profile → AI Integration for live AI coaching.
     </p>
 
     <div v-if="loading" class="mt-8 text-slate-400">Loading…</div>

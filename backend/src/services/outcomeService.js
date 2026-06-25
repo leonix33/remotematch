@@ -1,6 +1,6 @@
 const Outcome = require('../models/Outcome');
 const env = require('../config/env');
-const OpenAI = require('openai');
+const openaiService = require('./openaiService');
 const localOutcomeStore = require('./localOutcomeStore');
 const { getConversionContext } = require('./conversionStatsService');
 
@@ -39,10 +39,9 @@ async function insights(userId) {
     .map(([source, rate]) => ({ source, replyRatePct: Math.round(rate * 100) }));
 
   let aiInsight = 'Track more outcomes to unlock AI learning.';
-  if (env.openaiApiKey && total >= 3) {
-    const client = new OpenAI({ apiKey: env.openaiApiKey });
-    const response = await client.chat.completions.create({
-      model: 'gpt-4o-mini',
+  const live = await openaiService.isLive(userId);
+  if (live && total >= 3) {
+    const generated = await openaiService.chatCompletion(userId, {
       messages: [
         { role: 'system', content: 'Analyze job search outcomes. Give 3 actionable insights in bullet points.' },
         {
@@ -60,7 +59,7 @@ async function insights(userId) {
       ],
       max_tokens: 300,
     });
-    aiInsight = response.choices[0]?.message?.content?.trim() || aiInsight;
+    aiInsight = generated || aiInsight;
   }
 
   return {

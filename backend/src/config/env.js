@@ -28,6 +28,7 @@ module.exports = {
   adminEmail: trim(process.env.ADMIN_EMAIL) || 'admin@example.com',
   adminPassword: trim(process.env.ADMIN_PASSWORD) || 'ChangeThisPassword123',
   openaiApiKey: trim(process.env.OPENAI_API_KEY) || '',
+  openaiModel: trim(process.env.OPENAI_MODEL) || 'gpt-4o-mini',
   clientOrigin: trim(process.env.CLIENT_ORIGIN) || 'http://localhost:5173',
   clientOrigins: parseOrigins(),
   appUrl: trim(process.env.APP_URL) || trim(process.env.CLIENT_ORIGIN) || 'https://remotematch.onrender.com',

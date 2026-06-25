@@ -1,5 +1,6 @@
 const { z } = require('zod');
 const profileService = require('../services/profileService');
+const openaiService = require('../services/openaiService');
 const {
   parseResumeFile,
   mergeSkillLists,
@@ -152,4 +153,49 @@ async function parseResume(req, res, next) {
   }
 }
 
-module.exports = { getMe, updateMe, parseResume };
+const openAiKeySchema = z.object({
+  apiKey: z.string().min(20).max(200),
+});
+
+async function saveOpenAiKey(req, res, next) {
+  try {
+    const { apiKey } = openAiKeySchema.parse(req.body);
+    const trimmed = apiKey.trim();
+    if (!openaiService.isValidKeyFormat(trimmed)) {
+      return res.status(400).json({ message: 'Invalid OpenAI API key format. Keys start with sk-' });
+    }
+    const profile = await profileService.setOpenAiKey(req.user.sub, trimmed);
+    const test = await openaiService.testConnection(req.user.sub);
+    res.json({
+      message: 'OpenAI connected',
+      profile,
+      test,
+    });
+  } catch (err) {
+    if (err.status === 401 || err.status === 403) {
+      return res.status(400).json({ message: 'API key rejected by OpenAI. Check your key at platform.openai.com' });
+    }
+    next(err);
+  }
+}
+
+async function clearOpenAiKey(req, res, next) {
+  try {
+    const profile = await profileService.clearOpenAiKey(req.user.sub);
+    res.json({ message: 'OpenAI key removed', profile });
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function testOpenAiKey(req, res, next) {
+  try {
+    const test = await openaiService.testConnection(req.user.sub);
+    res.json(test);
+  } catch (err) {
+    if (!err.status) err.status = 400;
+    next(err);
+  }
+}
+
+module.exports = { getMe, updateMe, parseResume, saveOpenAiKey, clearOpenAiKey, testOpenAiKey };

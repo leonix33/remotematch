@@ -28,6 +28,8 @@ const DEFAULT = {
   defaultSupplementPages: 3,
   defaultTailorMode: 'balanced',
   highMatchTarget: 90,
+  openaiApiKeyEncrypted: '',
+  openaiKeyHint: '',
   savedJobs: [],
   linkedinSavedSearches: [],
 };

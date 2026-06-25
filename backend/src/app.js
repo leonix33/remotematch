@@ -69,6 +69,7 @@ function createApp() {
       mongoConfigured: Boolean(env.mongoUri),
       mongoConnected,
       openaiConfigured: Boolean(env.openaiApiKey),
+      openaiModel: env.openaiModel,
       pushConfigured: Boolean(env.vapidPublicKey && env.vapidPrivateKey),
       customDomain: env.customDomain || null,
       clientOrigins: env.clientOrigins,

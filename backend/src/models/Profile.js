@@ -29,6 +29,8 @@ const profileSchema = new mongoose.Schema(
     defaultSupplementPages: { type: Number, default: 3, min: 1, max: 6 },
     defaultTailorMode: { type: String, enum: ['balanced', 'high_match'], default: 'balanced' },
     highMatchTarget: { type: Number, default: 90, min: 80, max: 98 },
+    openaiApiKeyEncrypted: { type: String, default: '', select: false },
+    openaiKeyHint: { type: String, default: '' },
     savedJobs: {
       type: [
         {

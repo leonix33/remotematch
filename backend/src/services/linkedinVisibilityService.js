@@ -1,12 +1,11 @@
 const crypto = require('crypto');
-const OpenAI = require('openai');
+const openaiService = require('./openaiService');
 const env = require('../config/env');
 const profileService = require('./profileService');
 const linkedinVisibilityStore = require('./linkedinVisibilityStore');
 
-function getClient() {
-  if (!env.openaiApiKey) return null;
-  return new OpenAI({ apiKey: env.openaiApiKey });
+function getClient(userId) {
+  return openaiService.getClient(userId);
 }
 
 function profileContext(profile) {
@@ -114,7 +113,7 @@ async function generateProjects(userId, options = {}) {
     throw err;
   }
 
-  const client = getClient();
+  const client = await getClient(userId);
   if (!client) {
     const demo = buildDemoProjects(ctx, count);
     return linkedinVisibilityStore.saveMany(userId, demo);

@@ -77,6 +77,7 @@ async function generateForJob(userId, jobId, options = {}) {
     throw err;
   }
   const kit = await resumeTailorService.generateAdditiveKit({
+    userId,
     profile,
     job,
     jobDescription,
