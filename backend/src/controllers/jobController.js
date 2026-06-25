@@ -72,9 +72,9 @@ async function listJobs(req, res, next) {
       jobs = applyJobFilters(jobs, { section, minMatch, minQuality, source, freshness, search });
     }
 
-    if (req.user?.sub && env.mongoUri) {
+    if (req.user?.sub) {
       const profile = await profileService.getOrCreate(req.user.sub);
-      jobs = scoreJobsForProfile(jobs, profile);
+      jobs = scoreJobsForProfile(jobs, profile, req.user.sub);
       jobs = applyJobFilters(jobs, { section, minMatch, minQuality, source, freshness, search });
     }
 

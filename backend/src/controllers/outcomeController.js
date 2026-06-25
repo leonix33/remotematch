@@ -17,6 +17,7 @@ async function upsert(req, res, next) {
         title: z.string().optional(),
         company: z.string().optional(),
         stage: z.enum(['applied', 'screen', 'onsite', 'offer', 'rejected', 'withdrawn']),
+        source: z.string().optional(),
         matchPct: z.number().optional(),
         notes: z.string().optional(),
       })

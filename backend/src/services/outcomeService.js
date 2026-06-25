@@ -1,13 +1,13 @@
 const Outcome = require('../models/Outcome');
 const env = require('../config/env');
 const OpenAI = require('openai');
-
-function requireMongo() {
-  if (!env.mongoUri) throw new Error('MongoDB is required');
-}
+const localOutcomeStore = require('./localOutcomeStore');
+const { getConversionContext } = require('./conversionStatsService');
 
 async function upsert(userId, data) {
-  requireMongo();
+  if (!env.mongoUri) {
+    return localOutcomeStore.upsert(userId, data);
+  }
   return Outcome.findOneAndUpdate(
     { userId, jobId: data.jobId },
     { userId, ...data },
@@ -16,20 +16,27 @@ async function upsert(userId, data) {
 }
 
 async function list(userId) {
-  requireMongo();
+  if (!env.mongoUri) {
+    return localOutcomeStore.list(userId);
+  }
   return Outcome.find({ userId }).sort({ updatedAt: -1 }).lean();
 }
 
 async function insights(userId) {
-  requireMongo();
-  const outcomes = await Outcome.find({ userId }).lean();
+  const outcomes = await list(userId);
   const total = outcomes.length;
   const offers = outcomes.filter((o) => o.stage === 'offer').length;
-  const onsites = outcomes.filter((o) => o.stage === 'onsite').length;
+  const onsites = outcomes.filter((o) => o.stage === 'onsite' || o.stage === 'screen').length;
   const applied = outcomes.filter((o) => o.stage === 'applied').length;
   const avgMatch =
     outcomes.filter((o) => o.matchPct).reduce((s, o) => s + o.matchPct, 0) /
       (outcomes.filter((o) => o.matchPct).length || 1);
+
+  const conversion = getConversionContext(userId);
+  const topSources = Object.entries(conversion.sourceReplyRates || {})
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5)
+    .map(([source, rate]) => ({ source, replyRatePct: Math.round(rate * 100) }));
 
   let aiInsight = 'Track more outcomes to unlock AI learning.';
   if (env.openaiApiKey && total >= 3) {
@@ -40,7 +47,15 @@ async function insights(userId) {
         { role: 'system', content: 'Analyze job search outcomes. Give 3 actionable insights in bullet points.' },
         {
           role: 'user',
-          content: JSON.stringify({ total, offers, onsites, applied, avgMatch, stages: outcomes.map((o) => o.stage) }),
+          content: JSON.stringify({
+            total,
+            offers,
+            onsites,
+            applied,
+            avgMatch,
+            topSources,
+            stages: outcomes.map((o) => o.stage),
+          }),
         },
       ],
       max_tokens: 300,
@@ -51,6 +66,8 @@ async function insights(userId) {
   return {
     stats: { total, offers, onsites, applied, avgMatch: Math.round(avgMatch) },
     conversionRate: total ? Math.round((offers / total) * 100) : 0,
+    replyRatePct: Math.round((conversion.userReplyRate || 0.06) * 100),
+    topSources,
     aiInsight,
   };
 }

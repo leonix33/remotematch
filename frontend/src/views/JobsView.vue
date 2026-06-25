@@ -5,6 +5,7 @@ import http from '../api/http';
 import { useProfileStore } from '../stores/profile';
 import { useApplyQueue } from '../composables/useApplyQueue';
 import ApplicationKitPanel from '../components/ApplicationKitPanel.vue';
+import JobScoreBadges from '../components/JobScoreBadges.vue';
 
 const profileStore = useProfileStore();
 const { queueing, addToQueue } = useApplyQueue();
@@ -132,7 +133,7 @@ watch([section, minMatch], load);
 <template>
   <div>
     <h2 class="text-2xl font-bold">Jobs</h2>
-    <p class="mt-1 text-slate-400">Save roles you like, add strong matches to your apply queue, then approve in one place.</p>
+    <p class="mt-1 text-slate-400">Save roles you like, add strong matches to your apply queue, then approve by <strong class="text-slate-300">interview likelihood</strong>.</p>
 
     <p v-if="queueMessage" class="mt-4 rounded-lg bg-teal-500/10 px-3 py-2 text-sm text-teal-200">
       {{ queueMessage }}
@@ -165,8 +166,8 @@ watch([section, minMatch], load);
             <p class="text-sm text-slate-400">{{ job.company }} · {{ job.location || 'Remote' }}</p>
             <p class="mt-1 text-xs text-slate-500">Job board: <span class="text-teal-300/90">{{ job.source || 'Unknown' }}</span></p>
           </div>
+          <JobScoreBadges :job="job" />
           <div class="flex flex-wrap gap-2">
-            <span class="badge badge-teal">{{ job.personalMatchPct ?? job.matchPct ?? 0 }}% match</span>
             <span class="badge" :class="sectionBadge(job.emailSection)">{{ sectionLabel(job.emailSection) }}</span>
             <span v-if="job.atsType && job.atsType !== 'unknown'" class="badge badge-gold">{{ job.atsType }}</span>
           </div>

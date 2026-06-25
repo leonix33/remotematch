@@ -4,6 +4,7 @@ import { RouterLink } from 'vue-router';
 import http from '../api/http';
 import ApplyWorkflowBanner from '../components/ApplyWorkflowBanner.vue';
 import ApplicationKitPanel from '../components/ApplicationKitPanel.vue';
+import JobScoreBadges from '../components/JobScoreBadges.vue';
 import { useProfileStore } from '../stores/profile';
 import { buildLinkedInSearchFromJob, isLinkedInJob, isLinkedInUrl, openLinkedIn } from '../utils/linkedin';
 
@@ -264,7 +265,7 @@ onMounted(async () => {
       <div>
         <h2 class="text-2xl font-bold text-slate-100">Apply queue</h2>
         <p class="mt-1 max-w-xl text-slate-400">
-          Triage high-match jobs fast. Approve what you want the agent to submit — skip the rest.
+          Triage by <strong class="text-slate-300">interview likelihood</strong> — approve roles with the best chance of a human reply, not just skill match.
         </p>
       </div>
       <div class="flex flex-wrap gap-3">
@@ -401,7 +402,7 @@ onMounted(async () => {
               </div>
             </div>
             <div class="flex flex-wrap gap-2">
-              <span class="badge badge-teal">{{ job.personalMatchPct || job.matchPct || 0 }}% match</span>
+              <JobScoreBadges :job="job" :show-factors="false" />
               <span v-if="job.emailSection" class="badge" :class="sectionBadge(job.emailSection)">{{ job.emailSection }}</span>
               <span v-if="job.atsType && job.atsType !== 'unknown'" class="badge badge-gold">{{ job.atsType }}</span>
               <RouterLink

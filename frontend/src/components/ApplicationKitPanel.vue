@@ -65,8 +65,9 @@ watch(
       <h3 class="font-semibold text-slate-100">Application kit — {{ job.title }}</h3>
       <p class="mt-1 text-sm text-slate-400">{{ job.company }}</p>
       <p class="mt-3 rounded-lg border border-teal-900/40 bg-teal-950/20 px-3 py-2 text-xs text-teal-100/90">
-        Your base resume is never rewritten. We only suggest <strong class="text-teal-200">additive</strong> bullets,
-        keywords, and a cover paragraph you can paste into the ATS.
+        Your base resume is <strong class="text-teal-200">never rewritten</strong>. Generate a
+        <strong class="text-teal-200">minimum 3-page additive supplement</strong> mapped to the full job description —
+        attach after your resume or paste into ATS fields.
       </p>
 
       <label class="mt-4 flex cursor-pointer items-center gap-2 text-sm text-slate-300">
@@ -80,6 +81,9 @@ watch(
         </button>
         <button v-if="kit?.coverLetterParagraph" class="btn-secondary text-sm" @click="copyText(kit.coverLetterParagraph)">
           Copy cover paragraph
+        </button>
+        <button v-if="kit?.fullSupplementText" class="btn-secondary text-sm" @click="copyText(kit.fullSupplementText)">
+          Copy 3-page supplement
         </button>
         <button v-if="kit?.formatted" class="btn-secondary text-sm" @click="copyText(kit.formatted)">
           Copy full kit
@@ -97,6 +101,23 @@ watch(
       <div v-else-if="kit" class="mt-5 space-y-5 text-sm">
         <p v-if="kit.demo" class="text-xs text-amber-300">Demo mode — set OPENAI_API_KEY for live AI tailoring.</p>
         <p class="text-xs text-slate-500">{{ kit.guardrails }}</p>
+
+        <p v-if="kit.pageCount" class="text-xs text-teal-300/90">{{ kit.pageCount }}-page supplement · JD {{ kit.jobDescriptionLength || 0 }} chars analyzed</p>
+
+        <div v-if="kit.supplementPages?.length" class="space-y-4">
+          <h4 class="font-medium text-slate-200">Resume supplement (attach after base resume)</h4>
+          <div
+            v-for="page in kit.supplementPages"
+            :key="page.page"
+            class="rounded-lg border border-slate-700/80 bg-slate-950/50 p-4"
+          >
+            <p class="text-xs font-medium uppercase text-slate-500">Page {{ page.page }} — {{ page.title }}</p>
+            <pre class="mt-2 max-h-64 overflow-y-auto whitespace-pre-wrap text-xs text-slate-300">{{ page.content }}</pre>
+            <button type="button" class="btn-secondary mt-2 px-2 py-1 text-xs" @click="copyText(page.content)">
+              Copy page {{ page.page }}
+            </button>
+          </div>
+        </div>
 
         <div v-if="kit.missingKeywords?.length">
           <h4 class="font-medium text-slate-200">Keywords to mirror (if accurate)</h4>

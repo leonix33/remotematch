@@ -2,17 +2,22 @@
  * Per-user job scoring — mirrors Python profile scoring at a high level.
  */
 const { extractSkillsFromText } = require('./resumeParseService');
+const { freshnessScore } = require('./jobs/jobQualityService');
+const { enrichJobWithLikelihood } = require('./interviewLikelihoodService');
+const { getConversionContext, companyJobCounts } = require('./conversionStatsService');
 
 function normalize(text = '') {
   return String(text).toLowerCase();
 }
 
-function scoreJobForProfile(job, profile) {
+function scoreJobForProfile(job, profile, scoringContext = {}) {
   const title = normalize(job.title);
   const company = normalize(job.company);
   const location = normalize(job.location);
   const resumeBlob = normalize(profile?.resumeText || '');
   const blob = normalize(`${job.title} ${job.company} ${job.source} ${job.description || ''}`);
+  const freshness =
+    job.freshnessScore ?? freshnessScore(job.postedAt || job.firstSeen);
 
   const targetTitles = (profile?.targetTitles || []).map(normalize).filter(Boolean);
   const mustSkills = (profile?.mustHaveSkills || []).map(normalize).filter(Boolean);
@@ -75,7 +80,7 @@ function scoreJobForProfile(job, profile) {
     strengths.push('Target company');
   }
 
-  if (job.freshnessScore >= 75) {
+  if (freshness >= 75) {
     score += 5;
     strengths.push('Fresh posting');
   }
@@ -89,8 +94,9 @@ function scoreJobForProfile(job, profile) {
   if (personalMatchPct >= 80) emailSection = 'apply_today';
   else if (personalMatchPct >= minMatch) emailSection = 'strong_review';
 
-  return {
+  const scored = {
     ...job,
+    freshnessScore: freshness,
     agentMatchPct: job.matchPct || 0,
     personalMatchPct,
     matchPct: personalMatchPct,
@@ -98,12 +104,26 @@ function scoreJobForProfile(job, profile) {
     strengths: strengths.slice(0, 5),
     gaps: gaps.slice(0, 5),
   };
+
+  return enrichJobWithLikelihood(
+    scored,
+    profile,
+    scoringContext.conversionContext,
+    scoringContext.companyCounts
+  );
 }
 
-function scoreJobsForProfile(jobs, profile) {
+function scoreJobsForProfile(jobs, profile, userId = null) {
+  const conversionContext = userId ? getConversionContext(userId) : { sourceReplyRates: {}, sampleSize: 0 };
+  const counts = companyJobCounts(jobs);
+  const scoringContext = { conversionContext, companyCounts: counts };
   return jobs
-    .map((j) => scoreJobForProfile(j, profile))
-    .sort((a, b) => b.personalMatchPct - a.personalMatchPct);
+    .map((j) => scoreJobForProfile(j, profile, scoringContext))
+    .sort(
+      (a, b) =>
+        (b.interviewLikelihoodPct || 0) - (a.interviewLikelihoodPct || 0) ||
+        (b.personalMatchPct ?? 0) - (a.personalMatchPct ?? 0)
+    );
 }
 
 module.exports = { scoreJobForProfile, scoreJobsForProfile };

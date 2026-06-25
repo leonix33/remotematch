@@ -99,8 +99,9 @@ function attachKitToApplyItem(userId, job, options = {}) {
   return {
     ...base,
     cover_letter: kit.coverLetterParagraph || '',
-    resume_addendum: kit.resumeAddendum || '',
+    resume_addendum: kit.fullSupplementText || kit.resumeAddendum || '',
     application_kit: {
+      pageCount: kit.pageCount,
       missingKeywords: kit.missingKeywords || [],
       additiveBullets: kit.additiveBullets || [],
       formatted: kit.formatted || '',

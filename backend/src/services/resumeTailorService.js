@@ -11,6 +11,8 @@ const TECH_KEYWORDS = [
   'cloudformation', 'security', 'soc2', 'hipaa', 'pci', 'on-call', 'sla', 'slo',
 ];
 
+const MIN_SUPPLEMENT_PAGES = 3;
+
 function getClient() {
   if (!env.openaiApiKey) return null;
   return new OpenAI({ apiKey: env.openaiApiKey });
@@ -35,35 +37,123 @@ function inferMissingKeywords(profile, jobDescription) {
     const inResume = resumeBlob.includes(keyword) || profileSkills.some((s) => s.includes(keyword));
     if (!inResume) missing.push(keyword);
   }
-  return missing.slice(0, 12);
+  return missing.slice(0, 20);
+}
+
+function extractJdRequirements(jobDescription) {
+  const lines = String(jobDescription || '')
+    .split(/[\n•·\-]+/)
+    .map((l) => l.trim())
+    .filter((l) => l.length > 12 && l.length < 220);
+  return lines.slice(0, 25);
+}
+
+function buildDemoSupplementPages(profile, job, jobDescription, missingKeywords) {
+  const skills = (profile?.mustHaveSkills || []).slice(0, 10).join(', ') || 'cloud, DevOps, platform engineering';
+  const reqs = extractJdRequirements(jobDescription).slice(0, 8);
+  const name = profile?.displayName || 'Candidate';
+
+  const page1 = {
+    page: 1,
+    title: 'Role alignment addendum (attach after base resume)',
+    content: [
+      `ADDENDUM FOR: ${job?.title || 'Role'} at ${job?.company || 'Company'}`,
+      '',
+      'SECTION A — How my background maps to this job description',
+      '',
+      ...reqs.map((r, i) => `${i + 1}. JD requirement: ${r}\n   Addendum bullet (if truthful): Relate your ${skills} experience to this requirement with a metric or scope.`),
+      '',
+      'SECTION B — Skills to emphasize from my existing resume',
+      skills,
+      '',
+      'SECTION C — Keywords to mirror in ATS (only if accurate)',
+      missingKeywords.join(', ') || 'Review full JD for tooling keywords',
+    ].join('\n'),
+  };
+
+  const page2 = {
+    page: 2,
+    title: 'Technical depth & tools supplement',
+    content: [
+      'TECHNICAL SUPPLEMENT (additive — does not replace resume bullets)',
+      '',
+      '1. Infrastructure & automation',
+      `   • Document Terraform/IaC patterns, modules, and environments you have supported.`,
+      `   • CI/CD: pipelines owned, deployment frequency, rollback strategy.`,
+      '',
+      '2. Reliability & operations',
+      '   • Incident response, on-call, SLO/SLA ownership, postmortem culture.',
+      '   • Observability stack: metrics, logs, traces (Prometheus, Grafana, Datadog, etc.).',
+      '',
+      '3. Cloud & platform',
+      '   • AWS/Azure/GCP services used at scale; networking, IAM, cost controls.',
+      '   • Kubernetes/platform: clusters managed, GitOps, security baselines.',
+      '',
+      '4. Security & compliance (if in JD)',
+      '   • Vault/secrets, SOC2/HIPAA exposure, least-privilege IAM.',
+      '',
+      `Tools from job description to address: ${missingKeywords.slice(0, 10).join(', ') || 'see full JD'}`,
+    ].join('\n'),
+  };
+
+  const page3 = {
+    page: 3,
+    title: 'Application narrative, cover letter & ATS Q&A',
+    content: [
+      'COVER LETTER (full)',
+      '',
+      `Dear Hiring Team,`,
+      '',
+      `I am applying for the ${job?.title || 'position'} role at ${job?.company || 'your organization'}. My background in ${skills} aligns with the requirements outlined in your posting. I have delivered reliable cloud and platform outcomes — automation, observability, and secure deployments — in production environments.`,
+      '',
+      `I am particularly interested in ${job?.company || 'this team'} because the role emphasizes skills I use daily. I would welcome a conversation about how I can contribute to your platform goals.`,
+      '',
+      `Sincerely,`,
+      `${name}`,
+      '',
+      '---',
+      'LIKELY ATS SHORT-ANSWER PROMPTS (draft honestly)',
+      '',
+      '• Years of DevOps/SRE experience: [fill from resume]',
+      '• Kubernetes production experience: [fill from resume]',
+      '• Why this company: [1–2 sentences tied to JD]',
+      '• Salary expectations: [your range]',
+      '',
+      'ATS KEYWORD GLOSSARY',
+      missingKeywords.map((k) => `• ${k}`).join('\n'),
+    ].join('\n'),
+  };
+
+  return [page1, page2, page3];
 }
 
 function buildDemoKit(profile, job, jobDescription) {
   const missingKeywords = inferMissingKeywords(profile, jobDescription);
-  const name = profile?.displayName || 'Candidate';
-  const skills = (profile?.mustHaveSkills || []).slice(0, 6).join(', ') || 'cloud and platform engineering';
+  const supplementPages = buildDemoSupplementPages(profile, job, jobDescription, missingKeywords);
+  const fullSupplementText = supplementPages.map((p) => `=== PAGE ${p.page}: ${p.title} ===\n\n${p.content}`).join('\n\n');
 
   return {
     mode: 'additive',
     tailored: true,
     demo: true,
+    pageCount: supplementPages.length,
+    supplementPages,
+    fullSupplementText,
     missingKeywords,
-    skillsToHighlight: (profile?.mustHaveSkills || []).slice(0, 8),
-    additiveBullets: missingKeywords.slice(0, 4).map((kw) => ({
+    skillsToHighlight: (profile?.mustHaveSkills || []).slice(0, 12),
+    additiveBullets: missingKeywords.slice(0, 8).map((kw) => ({
       section: 'Additional relevant experience',
-      text: `Hands-on experience with ${kw} in production environments (add only if truthful for your background).`,
+      text: `Experience with ${kw} in production (include only if truthful).`,
     })),
-    resumeAddendum:
-      missingKeywords.length > 0
-        ? `Additional keywords aligned to ${job?.company || 'this role'}: ${missingKeywords.join(', ')}.`
-        : `Strong overlap with ${job?.title || 'this role'} based on your ${skills} background.`,
-    coverLetterParagraph: `Dear Hiring Team,\n\nI am applying for the ${job?.title || 'role'} at ${job?.company || 'your company'}. My background in ${skills} maps directly to your requirements. I would welcome the chance to discuss how I can contribute.\n\nSincerely,\n${name}`,
+    resumeAddendum: supplementPages[0]?.content?.slice(0, 1500) || '',
+    coverLetterParagraph: supplementPages[2]?.content?.split('Sincerely,')[0]?.trim() || '',
     atsTips: [
-      'Paste the resume addendum into the cover letter or additional info field — do not edit your base resume file.',
-      'Mirror 3–5 keywords from the job description in your application answers where accurate.',
+      'Submit base resume unchanged, then attach this 3-page supplement as PDF or paste sections into ATS fields.',
+      'Page 1: alignment · Page 2: technical depth · Page 3: cover letter + ATS answers.',
     ],
     guardrails:
-      'Your base resume is unchanged. Only add the bullets and addendum below if they are truthful.',
+      'Your base resume structure and bullets stay unchanged. This supplement is additive material for ATS and recruiters.',
+    jobDescriptionLength: jobDescription.length,
   };
 }
 
@@ -72,49 +162,77 @@ function parseKitJson(raw) {
   return JSON.parse(cleaned);
 }
 
+function normalizeKit(kit, profile, job, jobDescription, missingKeywords) {
+  let supplementPages = kit.supplementPages || [];
+  if (supplementPages.length < MIN_SUPPLEMENT_PAGES) {
+    supplementPages = buildDemoSupplementPages(profile, job, jobDescription, missingKeywords);
+  }
+
+  const fullSupplementText =
+    kit.fullSupplementText ||
+    supplementPages.map((p) => `=== PAGE ${p.page}: ${p.title} ===\n\n${p.content}`).join('\n\n');
+
+  return {
+    ...kit,
+    mode: 'additive',
+    tailored: true,
+    pageCount: supplementPages.length,
+    supplementPages,
+    fullSupplementText,
+    missingKeywords: kit.missingKeywords?.length ? kit.missingKeywords : missingKeywords,
+    jobDescriptionLength: jobDescription.length,
+    guardrails:
+      kit.guardrails ||
+      'Base resume unchanged. Minimum 3-page additive supplement for ATS and human reviewers.',
+  };
+}
+
 async function generateAdditiveKit({ profile, job, jobDescription }) {
   const missingKeywords = inferMissingKeywords(profile, jobDescription);
   const client = getClient();
+  const fullJd = jobDescription.slice(0, 14000);
 
   if (!client) {
-    return buildDemoKit(profile, job, jobDescription);
+    return buildDemoKit(profile, job, fullJd);
   }
 
-  const system = `You are an expert resume strategist for senior DevOps/SRE/Platform engineers.
+  const system = `You are an expert application strategist for senior DevOps/SRE/Platform engineers.
 
-STRICT RULES — never violate:
-1. NEVER rewrite, reorder, delete, or paraphrase the candidate's existing resume bullets.
-2. ONLY suggest NEW additive content: extra bullets, a short addendum paragraph, or keywords to weave into a cover letter.
-3. Every additive bullet must be truthful based only on the resume provided — no invented employers, dates, or certifications.
-4. If the candidate already covers a skill, do not suggest it again — highlight it in skillsToHighlight instead.
-5. Keep tone professional and concise.
+STRICT RULES:
+1. NEVER rewrite, reorder, delete, or paraphrase the candidate's existing resume.
+2. Produce an ADDITIVE supplement of at least ${MIN_SUPPLEMENT_PAGES} full pages (~450-700 words per page when printed).
+3. Use the ENTIRE job description — map requirements to evidence from the resume only.
+4. No invented employers, dates, certifications, or metrics.
+5. Where experience is partial, use honest framing: "exposure to", "familiar with", "currently deepening".
+6. Include tools, platforms, and responsibilities explicitly mentioned in the JD.
 
-Respond with JSON only:
+Return JSON only:
 {
-  "mode": "additive",
-  "missingKeywords": ["keyword1"],
-  "skillsToHighlight": ["existing skill to emphasize"],
-  "additiveBullets": [{"section": "Skills|Additional experience|Certifications", "text": "new bullet to ADD"}],
-  "resumeAddendum": "2-4 sentence paragraph to append at end of resume or paste in ATS additional info — additive only",
-  "coverLetterParagraph": "4-6 sentence tailored paragraph for this job",
-  "atsTips": ["tip1", "tip2"],
-  "guardrails": "one sentence reminding user base resume stays unchanged"
+  "missingKeywords": ["from JD not in resume"],
+  "skillsToHighlight": ["already on resume — emphasize for this JD"],
+  "additiveBullets": [{"section":"string","text":"new bullet to ADD"}],
+  "supplementPages": [
+    {"page":1,"title":"Role alignment addendum","content":"full page text"},
+    {"page":2,"title":"Technical depth & tools supplement","content":"full page text"},
+    {"page":3,"title":"Cover letter & ATS Q&A","content":"full page text with cover letter + short answer drafts"}
+  ],
+  "coverLetterParagraph": "opening paragraph only",
+  "atsTips": ["tip1","tip2"],
+  "guardrails": "reminder"
 }`;
 
-  const user = `CANDIDATE RESUME (read-only — do not modify existing text):
-${(profile?.resumeText || profile?.bio || 'No resume on file').slice(0, 6000)}
+  const user = `CANDIDATE RESUME (READ-ONLY — never modify):
+${(profile?.resumeText || profile?.bio || 'No resume').slice(0, 8000)}
 
 TARGET ROLES: ${(profile?.targetTitles || []).join(', ')}
-MUST-HAVE SKILLS: ${(profile?.mustHaveSkills || []).join(', ')}
-PRE-DETECTED GAPS: ${missingKeywords.join(', ') || 'none'}
+MUST-HAVE: ${(profile?.mustHaveSkills || []).join(', ')}
+GAPS DETECTED: ${missingKeywords.join(', ') || 'none'}
 
-JOB:
-Title: ${job?.title || 'Unknown'}
-Company: ${job?.company || 'Unknown'}
-Match: ${job?.matchPct || job?.personalMatchPct || 0}%
+JOB: ${job?.title} at ${job?.company}
+MATCH: ${job?.matchPct || job?.personalMatchPct || 0}%
 
-JOB DESCRIPTION:
-${jobDescription.slice(0, 8000)}`;
+FULL JOB DESCRIPTION:
+${fullJd}`;
 
   const response = await client.chat.completions.create({
     model: 'gpt-4o-mini',
@@ -122,22 +240,16 @@ ${jobDescription.slice(0, 8000)}`;
       { role: 'system', content: system },
       { role: 'user', content: user },
     ],
-    temperature: 0.4,
-    max_tokens: 900,
+    temperature: 0.45,
+    max_tokens: 4500,
   });
 
   const raw = response.choices[0]?.message?.content?.trim() || '';
   try {
     const kit = parseKitJson(raw);
-    return {
-      ...kit,
-      mode: 'additive',
-      tailored: true,
-      demo: false,
-      missingKeywords: kit.missingKeywords?.length ? kit.missingKeywords : missingKeywords,
-    };
+    return normalizeKit(kit, profile, job, fullJd, missingKeywords);
   } catch {
-    const demo = buildDemoKit(profile, job, jobDescription);
+    const demo = buildDemoKit(profile, job, fullJd);
     demo.parseError = true;
     return demo;
   }
@@ -147,25 +259,27 @@ function formatKitAsText(kit) {
   const lines = [
     '=== APPLICATION KIT (additive — base resume unchanged) ===',
     kit.guardrails || '',
+    `Pages: ${kit.pageCount || kit.supplementPages?.length || MIN_SUPPLEMENT_PAGES}`,
     '',
+  ];
+
+  if (kit.supplementPages?.length) {
+    for (const page of kit.supplementPages) {
+      lines.push(`--- PAGE ${page.page}: ${page.title} ---`, page.content, '');
+    }
+  }
+
+  lines.push(
     '--- Keywords to mirror (if accurate) ---',
     ...(kit.missingKeywords || []).map((k) => `• ${k}`),
     '',
-    '--- Skills to emphasize (already on your resume) ---',
+    '--- Skills to emphasize ---',
     ...(kit.skillsToHighlight || []).map((k) => `• ${k}`),
     '',
-    '--- Additive bullets (add only if truthful) ---',
-    ...(kit.additiveBullets || []).map((b, i) => `${i + 1}. [${b.section}] ${b.text}`),
-    '',
-    '--- Resume addendum (paste in cover letter / additional info field) ---',
-    kit.resumeAddendum || '',
-    '',
-    '--- Cover letter paragraph ---',
-    kit.coverLetterParagraph || '',
-    '',
     '--- ATS tips ---',
-    ...(kit.atsTips || []).map((t) => `• ${t}`),
-  ];
+    ...(kit.atsTips || []).map((t) => `• ${t}`)
+  );
+
   return lines.join('\n').trim();
 }
 
@@ -174,4 +288,5 @@ module.exports = {
   buildDemoKit,
   inferMissingKeywords,
   formatKitAsText,
+  MIN_SUPPLEMENT_PAGES,
 };

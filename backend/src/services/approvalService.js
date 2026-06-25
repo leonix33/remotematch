@@ -39,7 +39,7 @@ async function buildJobList(userId) {
       agentMatchPct: j.matchPct || 0,
     }));
   } else {
-    jobs = scoreJobsForProfile(jobs, profile);
+    jobs = scoreJobsForProfile(jobs, profile, userId);
   }
 
   jobs = jobs.filter((j) => (j.personalMatchPct ?? j.matchPct ?? 0) >= minMatch);
@@ -148,7 +148,9 @@ function applyFilters(items, { statusFilter, search, minMatch, ats, sort }) {
     list = [...list].sort((a, b) => (a.company || '').localeCompare(b.company || ''));
   } else {
     list = [...list].sort(
-      (a, b) => (b.personalMatchPct ?? b.matchPct ?? 0) - (a.personalMatchPct ?? a.matchPct ?? 0)
+      (a, b) =>
+        (b.interviewLikelihoodPct ?? 0) - (a.interviewLikelihoodPct ?? 0) ||
+        (b.personalMatchPct ?? b.matchPct ?? 0) - (a.personalMatchPct ?? a.matchPct ?? 0)
     );
   }
   return list;

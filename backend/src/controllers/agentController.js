@@ -48,7 +48,7 @@ async function applyApproved(req, res, next) {
     }
 
     const profile = await profileService.getOrCreate(req.user.sub);
-    const scored = scoreJobsForProfile(approved, profile);
+    const scored = scoreJobsForProfile(approved, profile, req.user.sub);
     const useTailoredResume =
       typeof req.body?.useTailoredResume === 'boolean'
         ? req.body.useTailoredResume
