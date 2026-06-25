@@ -1,6 +1,6 @@
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue';
-import { RouterLink } from 'vue-router';
+import { computed, nextTick, onMounted, ref, watch } from 'vue';
+import { RouterLink, useRoute } from 'vue-router';
 import http from '../api/http';
 import ApplyWorkflowBanner from '../components/ApplyWorkflowBanner.vue';
 import ApplicationKitPanel from '../components/ApplicationKitPanel.vue';
@@ -9,6 +9,7 @@ import { useProfileStore } from '../stores/profile';
 import { buildLinkedInSearchFromJob, isLinkedInJob, isLinkedInUrl, openLinkedIn } from '../utils/linkedin';
 
 const profileStore = useProfileStore();
+const route = useRoute();
 
 const items = ref([]);
 const total = ref(0);
@@ -26,6 +27,8 @@ const tailorOnApprove = ref(false);
 const applyResumeMode = ref('base');
 const kitJob = ref(null);
 const kitOpen = ref(false);
+const highlightJobId = ref('');
+const queueBanner = ref('');
 
 const search = ref('');
 const minMatch = ref('85');
@@ -236,6 +239,27 @@ function onKitUpdated() {
   load();
 }
 
+async function highlightQueuedJob(jobId) {
+  if (!jobId) return;
+  status.value = 'all';
+  minMatch.value = '0';
+  search.value = '';
+  page.value = 1;
+  await load();
+  highlightJobId.value = jobId;
+  queueBanner.value = 'Opened from notification — review this job below.';
+  await nextTick();
+  const el = document.getElementById(`job-${jobId}`);
+  if (el) {
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  } else {
+    queueBanner.value = `Job ${jobId} is in your queue — use search if not visible on this page.`;
+  }
+  setTimeout(() => {
+    highlightJobId.value = '';
+  }, 10000);
+}
+
 function kitBadge(job) {
   if (job.kit?.applied) return { label: 'Applied', cls: 'badge-teal' };
   if (!job.kit?.hasKit) return null;
@@ -262,12 +286,20 @@ watch([status, search, minMatch, ats], () => {
 });
 watch(page, load);
 
+watch(
+  () => route.query.jobId,
+  (jobId) => {
+    if (jobId) highlightQueuedJob(String(jobId));
+  }
+);
+
 onMounted(async () => {
   await profileStore.fetch().catch(() => {});
   tailorOnApprove.value = Boolean(profileStore.profile?.tailorResumeOnApply);
   applyResumeMode.value = profileStore.profile?.defaultApplyResumeMode === 'tailored' ? 'tailored' : 'base';
-  load();
+  await load();
   loadWhisper();
+  if (route.query.jobId) highlightQueuedJob(String(route.query.jobId));
 });
 </script>
 
@@ -366,6 +398,7 @@ onMounted(async () => {
 
     <p v-if="error" class="mt-4 rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-300">{{ error }}</p>
     <p v-if="applyMessage" class="mt-4 rounded-lg bg-teal-500/10 px-3 py-2 text-sm text-teal-200">{{ applyMessage }}</p>
+    <p v-if="queueBanner" class="mt-4 rounded-lg bg-sky-500/10 px-3 py-2 text-sm text-sky-200">{{ queueBanner }}</p>
 
     <div v-if="whisper.length && status === 'pending'" class="mt-6 card p-4">
       <div class="flex items-center justify-between">
@@ -388,7 +421,13 @@ onMounted(async () => {
         Select all on this page
       </div>
       <div class="space-y-3">
-        <div v-for="job in items" :key="job.jobId" class="card p-4 transition hover:border-teal-700/50">
+        <div
+          v-for="job in items"
+          :id="`job-${job.jobId}`"
+          :key="job.jobId"
+          class="card p-4 transition hover:border-teal-700/50"
+          :class="highlightJobId === job.jobId ? 'ring-2 ring-teal-400 border-teal-500/60' : ''"
+        >
           <div class="flex flex-wrap items-start justify-between gap-3">
             <div class="flex min-w-0 flex-1 gap-3">
               <input

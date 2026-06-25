@@ -3,8 +3,29 @@ const approvalService = require('../services/approvalService');
 async function queueExternal(req, res, next) {
   try {
     const { url, title, company, source } = req.body;
-    const item = await approvalService.addExternal(req.user.sub, { url, title, company, source });
-    res.status(201).json({ message: 'Added to Apply Queue', item });
+    const notify = req.body.notify !== false;
+    const item = await approvalService.addExternal(req.user.sub, { url, title, company, source, notify });
+    res.status(item.isNew ? 201 : 200).json({
+      message: item.isNew ? 'Added to Apply Queue' : 'Already in your queue',
+      item,
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function linkedinIngest(req, res, next) {
+  try {
+    const { jobs } = req.body;
+    const notify = req.body.notify !== false;
+    const result = await approvalService.ingestLinkedInJobs(req.user.sub, { jobs, notify });
+    res.status(result.ingested ? 201 : 200).json({
+      message:
+        result.ingested > 0
+          ? `${result.ingested} new LinkedIn job(s) queued — check your phone`
+          : 'No new jobs (already queued)',
+      ...result,
+    });
   } catch (err) {
     next(err);
   }
@@ -22,8 +43,12 @@ async function queueJob(req, res, next) {
       matchPct,
       atsType,
       source,
+      notify: req.body.notify !== false,
     });
-    res.status(201).json({ message: 'Added to apply queue', item });
+    res.status(item.isNew ? 201 : 200).json({
+      message: item.isNew ? 'Added to apply queue' : 'Already in your queue',
+      item,
+    });
   } catch (err) {
     next(err);
   }
@@ -103,4 +128,4 @@ async function bulkReject(req, res, next) {
   }
 }
 
-module.exports = { list, summary, approve, reject, queueExternal, queueJob, bulkApprove, bulkReject };
+module.exports = { list, summary, approve, reject, queueExternal, queueJob, linkedinIngest, bulkApprove, bulkReject };

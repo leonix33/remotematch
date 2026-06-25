@@ -8,6 +8,7 @@ router.post('/bulk-approve', requireAuth, approvalController.bulkApprove);
 router.post('/bulk-reject', requireAuth, approvalController.bulkReject);
 router.post('/queue', requireAuth, approvalController.queueJob);
 router.post('/queue-external', requireAuth, approvalController.queueExternal);
+router.post('/linkedin-ingest', requireAuth, approvalController.linkedinIngest);
 router.post('/:jobId/approve', requireAuth, approvalController.approve);
 router.post('/:jobId/reject', requireAuth, approvalController.reject);
 

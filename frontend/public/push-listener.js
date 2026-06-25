@@ -10,6 +10,7 @@ self.addEventListener('push', (event) => {
       body: data.body || '',
       icon: '/icon.svg',
       badge: '/icon.svg',
+      tag: data.tag || data.url || 'remotematch',
       data: { url: data.url || '/' },
     })
   );
@@ -17,13 +18,22 @@ self.addEventListener('push', (event) => {
 
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
-  const url = event.notification.data?.url || '/';
+  const path = event.notification.data?.url || '/';
+  const targetUrl = new URL(path, self.location.origin).href;
+
   event.waitUntil(
-    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
-      for (const client of list) {
-        if ('focus' in client) return client.focus();
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      for (const client of clientList) {
+        if (client.url.startsWith(self.location.origin)) {
+          client.focus();
+          if ('navigate' in client) {
+            return client.navigate(targetUrl);
+          }
+          client.postMessage({ type: 'REMOTEMATCH_NAVIGATE', url: path });
+          return;
+        }
       }
-      if (clients.openWindow) return clients.openWindow(url);
+      if (clients.openWindow) return clients.openWindow(targetUrl);
     })
   );
 });

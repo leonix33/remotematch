@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue';
+import { computed, onMounted, onUnmounted } from 'vue';
 import { useRoute, useRouter, RouterLink, RouterView } from 'vue-router';
 import { useAuthStore } from './stores/auth';
 import PwaPrompt from './components/PwaPrompt.vue';
@@ -45,6 +45,20 @@ function logout() {
   auth.logout();
   router.push('/login');
 }
+
+function onSwMessage(event) {
+  if (event.data?.type === 'REMOTEMATCH_NAVIGATE' && event.data.url) {
+    router.push(event.data.url);
+  }
+}
+
+onMounted(() => {
+  navigator.serviceWorker?.addEventListener('message', onSwMessage);
+});
+
+onUnmounted(() => {
+  navigator.serviceWorker?.removeEventListener('message', onSwMessage);
+});
 </script>
 
 <template>

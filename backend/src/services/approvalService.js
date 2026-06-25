@@ -7,6 +7,7 @@ const profileService = require('./profileService');
 const { scoreJobsForProfile } = require('./jobScoringService');
 const teamService = require('./teamService');
 const localApprovalService = require('./localApprovalService');
+const queueNotifyService = require('./queueNotifyService');
 const applicationKitService = require('./applicationKitService');
 
 function requireMongo() {
@@ -305,10 +306,11 @@ async function markApplied(userId, jobIds) {
   );
 }
 
-async function addExternal(userId, { url, title, company, source }) {
+async function addExternal(userId, { url, title, company, source, notify = true }) {
   if (!url) throw new Error('URL is required');
   const jobId = `ext-${crypto.createHash('sha256').update(url).digest('hex').slice(0, 16)}`;
   const row = {
+    jobId,
     title: title || 'External job',
     company: company || 'Unknown',
     url,
@@ -318,22 +320,83 @@ async function addExternal(userId, { url, title, company, source }) {
     notes: 'Queued from browser extension',
   };
 
+  let existing;
   if (env.mongoUri) {
-    return JobApproval.findOneAndUpdate(
-      { userId, jobId },
-      { userId, jobId, ...row },
-      { upsert: true, new: true }
-    );
+    existing = await JobApproval.findOne({ userId, jobId }).lean();
+  } else {
+    existing = localApprovalService.get(userId, jobId);
   }
 
-  return localApprovalService.set(userId, jobId, row);
+  const isNew = !existing || existing.status === 'rejected';
+
+  let saved;
+  if (env.mongoUri) {
+    saved = await JobApproval.findOneAndUpdate(
+      { userId, jobId },
+      { userId, jobId, ...row, reviewedAt: null },
+      { upsert: true, new: true }
+    );
+  } else {
+    saved = localApprovalService.set(userId, jobId, row);
+  }
+
+  const result = {
+    jobId,
+    title: row.title,
+    company: row.company,
+    url: row.url,
+    source: row.source,
+    status: 'pending',
+    isNew,
+  };
+
+  if (notify && isNew) {
+    try {
+      await queueNotifyService.notifyQueuedJob(userId, result);
+    } catch (err) {
+      console.warn('Queue notify failed:', err.message);
+    }
+  }
+
+  return result;
 }
 
-async function queueJob(userId, { jobId, title, company, url, matchPct = 0, atsType, source = 'user' }) {
+async function ingestLinkedInJobs(userId, { jobs = [], notify = true }) {
+  if (!Array.isArray(jobs) || !jobs.length) {
+    return { ingested: 0, skipped: 0, items: [] };
+  }
+
+  const items = [];
+  let ingested = 0;
+  let skipped = 0;
+
+  for (const job of jobs) {
+    if (!job?.url) continue;
+    try {
+      const item = await addExternal(userId, {
+        url: job.url,
+        title: job.title,
+        company: job.company,
+        source: 'linkedin',
+        notify,
+      });
+      items.push(item);
+      if (item.isNew) ingested += 1;
+      else skipped += 1;
+    } catch {
+      skipped += 1;
+    }
+  }
+
+  return { ingested, skipped, items };
+}
+
+async function queueJob(userId, { jobId, title, company, url, matchPct = 0, atsType, source = 'user', notify = true }) {
   if (!jobId) throw new Error('jobId is required');
 
   let job = (await loadJobs(0)).find((j) => j.jobId === jobId);
   const row = {
+    jobId,
     title: job?.title || title || 'Job',
     company: job?.company || company || 'Unknown',
     url: job?.url || url || '',
@@ -345,15 +408,45 @@ async function queueJob(userId, { jobId, title, company, url, matchPct = 0, atsT
     reviewedAt: null,
   };
 
+  let existing;
   if (!env.mongoUri) {
-    return localApprovalService.set(userId, jobId, row);
+    existing = localApprovalService.get(userId, jobId);
+  } else {
+    existing = await JobApproval.findOne({ userId, jobId }).lean();
+  }
+  const isNew = !existing || existing.status === 'rejected';
+
+  let saved;
+  if (!env.mongoUri) {
+    saved = localApprovalService.set(userId, jobId, row);
+  } else {
+    saved = await JobApproval.findOneAndUpdate(
+      { userId, jobId },
+      { userId, jobId, ...row },
+      { upsert: true, new: true }
+    );
   }
 
-  return JobApproval.findOneAndUpdate(
-    { userId, jobId },
-    { userId, jobId, ...row },
-    { upsert: true, new: true }
-  );
+  const result = {
+    jobId,
+    title: row.title,
+    company: row.company,
+    url: row.url,
+    source: row.source,
+    matchPct: row.matchPct,
+    status: 'pending',
+    isNew,
+  };
+
+  if (notify && isNew) {
+    try {
+      await queueNotifyService.notifyQueuedJob(userId, result);
+    } catch (err) {
+      console.warn('Queue notify failed:', err.message);
+    }
+  }
+
+  return result;
 }
 
 module.exports = {
@@ -364,5 +457,6 @@ module.exports = {
   listApproved,
   markApplied,
   addExternal,
+  ingestLinkedInJobs,
   queueJob,
 };

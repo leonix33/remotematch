@@ -87,7 +87,10 @@ function openSearch(item) {
           </li>
           <li class="flex gap-3">
             <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-teal-500/20 text-xs font-bold text-teal-300">2</span>
-            <span>On a job you like, use the <strong class="text-slate-200">RemoteMatch Chrome extension</strong> → Send to Apply Queue.</span>
+            <span>
+              Keep a LinkedIn <strong class="text-slate-200">job search</strong> open in Chrome (v1.3+ extension).
+              New listings auto-queue and <strong class="text-slate-200">notify your phone</strong> — or use the extension popup to queue manually.
+            </span>
           </li>
           <li class="flex gap-3">
             <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-teal-500/20 text-xs font-bold text-teal-300">3</span>

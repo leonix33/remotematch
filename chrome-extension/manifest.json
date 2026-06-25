@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "RemoteMatch Queue",
-  "version": "1.2.0",
-  "description": "Send job pages to RemoteMatch (LinkedIn, Wellfound, Indeed, and more)",
+  "version": "1.3.0",
+  "description": "Queue LinkedIn jobs to RemoteMatch — auto-detect new listings and notify your phone",
   "permissions": ["storage", "activeTab"],
   "host_permissions": [
     "https://remotematch.onrender.com/*",
@@ -10,9 +10,14 @@
     "https://www.remotematch.app/*",
     "https://remotelymatch.app/*",
     "https://www.remotelymatch.app/*",
+    "https://www.linkedin.com/*",
+    "https://linkedin.com/*",
     "http://localhost:5100/*",
     "http://localhost:5173/*"
   ],
+  "background": {
+    "service_worker": "background.js"
+  },
   "action": {
     "default_popup": "popup.html",
     "default_title": "Send to RemoteMatch"

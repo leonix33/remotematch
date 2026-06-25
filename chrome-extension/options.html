@@ -19,17 +19,23 @@
     </p>
     <label>API base URL<input id="apiBase" placeholder="https://remotelymatch.app" /></label>
     <label>Access token (JWT)<input id="accessToken" type="password" /></label>
+    <label style="margin-top:20px;display:flex;align-items:center;gap:8px;font-weight:normal">
+      <input id="linkedinWatch" type="checkbox" checked />
+      Watch LinkedIn job search pages — auto-queue new listings &amp; notify phone
+    </label>
     <button id="save">Save</button>
     <p id="status"></p>
     <script>
-      chrome.storage.sync.get(['apiBase', 'accessToken'], (data) => {
+      chrome.storage.sync.get(['apiBase', 'accessToken', 'linkedinWatchEnabled'], (data) => {
         document.getElementById('apiBase').value = data.apiBase || 'https://remotelymatch.app';
         document.getElementById('accessToken').value = data.accessToken || '';
+        document.getElementById('linkedinWatch').checked = data.linkedinWatchEnabled !== false;
       });
       document.getElementById('save').addEventListener('click', () => {
         chrome.storage.sync.set({
           apiBase: document.getElementById('apiBase').value.trim(),
           accessToken: document.getElementById('accessToken').value.trim(),
+          linkedinWatchEnabled: document.getElementById('linkedinWatch').checked,
         }, () => {
           document.getElementById('status').textContent = 'Saved.';
         });
