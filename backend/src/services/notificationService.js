@@ -8,6 +8,8 @@ const Watchlist = require('../models/Watchlist');
 const emailService = require('./emailService');
 const { scoreJobsForProfile } = require('./jobScoringService');
 const User = require('../models/User');
+const localNotificationStore = require('./localNotificationStore');
+const tractionService = require('./tractionService');
 const pushService = require('./pushService');
 
 function requireMongo() {
@@ -21,6 +23,11 @@ function setEmitter(fn) {
 }
 
 async function create(userId, payload) {
+  if (!env.mongoUri) {
+    const n = localNotificationStore.create(userId, payload);
+    emitToUser(userId.toString(), 'notification', n);
+    return n;
+  }
   requireMongo();
   const n = await Notification.create({ userId, ...payload });
   emitToUser(userId.toString(), 'notification', n);
@@ -60,6 +67,9 @@ async function create(userId, payload) {
 }
 
 async function list(userId, unreadOnly = false) {
+  if (!env.mongoUri) {
+    return localNotificationStore.list(userId, unreadOnly);
+  }
   requireMongo();
   const q = { userId };
   if (unreadOnly) q.read = false;
@@ -67,21 +77,60 @@ async function list(userId, unreadOnly = false) {
 }
 
 async function markRead(userId, id) {
+  if (!env.mongoUri) {
+    localNotificationStore.markRead(userId, id);
+    return;
+  }
   requireMongo();
   await Notification.findOneAndUpdate({ _id: id, userId }, { read: true });
 }
 
 async function markAllRead(userId) {
+  if (!env.mongoUri) {
+    localNotificationStore.markAllRead(userId);
+    return;
+  }
   requireMongo();
   await Notification.updateMany({ userId, read: false }, { read: true });
 }
 
 async function unreadCount(userId) {
+  if (!env.mongoUri) {
+    return localNotificationStore.unreadCount(userId);
+  }
   requireMongo();
   return Notification.countDocuments({ userId, read: false });
 }
 
 async function scanAndNotify(userId) {
+  if (!env.mongoUri) {
+    await tractionService.scanAndNotifyTraction(userId);
+    const profile = await profileService.getOrCreate(userId);
+    const minHigh = Math.max(profile.minMatchScore || 60, 85);
+    const jobs = scoreJobsForProfile(jobService.readJobsFromSqlite(200), profile, userId).filter(
+      (j) => j.personalMatchPct >= minHigh
+    );
+    for (const job of jobs.slice(0, 2)) {
+      const exists = localNotificationStore
+        .list(userId)
+        .find(
+          (n) =>
+            n.type === 'high_match' &&
+            n.meta?.jobId === job.jobId &&
+            new Date(n.createdAt) > new Date(Date.now() - 7 * 86400000)
+        );
+      if (!exists) {
+        await create(userId, {
+          type: 'high_match',
+          title: `${job.personalMatchPct}% match: ${job.title}`,
+          body: `${job.company} — ${job.interviewLikelihoodPct || 0}% interview likelihood`,
+          link: '/approvals',
+          meta: { jobId: job.jobId },
+        });
+      }
+    }
+    return;
+  }
   requireMongo();
   const profile = await profileService.getOrCreate(userId);
   const minHigh = Math.max(profile.minMatchScore || 60, 85);

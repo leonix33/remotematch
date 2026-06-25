@@ -21,6 +21,14 @@ const profileSchema = new mongoose.Schema(
     resumeParsedAt: { type: Date },
     tailorResumeOnApply: { type: Boolean, default: false },
     defaultApplyResumeMode: { type: String, enum: ['base', 'tailored'], default: 'base' },
+    digestEmail: { type: String, default: '' },
+    notificationEmail: { type: String, default: '' },
+    emailDigestEnabled: { type: Boolean, default: true },
+    followUpRemindersEnabled: { type: Boolean, default: true },
+    contactPhone: { type: String, default: '' },
+    defaultSupplementPages: { type: Number, default: 3, min: 1, max: 6 },
+    defaultTailorMode: { type: String, enum: ['balanced', 'high_match'], default: 'balanced' },
+    highMatchTarget: { type: Number, default: 90, min: 80, max: 98 },
     savedJobs: {
       type: [
         {

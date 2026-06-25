@@ -79,6 +79,7 @@ async function buildJobList(userId) {
         status: row?.status || 'pending',
         notes: row?.notes || '',
         reviewedAt: row?.reviewedAt,
+        kit: applicationKitService.kitSummary(userId, job.jobId),
       };
     });
   }
@@ -119,6 +120,7 @@ async function buildJobList(userId) {
       notes: existing?.notes || '',
       reviewedAt: existing?.reviewedAt,
       _id: existing?._id,
+      kit: applicationKitService.kitSummary(userId, job.jobId),
     };
   });
 }

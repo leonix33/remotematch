@@ -135,6 +135,75 @@ async function notifyPasswordReset({ to, name, email, password }) {
   });
 }
 
+async function sendAppliedJobsDigest({ to, applied, followUps, approveNow, summary, profile }) {
+  const name = profile?.displayName || 'there';
+  const appliedRows =
+    applied.length > 0
+      ? applied
+          .map(
+            (j) =>
+              `<tr><td style="padding:8px;border-bottom:1px solid #334155">${escapeHtml(j.title)}</td>` +
+              `<td style="padding:8px;border-bottom:1px solid #334155">${escapeHtml(j.company || '')}</td>` +
+              `<td style="padding:8px;border-bottom:1px solid #334155">${j.matchPct}% / ${j.interviewLikelihoodPct}%</td>` +
+              `<td style="padding:8px;border-bottom:1px solid #334155">${escapeHtml(j.source || '')}</td></tr>`
+          )
+          .join('')
+      : `<tr><td colspan="4" style="padding:12px;color:#94a3b8">No submitted applications yet.</td></tr>`;
+
+  const followBlock =
+    followUps.length > 0
+      ? `<h3 style="color:#5eead4;margin:24px 0 8px">Follow-ups due</h3><ul style="color:#94a3b8;line-height:1.6">${followUps
+          .map((f) => `<li><strong>${escapeHtml(f.title)}</strong> at ${escapeHtml(f.company)} — ${escapeHtml(f.reason)}</li>`)
+          .join('')}</ul>`
+      : '';
+
+  const approveBlock =
+    approveNow.length > 0
+      ? `<h3 style="color:#5eead4;margin:24px 0 8px">High-likelihood jobs to approve</h3><ul style="color:#94a3b8;line-height:1.6">${approveNow
+          .map(
+            (j) =>
+              `<li><strong>${escapeHtml(j.title)}</strong> at ${escapeHtml(j.company)} — ${j.interviewLikelihoodPct}% interview likelihood</li>`
+          )
+          .join('')}</ul>`
+      : '';
+
+  const html = `<div style="font-family:sans-serif;max-width:640px;margin:0 auto;color:#e2e8f0;background:#0f172a;padding:24px;border-radius:12px">
+    <h2 style="color:#5eead4;margin:0 0 8px">Your RemoteMatch application digest</h2>
+    <p style="color:#94a3b8">Hi ${escapeHtml(name)}, here are your best-fit submitted applications and what to do next.</p>
+    <h3 style="color:#5eead4;margin:24px 0 8px">Applications submitted</h3>
+    <table style="width:100%;border-collapse:collapse;font-size:14px">
+      <thead><tr style="color:#64748b;text-align:left">
+        <th style="padding:8px">Role</th><th style="padding:8px">Company</th><th style="padding:8px">Match / Likelihood</th><th style="padding:8px">Source</th>
+      </tr></thead>
+      <tbody>${appliedRows}</tbody>
+    </table>
+    ${followBlock}
+    ${approveBlock}
+    <p style="margin:24px 0 0"><a href="${env.appUrl.replace(/\/$/, '')}/follow-ups" style="display:inline-block;background:#14b8a6;color:#0f172a;text-decoration:none;padding:12px 20px;border-radius:8px;font-weight:600">Open traction trace →</a></p>
+    <p style="color:#475569;font-size:12px;margin-top:24px">${escapeHtml(env.appName)} · Match % = skill fit · Likelihood % = estimated reply chance</p>
+  </div>`;
+
+  return sendEmail({
+    to,
+    subject: `${env.appName}: ${applied.length} applied job(s) · ${summary.followUpsDue || 0} follow-up(s) due`,
+    html,
+  });
+}
+
+async function sendFollowUpReminder({ to, item }) {
+  return sendEmail({
+    to,
+    subject: `Follow up: ${item.title} at ${item.company}`,
+    html: wrapHtml(
+      'Application follow-up reminder',
+      `<strong>${escapeHtml(item.title)}</strong> at ${escapeHtml(item.company)}<br><br>` +
+        `${escapeHtml(item.reason)}<br><br>` +
+        `<em>${escapeHtml(item.suggestedAction)}</em>`,
+      '/follow-ups'
+    ),
+  });
+}
+
 module.exports = {
   sendEmail,
   sendToUser,
@@ -143,5 +212,7 @@ module.exports = {
   notifyInterviewReminder,
   notifyTeamInvite,
   notifyPasswordReset,
+  sendAppliedJobsDigest,
+  sendFollowUpReminder,
   wrapHtml,
 };

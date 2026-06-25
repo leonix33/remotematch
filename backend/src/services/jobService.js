@@ -145,7 +145,7 @@ function jobToApplyItem(job, userId, options = {}) {
 }
 
 async function writeApprovedItemsFile(jobs, userId, options = {}) {
-  const { useTailoredResume = false } = options;
+  const { useTailoredResume = false, authEmail } = options;
   const itemsDir = path.join(env.agentHome, 'items');
   if (!fs.existsSync(itemsDir)) fs.mkdirSync(itemsDir, { recursive: true });
   const ts = Date.now();
@@ -156,7 +156,10 @@ async function writeApprovedItemsFile(jobs, userId, options = {}) {
   let missingKitCount = 0;
   if (userId) {
     const applicationKitService = require('./applicationKitService');
-    const prepared = await applicationKitService.prepareApplyItems(userId, jobs, { useTailoredResume });
+    const prepared = await applicationKitService.prepareApplyItems(userId, jobs, {
+      useTailoredResume,
+      authEmail,
+    });
     items = prepared.items;
     tailoredCount = prepared.tailoredCount;
     missingKitCount = prepared.missingKitCount;
@@ -183,7 +186,7 @@ async function writeApprovedItemsFile(jobs, userId, options = {}) {
   return { file, tailoredCount, missingKitCount, useTailoredResume };
 }
 
-function runApprovedAutoApply(itemsFile) {
+function runApprovedAutoApply(itemsFile, applicantEnv = {}) {
   return new Promise((resolve, reject) => {
     const script = path.join(env.agentHome, 'apply_approved.sh');
     const autoApplyPy = path.join(env.agentHome, 'auto_apply.py');
@@ -213,7 +216,7 @@ function runApprovedAutoApply(itemsFile) {
 
     const child = spawn(cmd, args, {
       cwd: env.agentHome,
-      env: { ...process.env, AGENT_HOME: env.agentHome },
+      env: { ...process.env, AGENT_HOME: env.agentHome, ...applicantEnv },
     });
     let output = '';
     child.stdout.on('data', (c) => { output += c.toString(); });

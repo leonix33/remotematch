@@ -232,6 +232,18 @@ function openKit(job) {
   kitOpen.value = true;
 }
 
+function onKitUpdated() {
+  load();
+}
+
+function kitBadge(job) {
+  if (job.kit?.applied) return { label: 'Applied', cls: 'badge-teal' };
+  if (!job.kit?.hasKit) return null;
+  if (job.kit.useForApply === false) return { label: 'Kit saved · base on apply', cls: 'badge-slate' };
+  const mode = job.kit.tailorMode === 'high_match' ? '90% match kit' : 'kit ready';
+  return { label: `${job.kit.pageCount || 3}-page ${mode}`, cls: 'badge-teal' };
+}
+
 function openJobLinkedIn(job) {
   if (isLinkedInUrl(job.url)) {
     openLinkedIn(job.url);
@@ -288,7 +300,7 @@ onMounted(async () => {
             Tailored application kit
           </label>
           <p class="max-w-[220px] text-xs text-slate-500">
-            Tailored uses per-job keywords and cover text. Your original resume file is never modified.
+            Tailored uses per-job kits you can preview under Tailored. Per-job “use on apply” overrides are respected.
           </p>
           <button
             class="btn-primary px-4 py-2 text-sm"
@@ -404,6 +416,7 @@ onMounted(async () => {
             <div class="flex flex-wrap gap-2">
               <JobScoreBadges :job="job" :show-factors="false" />
               <span v-if="job.emailSection" class="badge" :class="sectionBadge(job.emailSection)">{{ job.emailSection }}</span>
+              <span v-if="kitBadge(job)" class="badge" :class="kitBadge(job).cls">{{ kitBadge(job).label }}</span>
               <span v-if="job.atsType && job.atsType !== 'unknown'" class="badge badge-gold">{{ job.atsType }}</span>
               <RouterLink
                 v-if="job.status && job.status !== 'pending'"
@@ -425,8 +438,15 @@ onMounted(async () => {
             </button>
             <RouterLink to="/linkedin" class="text-xs text-slate-500 hover:text-slate-300">LinkedIn workflow</RouterLink>
             <button type="button" class="text-violet-400 hover:underline" @click="openKit(job)">
-              Application kit
+              {{ job.kit?.hasKit ? 'View tailored resume' : 'Application kit' }}
             </button>
+            <router-link
+              v-if="job.kit?.hasKit"
+              to="/tailored-resumes"
+              class="text-xs text-slate-500 hover:text-slate-300"
+            >
+              All tailored →
+            </router-link>
             <template v-if="status === 'pending' || job.status === 'pending'">
               <button class="btn-primary px-3 py-1.5 text-xs" :disabled="acting === job.jobId" @click="approve(job.jobId)">
                 Approve
@@ -461,6 +481,7 @@ onMounted(async () => {
       :job="kitJob"
       :open="kitOpen"
       @close="kitOpen = false"
+      @updated="onKitUpdated"
     />
   </div>
 </template>

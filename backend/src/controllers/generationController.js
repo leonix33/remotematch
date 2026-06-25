@@ -14,6 +14,7 @@ async function createGeneration(req, res, next) {
     const result = await generationService.generateCoverLetter({
       ...body,
       userId: req.user.sub,
+      authEmail: req.user.email,
     });
     res.json(result);
   } catch (err) {

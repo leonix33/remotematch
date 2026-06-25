@@ -50,6 +50,7 @@ onMounted(load);
         <option value="external-apply">External apply</option>
       </select>
       <RouterLink to="/approvals" class="btn-secondary text-sm">Apply queue</RouterLink>
+      <RouterLink to="/tailored-resumes" class="btn-secondary text-sm">Tailored resumes</RouterLink>
       <RouterLink to="/calendar" class="btn-secondary text-sm">Schedule follow-up</RouterLink>
     </div>
 

@@ -18,6 +18,8 @@ const nav = computed(() => {
     { to: '/jobs', label: 'Jobs', icon: '◎', mobile: true },
     { to: '/linkedin', label: 'LinkedIn', icon: 'in', mobile: true },
     { to: '/approvals', label: 'Apply Queue', icon: '✓', mobile: false },
+    { to: '/tailored-resumes', label: 'Tailored', icon: '📋', mobile: false },
+    { to: '/follow-ups', label: 'Follow-ups', icon: '↗', mobile: true },
     { to: '/chat', label: 'Connect', icon: '💬', mobile: false },
     { to: '/intelligence', label: 'AI Intel', icon: '🧠', mobile: false },
     { to: '/interview', label: 'Interview', icon: '🎙', mobile: false },

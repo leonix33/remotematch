@@ -55,7 +55,7 @@ describe('resumeTailorService 3-page supplement', () => {
       { title: 'Platform Engineer', company: 'DataCo' },
       'We need terraform kubernetes aws observability on-call experience for US remote role.'
     );
-    assert.ok(kit.supplementPages.length >= MIN_SUPPLEMENT_PAGES);
+    assert.ok(kit.supplementPages.length >= 3);
     assert.ok((kit.fullSupplementText || '').length > 500);
   });
 });

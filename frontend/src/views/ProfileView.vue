@@ -43,6 +43,12 @@ const form = ref({
   minMatchScore: 60,
   tailorResumeOnApply: false,
   defaultApplyResumeMode: 'base',
+  digestEmail: '',
+  emailDigestEnabled: true,
+  followUpRemindersEnabled: true,
+  contactPhone: '',
+  defaultSupplementPages: 3,
+  defaultTailorMode: 'balanced',
 });
 
 function loadForm(p) {
@@ -61,6 +67,12 @@ function loadForm(p) {
     minMatchScore: p.minMatchScore || 60,
     tailorResumeOnApply: Boolean(p.tailorResumeOnApply),
     defaultApplyResumeMode: p.defaultApplyResumeMode === 'tailored' ? 'tailored' : 'base',
+    digestEmail: p.digestEmail || '',
+    emailDigestEnabled: p.emailDigestEnabled !== false,
+    followUpRemindersEnabled: p.followUpRemindersEnabled !== false,
+    contactPhone: p.contactPhone || '',
+    defaultSupplementPages: p.defaultSupplementPages || 3,
+    defaultTailorMode: p.defaultTailorMode === 'high_match' ? 'high_match' : 'balanced',
   };
 }
 
@@ -290,6 +302,64 @@ async function copyExt(value, label) {
             Tailored application kit
           </label>
         </div>
+      </div>
+
+      <div class="rounded-xl border border-slate-800 bg-slate-950/40 p-4">
+        <h3 class="font-semibold text-slate-200">Email & follow-ups</h3>
+        <p class="mt-1 text-sm text-slate-500">
+          Get a digest of your best-fit submitted applications and reminders for high-priority follow-ups.
+        </p>
+        <div class="mt-4">
+          <label class="mb-1 block text-sm text-slate-400">Personal email (on applications & digests)</label>
+          <input
+            v-model="form.digestEmail"
+            type="email"
+            class="input"
+            placeholder="leonix23@gmail.com"
+          />
+          <p class="mt-1 text-xs text-slate-600">Used on tailored resumes, cover letters, and ATS forms — not the app/system email.</p>
+        </div>
+        <div class="mt-4">
+          <label class="mb-1 block text-sm text-slate-400">Phone (optional, for application forms)</label>
+          <input v-model="form.contactPhone" type="tel" class="input" placeholder="+1 555 123 4567" />
+        </div>
+        <label class="mt-4 flex cursor-pointer items-start gap-3 text-sm text-slate-300">
+          <input v-model="form.emailDigestEnabled" type="checkbox" class="mt-0.5 accent-teal-500" />
+          <span>
+            <strong class="text-slate-200">Send application digest emails</strong>
+            <span class="mt-1 block text-slate-500">Best-fit jobs you have applied to, plus follow-ups due.</span>
+          </span>
+        </label>
+        <label class="mt-3 flex cursor-pointer items-start gap-3 text-sm text-slate-300">
+          <input v-model="form.followUpRemindersEnabled" type="checkbox" class="mt-0.5 accent-teal-500" />
+          <span>
+            <strong class="text-slate-200">In-app follow-up reminders</strong>
+            <span class="mt-1 block text-slate-500">Notifications when applications are 3–7 days old with no reply logged.</span>
+          </span>
+        </label>
+        <router-link to="/follow-ups" class="mt-4 inline-block text-sm text-teal-400 hover:underline">
+          Open traction trace & send digest →
+        </router-link>
+      </div>
+
+      <div class="rounded-xl border border-slate-800 bg-slate-950/40 p-4">
+        <h3 class="font-semibold text-slate-200">Default tailoring</h3>
+        <p class="mt-1 text-sm text-slate-500">Defaults for new application kits — you can override per job.</p>
+        <div class="mt-4">
+          <label class="mb-1 block text-sm text-slate-400">Default supplement pages: {{ form.defaultSupplementPages }}</label>
+          <input v-model.number="form.defaultSupplementPages" type="range" min="1" max="6" class="w-full accent-teal-500" />
+        </div>
+        <label class="mt-4 flex cursor-pointer items-center gap-2 text-sm text-slate-300">
+          <input v-model="form.defaultTailorMode" type="radio" value="balanced" class="accent-teal-500" />
+          Balanced tailoring
+        </label>
+        <label class="mt-2 flex cursor-pointer items-center gap-2 text-sm text-slate-300">
+          <input v-model="form.defaultTailorMode" type="radio" value="high_match" class="accent-teal-500" />
+          High match (~90%) — word-for-word JD alignment in supplement
+        </label>
+        <router-link to="/tailored-resumes" class="mt-4 inline-block text-sm text-teal-400 hover:underline">
+          View all tailored resumes →
+        </router-link>
       </div>
 
       <p v-if="error" class="text-sm text-red-300">{{ error }}</p>

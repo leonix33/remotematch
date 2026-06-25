@@ -66,11 +66,25 @@ async function applyApproved(req, res, next) {
     const { file: itemsFile, tailoredCount, missingKitCount } = await jobService.writeApprovedItemsFile(
       scored,
       req.user.sub,
-      { useTailoredResume }
+      { useTailoredResume, authEmail: req.user.email }
     );
+    const applicantContactService = require('../services/applicantContactService');
+    const contact = await applicantContactService.resolveApplicantContact(
+      req.user.sub,
+      profile,
+      req.user.email
+    );
+    const applicantEnv = {};
+    if (contact.email) applicantEnv.APPLICANT_EMAIL = contact.email;
+    if (contact.name) applicantEnv.APPLICANT_NAME = contact.name;
+    if (contact.phone) applicantEnv.APPLICANT_PHONE = contact.phone;
+    if (contact.linkedin) applicantEnv.LINKEDIN_URL = contact.linkedin;
+    if (contact.github) applicantEnv.GITHUB_URL = contact.github;
+    if (contact.portfolio) applicantEnv.PORTFOLIO_URL = contact.portfolio;
+
     let output;
     try {
-      output = await jobService.runApprovedAutoApply(itemsFile);
+      output = await jobService.runApprovedAutoApply(itemsFile, applicantEnv);
       await jobService.syncApplicationsToMongo();
       await approvalService.markApplied(
         req.user.sub,

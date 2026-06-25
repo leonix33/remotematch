@@ -24,6 +24,14 @@ const updateSchema = z.object({
   resumeFileName: z.string().optional(),
   tailorResumeOnApply: z.boolean().optional(),
   defaultApplyResumeMode: z.enum(['base', 'tailored']).optional(),
+  digestEmail: z.string().email().optional().or(z.literal('')),
+  notificationEmail: z.string().email().optional().or(z.literal('')),
+  emailDigestEnabled: z.boolean().optional(),
+  followUpRemindersEnabled: z.boolean().optional(),
+  contactPhone: z.string().optional(),
+  defaultSupplementPages: z.number().min(1).max(6).optional(),
+  defaultTailorMode: z.enum(['balanced', 'high_match']).optional(),
+  highMatchTarget: z.number().min(80).max(98).optional(),
   savedJobs: z
     .array(
       z.object({

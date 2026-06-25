@@ -30,9 +30,29 @@ function set(userId, jobId, kit) {
   const key = userId.toString();
   const all = readAll();
   if (!all[key]) all[key] = {};
-  all[key][jobId] = { ...kit, jobId, updatedAt: new Date().toISOString() };
+  const prev = all[key][jobId] || {};
+  all[key][jobId] = {
+    ...prev,
+    ...kit,
+    jobId,
+    useForApply: kit.useForApply !== undefined ? Boolean(kit.useForApply) : prev.useForApply !== false,
+    updatedAt: new Date().toISOString(),
+  };
   writeAll(all);
   return all[key][jobId];
 }
 
-module.exports = { get, set };
+function listForUser(userId) {
+  const rows = readAll()[userId.toString()] || {};
+  return Object.values(rows)
+    .filter((k) => k?.tailored)
+    .sort((a, b) => new Date(b.generatedAt || b.updatedAt || 0) - new Date(a.generatedAt || a.updatedAt || 0));
+}
+
+function patchMeta(userId, jobId, meta) {
+  const existing = get(userId, jobId);
+  if (!existing) return null;
+  return set(userId, jobId, { ...existing, ...meta });
+}
+
+module.exports = { get, set, listForUser, patchMeta };
