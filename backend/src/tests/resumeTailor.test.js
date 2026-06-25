@@ -38,3 +38,14 @@ describe('resumeTailorService', () => {
     assert.ok(text.includes('additive'));
   });
 });
+
+describe('applicationKitService attachKitToApplyItem', () => {
+  const { attachKitToApplyItem } = require('../services/applicationKitService');
+
+  it('skips kit fields when useTailoredResume is false', () => {
+    const job = { id: 'job-1', title: 'SRE', company: 'Acme' };
+    const result = attachKitToApplyItem('user-1', job, { useTailoredResume: false });
+    assert.equal(result.use_tailored_resume, false);
+    assert.equal(result.cover_letter, undefined);
+  });
+});

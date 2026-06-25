@@ -23,6 +23,7 @@ const updateSchema = z.object({
   extractedSkills: z.array(z.string()).optional(),
   resumeFileName: z.string().optional(),
   tailorResumeOnApply: z.boolean().optional(),
+  defaultApplyResumeMode: z.enum(['base', 'tailored']).optional(),
   savedJobs: z
     .array(
       z.object({

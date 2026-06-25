@@ -22,6 +22,7 @@ const whisperLoading = ref(false);
 const applying = ref(false);
 const applyMessage = ref('');
 const tailorOnApprove = ref(false);
+const applyResumeMode = ref('base');
 const kitJob = ref(null);
 const kitOpen = ref(false);
 
@@ -115,7 +116,9 @@ async function applyApproved() {
   applyMessage.value = '';
   error.value = '';
   try {
-    const { data } = await http.post('/agent/apply-approved');
+    const { data } = await http.post('/agent/apply-approved', {
+      useTailoredResume: applyResumeMode.value === 'tailored',
+    });
     applyMessage.value = data.message || `Applied to ${data.count} jobs`;
     await load();
   } catch (e) {
@@ -249,6 +252,7 @@ watch(page, load);
 onMounted(async () => {
   await profileStore.fetch().catch(() => {});
   tailorOnApprove.value = Boolean(profileStore.profile?.tailorResumeOnApply);
+  applyResumeMode.value = profileStore.profile?.defaultApplyResumeMode === 'tailored' ? 'tailored' : 'base';
   load();
   loadWhisper();
 });
@@ -272,14 +276,27 @@ onMounted(async () => {
           <p class="text-2xl font-bold text-teal-300">{{ counts.approved }}</p>
           <p class="text-xs text-slate-500">approved</p>
         </div>
-        <button
-          v-if="counts.approved > 0"
-          class="btn-primary self-center px-4 py-2 text-sm"
-          :disabled="applying"
-          @click="applyApproved"
-        >
-          {{ applying ? 'Applying…' : `Apply ${counts.approved} approved` }}
-        </button>
+        <div v-if="counts.approved > 0" class="card flex flex-col gap-3 self-center px-4 py-3">
+          <p class="text-xs font-medium uppercase tracking-wide text-slate-500">Auto-apply resume mode</p>
+          <label class="flex cursor-pointer items-center gap-2 text-sm text-slate-300">
+            <input v-model="applyResumeMode" type="radio" value="base" class="accent-teal-500" />
+            Base resume only
+          </label>
+          <label class="flex cursor-pointer items-center gap-2 text-sm text-slate-300">
+            <input v-model="applyResumeMode" type="radio" value="tailored" class="accent-teal-500" />
+            Tailored application kit
+          </label>
+          <p class="max-w-[220px] text-xs text-slate-500">
+            Tailored uses per-job keywords and cover text. Your original resume file is never modified.
+          </p>
+          <button
+            class="btn-primary px-4 py-2 text-sm"
+            :disabled="applying"
+            @click="applyApproved"
+          >
+            {{ applying ? 'Applying…' : `Apply ${counts.approved} approved` }}
+          </button>
+        </div>
       </div>
     </div>
 

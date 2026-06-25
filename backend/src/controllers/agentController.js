@@ -49,6 +49,10 @@ async function applyApproved(req, res, next) {
 
     const profile = await profileService.getOrCreate(req.user.sub);
     const scored = scoreJobsForProfile(approved, profile);
+    const useTailoredResume =
+      typeof req.body?.useTailoredResume === 'boolean'
+        ? req.body.useTailoredResume
+        : profile.defaultApplyResumeMode === 'tailored';
 
     let run;
     if (env.mongoUri) {
@@ -59,7 +63,11 @@ async function applyApproved(req, res, next) {
       });
     }
 
-    const itemsFile = jobService.writeApprovedItemsFile(scored, req.user.sub);
+    const { file: itemsFile, tailoredCount, missingKitCount } = await jobService.writeApprovedItemsFile(
+      scored,
+      req.user.sub,
+      { useTailoredResume }
+    );
     let output;
     try {
       output = await jobService.runApprovedAutoApply(itemsFile);
@@ -74,9 +82,17 @@ async function applyApproved(req, res, next) {
         run.finishedAt = new Date();
         await run.save();
       }
+      const modeLabel = useTailoredResume ? 'tailored application kits' : 'base resume only';
+      let message = `Applied to ${scored.length} approved job(s) using ${modeLabel}`;
+      if (useTailoredResume && missingKitCount > 0) {
+        message += ` (${tailoredCount} with kits, ${missingKitCount} fell back to base resume)`;
+      }
       res.json({
-        message: `Applied to ${scored.length} approved job(s)`,
+        message,
         count: scored.length,
+        useTailoredResume,
+        tailoredCount,
+        missingKitCount,
         output: output.slice(-2000),
       });
     } catch (applyErr) {
@@ -89,6 +105,7 @@ async function applyApproved(req, res, next) {
       res.status(202).json({
         message: applyErr.message,
         count: scored.length,
+        useTailoredResume,
         itemsFile,
         hint: 'On Mac: cd job-event-agent && bash apply_approved.sh ' + itemsFile,
       });

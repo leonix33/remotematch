@@ -125,7 +125,7 @@ function listJobsFromSqlite(filters = {}) {
   return jobs;
 }
 
-function jobToApplyItem(job, userId) {
+function jobToApplyItem(job, userId, options = {}) {
   const base = {
     id: job.jobId,
     title: job.title,
@@ -141,21 +141,46 @@ function jobToApplyItem(job, userId) {
   };
   if (!userId) return base;
   const applicationKitService = require('./applicationKitService');
-  return applicationKitService.attachKitToApplyItem(userId, base);
+  return applicationKitService.attachKitToApplyItem(userId, base, options);
 }
 
-function writeApprovedItemsFile(jobs, userId) {
+async function writeApprovedItemsFile(jobs, userId, options = {}) {
+  const { useTailoredResume = false } = options;
   const itemsDir = path.join(env.agentHome, 'items');
   if (!fs.existsSync(itemsDir)) fs.mkdirSync(itemsDir, { recursive: true });
   const ts = Date.now();
   const file = path.join(itemsDir, `approved-${ts}.json`);
-  const items = jobs.map((job) => jobToApplyItem(job, userId));
+
+  let items;
+  let tailoredCount = 0;
+  let missingKitCount = 0;
+  if (userId) {
+    const applicationKitService = require('./applicationKitService');
+    const prepared = await applicationKitService.prepareApplyItems(userId, jobs, { useTailoredResume });
+    items = prepared.items;
+    tailoredCount = prepared.tailoredCount;
+    missingKitCount = prepared.missingKitCount;
+  } else {
+    items = jobs.map((job) => jobToApplyItem(job, userId, { useTailoredResume }));
+  }
+
   fs.writeFileSync(file, JSON.stringify(items, null, 2));
   fs.writeFileSync(
     path.join(env.agentHome, 'approved_jobs.json'),
-    JSON.stringify({ jobIds: jobs.map((j) => j.jobId), itemsFile: file, createdAt: new Date().toISOString() }, null, 2)
+    JSON.stringify(
+      {
+        jobIds: jobs.map((j) => j.jobId),
+        itemsFile: file,
+        useTailoredResume,
+        tailoredCount,
+        missingKitCount,
+        createdAt: new Date().toISOString(),
+      },
+      null,
+      2
+    )
   );
-  return file;
+  return { file, tailoredCount, missingKitCount, useTailoredResume };
 }
 
 function runApprovedAutoApply(itemsFile) {

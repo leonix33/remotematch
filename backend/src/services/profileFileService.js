@@ -19,6 +19,7 @@ const DEFAULT = {
   extractedSkills: [],
   resumeFileName: '',
   tailorResumeOnApply: false,
+  defaultApplyResumeMode: 'base',
   savedJobs: [],
   linkedinSavedSearches: [],
 };

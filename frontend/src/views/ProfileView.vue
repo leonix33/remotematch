@@ -42,6 +42,7 @@ const form = ref({
   resumeText: '',
   minMatchScore: 60,
   tailorResumeOnApply: false,
+  defaultApplyResumeMode: 'base',
 });
 
 function loadForm(p) {
@@ -59,6 +60,7 @@ function loadForm(p) {
     resumeText: p.resumeText || '',
     minMatchScore: p.minMatchScore || 60,
     tailorResumeOnApply: Boolean(p.tailorResumeOnApply),
+    defaultApplyResumeMode: p.defaultApplyResumeMode === 'tailored' ? 'tailored' : 'base',
   };
 }
 
@@ -277,6 +279,17 @@ async function copyExt(value, label) {
             </span>
           </span>
         </label>
+        <label class="mt-4 block text-sm text-slate-400">Default for auto-apply</label>
+        <div class="mt-2 space-y-2 text-sm text-slate-300">
+          <label class="flex cursor-pointer items-center gap-2">
+            <input v-model="form.defaultApplyResumeMode" type="radio" value="base" class="accent-teal-500" />
+            Base resume only
+          </label>
+          <label class="flex cursor-pointer items-center gap-2">
+            <input v-model="form.defaultApplyResumeMode" type="radio" value="tailored" class="accent-teal-500" />
+            Tailored application kit
+          </label>
+        </div>
       </div>
 
       <p v-if="error" class="text-sm text-red-300">{{ error }}</p>

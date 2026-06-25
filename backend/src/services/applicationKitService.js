@@ -85,11 +85,19 @@ async function generateOnApprove(userId, jobId, tailorResume) {
   }
 }
 
-function attachKitToApplyItem(userId, job) {
-  const kit = applicationKitStore.get(userId, job.jobId);
-  if (!kit?.tailored) return job;
-  return {
+function attachKitToApplyItem(userId, job, options = {}) {
+  const { useTailoredResume = false } = options;
+  const base = {
     ...job,
+    use_tailored_resume: useTailoredResume,
+  };
+  if (!useTailoredResume) return base;
+
+  const kit = applicationKitStore.get(userId, job.id || job.jobId);
+  if (!kit?.tailored) return base;
+
+  return {
+    ...base,
     cover_letter: kit.coverLetterParagraph || '',
     resume_addendum: kit.resumeAddendum || '',
     application_kit: {
@@ -100,10 +108,57 @@ function attachKitToApplyItem(userId, job) {
   };
 }
 
+async function prepareApplyItems(userId, jobs, options = {}) {
+  const { useTailoredResume = false } = options;
+  if (!useTailoredResume) {
+    return {
+      items: jobs.map((job) => attachKitToApplyItem(userId, job, { useTailoredResume: false })),
+      tailoredCount: 0,
+      missingKitCount: 0,
+    };
+  }
+
+  let tailoredCount = 0;
+  let missingKitCount = 0;
+
+  const items = [];
+  for (const job of jobs) {
+    const jobId = job.jobId || job.id;
+    let kit = applicationKitStore.get(userId, jobId);
+    if (!kit?.tailored) {
+      try {
+        kit = await generateForJob(userId, jobId, { tailorResume: true });
+      } catch {
+        missingKitCount += 1;
+      }
+    }
+    if (kit?.tailored) tailoredCount += 1;
+    else missingKitCount += 1;
+
+    const applyBase = {
+      id: jobId,
+      title: job.title,
+      company: job.company,
+      location: job.location || 'Remote',
+      url: job.url,
+      source: job.source,
+      score: job.score || 50,
+      tier: job.tier || 'SECONDARY',
+      match_pct: job.personalMatchPct || job.matchPct || 0,
+      ats_type: job.atsType || job.ats_type,
+      email_section: job.emailSection || job.email_section || 'strong_review',
+    };
+    items.push(attachKitToApplyItem(userId, applyBase, { useTailoredResume: true }));
+  }
+
+  return { items, tailoredCount, missingKitCount };
+}
+
 module.exports = {
   getKit,
   generateForJob,
   generateOnApprove,
   attachKitToApplyItem,
+  prepareApplyItems,
   findJob,
 };
