@@ -29,6 +29,7 @@ const resumeCommunityRoutes = require('./routes/resumeCommunityRoutes');
 const calendarRoutes = require('./routes/calendarRoutes');
 const teamRoutes = require('./routes/teamRoutes');
 const pushRoutes = require('./routes/pushRoutes');
+const linkedinVisibilityRoutes = require('./routes/linkedinVisibilityRoutes');
 
 function createApp() {
   const app = express();
@@ -97,6 +98,7 @@ function createApp() {
   app.use('/api/calendar', calendarRoutes);
   app.use('/api/team', teamRoutes);
   app.use('/api/push', pushRoutes);
+  app.use('/api/linkedin/visibility', linkedinVisibilityRoutes);
 
   const distPath = path.join(__dirname, '../../frontend/dist');
   app.use(express.static(distPath));

@@ -3,6 +3,7 @@ import { computed, ref } from 'vue';
 import { RouterLink } from 'vue-router';
 import { useProfileStore } from '../stores/profile';
 import ApplyWorkflowBanner from '../components/ApplyWorkflowBanner.vue';
+import LinkedInVisibilitySection from '../components/LinkedInVisibilitySection.vue';
 import {
   buildLinkedInJobSearchUrl,
   mergeLinkedInSearches,
@@ -185,6 +186,8 @@ function openSearch(item) {
       <p v-if="message" class="mt-3 text-sm text-teal-300">{{ message }}</p>
       <p v-if="error" class="mt-3 text-sm text-red-300">{{ error }}</p>
     </div>
+
+    <LinkedInVisibilitySection class="mt-8" />
 
     <div class="mt-8 grid gap-4 md:grid-cols-2">
       <div class="card p-5">
