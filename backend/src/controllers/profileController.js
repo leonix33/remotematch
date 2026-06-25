@@ -22,6 +22,7 @@ const updateSchema = z.object({
   onboardingComplete: z.boolean().optional(),
   extractedSkills: z.array(z.string()).optional(),
   resumeFileName: z.string().optional(),
+  tailorResumeOnApply: z.boolean().optional(),
   savedJobs: z
     .array(
       z.object({

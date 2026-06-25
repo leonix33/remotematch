@@ -59,7 +59,7 @@ async function applyApproved(req, res, next) {
       });
     }
 
-    const itemsFile = jobService.writeApprovedItemsFile(scored);
+    const itemsFile = jobService.writeApprovedItemsFile(scored, req.user.sub);
     let output;
     try {
       output = await jobService.runApprovedAutoApply(itemsFile);

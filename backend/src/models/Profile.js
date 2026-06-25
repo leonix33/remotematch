@@ -19,6 +19,7 @@ const profileSchema = new mongoose.Schema(
     extractedSkills: { type: [String], default: [] },
     resumeFileName: { type: String, default: '' },
     resumeParsedAt: { type: Date },
+    tailorResumeOnApply: { type: Boolean, default: false },
     savedJobs: {
       type: [
         {

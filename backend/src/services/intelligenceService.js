@@ -90,14 +90,28 @@ async function salaryOracle(userId, query) {
 }
 
 async function resumeDiff(userId, jobId) {
-  requireMongo();
+  const applicationKitService = require('./applicationKitService');
   const profile = await profileService.getOrCreate(userId);
-  const job = await findJob(jobId);
-  if (!job) throw new Error('Job not found');
-  const system = `You are a resume coach. Suggest 5 specific bullet edits or additions for this job. Format as numbered list with before/after where helpful.`;
-  const user = `RESUME CONTEXT:\n${profile.resumeText || profile.bio || 'No resume on file'}\n\nJOB: ${job.title} at ${job.company}`;
-  const suggestions = await aiComplete(system, user, 550);
-  return { job, suggestions, demo: !env.openaiApiKey };
+  const kit = await applicationKitService.generateForJob(userId, jobId, {
+    tailorResume: Boolean(profile.tailorResumeOnApply),
+    force: true,
+  });
+  const job = await applicationKitService.findJob(userId, jobId);
+  if (!kit.tailored) {
+    return {
+      job,
+      suggestions:
+        'Resume tailoring is off. Enable it in Profile → Application quality, or click Generate kit with tailoring enabled.',
+      kit,
+      demo: !env.openaiApiKey,
+    };
+  }
+  return {
+    job,
+    suggestions: kit.formatted || '',
+    kit,
+    demo: Boolean(kit.demo),
+  };
 }
 
 async function agentWhisper(userId, limit = 10) {

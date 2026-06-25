@@ -4,6 +4,7 @@ import { RouterLink } from 'vue-router';
 import http from '../api/http';
 import { useProfileStore } from '../stores/profile';
 import { useApplyQueue } from '../composables/useApplyQueue';
+import ApplicationKitPanel from '../components/ApplicationKitPanel.vue';
 
 const profileStore = useProfileStore();
 const { queueing, addToQueue } = useApplyQueue();
@@ -16,7 +17,7 @@ const search = ref('');
 const copilotJob = ref(null);
 const copilot = ref(null);
 const resumeJob = ref(null);
-const resumeDiff = ref(null);
+const kitOpen = ref(false);
 const squadJob = ref(null);
 const squadMembers = ref([]);
 const aiLoading = ref(false);
@@ -83,14 +84,7 @@ async function runCopilot(job) {
 
 async function runResumeDiff(job) {
   resumeJob.value = job;
-  aiLoading.value = true;
-  resumeDiff.value = null;
-  try {
-    const { data } = await http.get(`/intelligence/resume/${encodeURIComponent(job.jobId)}`);
-    resumeDiff.value = data;
-  } finally {
-    aiLoading.value = false;
-  }
+  kitOpen.value = true;
 }
 
 function openSquad(job) {
@@ -194,7 +188,7 @@ watch([section, minMatch], load);
             {{ queueing === job.jobId ? '…' : '+ Queue' }}
           </button>
           <button class="btn-secondary px-2 py-1 text-xs" @click="runCopilot(job)">Match Copilot</button>
-          <button class="btn-secondary px-2 py-1 text-xs" @click="runResumeDiff(job)">Resume diff</button>
+          <button class="btn-secondary px-2 py-1 text-xs" @click="runResumeDiff(job)">Application kit</button>
           <button class="btn-secondary px-2 py-1 text-xs" @click="openSquad(job)">Apply squad</button>
         </div>
       </div>
@@ -221,14 +215,12 @@ watch([section, minMatch], load);
       </div>
     </div>
 
-    <div v-if="resumeJob" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" @click.self="resumeJob = null">
-      <div class="card max-h-[80vh] w-full max-w-lg overflow-y-auto p-6">
-        <h3 class="font-semibold text-slate-200">Resume diff — {{ resumeJob.title }}</h3>
-        <pre v-if="resumeDiff" class="mt-4 whitespace-pre-wrap text-sm text-slate-300">{{ resumeDiff.suggestions }}</pre>
-        <p v-else class="mt-4 text-slate-400">Loading…</p>
-        <button class="btn-secondary mt-4" @click="resumeJob = null">Close</button>
-      </div>
-    </div>
+    <ApplicationKitPanel
+      v-if="resumeJob"
+      :job="resumeJob"
+      :open="kitOpen"
+      @close="kitOpen = false"
+    />
 
     <div v-if="squadJob" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" @click.self="squadJob = null">
       <form class="card w-full max-w-md p-6" @submit.prevent="createSquad">

@@ -3,7 +3,11 @@ import { computed, onMounted, ref, watch } from 'vue';
 import { RouterLink } from 'vue-router';
 import http from '../api/http';
 import ApplyWorkflowBanner from '../components/ApplyWorkflowBanner.vue';
+import ApplicationKitPanel from '../components/ApplicationKitPanel.vue';
+import { useProfileStore } from '../stores/profile';
 import { buildLinkedInSearchFromJob, isLinkedInJob, isLinkedInUrl, openLinkedIn } from '../utils/linkedin';
+
+const profileStore = useProfileStore();
 
 const items = ref([]);
 const total = ref(0);
@@ -17,6 +21,9 @@ const whisper = ref([]);
 const whisperLoading = ref(false);
 const applying = ref(false);
 const applyMessage = ref('');
+const tailorOnApprove = ref(false);
+const kitJob = ref(null);
+const kitOpen = ref(false);
 
 const search = ref('');
 const minMatch = ref('85');
@@ -123,7 +130,9 @@ async function applyApproved() {
 async function approve(jobId) {
   acting.value = jobId;
   try {
-    await http.post(`/approvals/${encodeURIComponent(jobId)}/approve`);
+    await http.post(`/approvals/${encodeURIComponent(jobId)}/approve`, {
+      tailorResume: tailorOnApprove.value,
+    });
     await load();
   } catch (e) {
     error.value = e.response?.data?.message || 'Approve failed';
@@ -149,7 +158,10 @@ async function bulkApproveSelected() {
   if (!ids.length) return;
   bulkActing.value = true;
   try {
-    const { data } = await http.post('/approvals/bulk-approve', { jobIds: ids });
+    const { data } = await http.post('/approvals/bulk-approve', {
+      jobIds: ids,
+      tailorResume: tailorOnApprove.value,
+    });
     applyMessage.value = data.message;
     await load();
   } catch (e) {
@@ -178,7 +190,10 @@ async function bulkApprove(count) {
   bulkActing.value = true;
   try {
     const ids = items.value.slice(0, count).map((j) => j.jobId);
-    const { data } = await http.post('/approvals/bulk-approve', { jobIds: ids });
+    const { data } = await http.post('/approvals/bulk-approve', {
+      jobIds: ids,
+      tailorResume: tailorOnApprove.value,
+    });
     applyMessage.value = data.message;
     await load();
   } catch (e) {
@@ -208,6 +223,11 @@ function sectionBadge(s) {
   return 'badge-slate';
 }
 
+function openKit(job) {
+  kitJob.value = job;
+  kitOpen.value = true;
+}
+
 function openJobLinkedIn(job) {
   if (isLinkedInUrl(job.url)) {
     openLinkedIn(job.url);
@@ -226,7 +246,12 @@ watch([status, search, minMatch, ats], () => {
 });
 watch(page, load);
 
-onMounted(() => { load(); loadWhisper(); });
+onMounted(async () => {
+  await profileStore.fetch().catch(() => {});
+  tailorOnApprove.value = Boolean(profileStore.profile?.tailorResumeOnApply);
+  load();
+  loadWhisper();
+});
 </script>
 
 <template>
@@ -262,6 +287,11 @@ onMounted(() => { load(); loadWhisper(); });
 
     <div v-if="status === 'pending' && counts.pending > 0" class="mt-6 card flex flex-wrap items-center gap-3 p-4">
       <span class="text-sm text-slate-400">Quick triage:</span>
+      <label class="flex items-center gap-2 text-xs text-slate-400">
+        <input v-model="tailorOnApprove" type="checkbox" class="accent-teal-500" />
+        Tailor resume on approve (additive only)
+      </label>
+      <span class="text-slate-600">|</span>
       <button class="btn-primary text-xs" :disabled="bulkActing" @click="bulkApprove(5)">Approve top 5</button>
       <button class="btn-primary text-xs" :disabled="bulkActing" @click="bulkApprove(10)">Approve top 10</button>
       <button class="btn-secondary text-xs" :disabled="bulkActing" @click="bulkRejectPage">Skip this page</button>
@@ -376,6 +406,9 @@ onMounted(() => { load(); loadWhisper(); });
               {{ isLinkedInJob(job) ? 'Open in LinkedIn →' : 'Search on LinkedIn →' }}
             </button>
             <RouterLink to="/linkedin" class="text-xs text-slate-500 hover:text-slate-300">LinkedIn workflow</RouterLink>
+            <button type="button" class="text-violet-400 hover:underline" @click="openKit(job)">
+              Application kit
+            </button>
             <template v-if="status === 'pending' || job.status === 'pending'">
               <button class="btn-primary px-3 py-1.5 text-xs" :disabled="acting === job.jobId" @click="approve(job.jobId)">
                 Approve
@@ -404,5 +437,12 @@ onMounted(() => { load(); loadWhisper(); });
         <button class="btn-secondary text-sm" :disabled="page >= totalPages" @click="page++">Next →</button>
       </div>
     </div>
+
+    <ApplicationKitPanel
+      v-if="kitJob"
+      :job="kitJob"
+      :open="kitOpen"
+      @close="kitOpen = false"
+    />
   </div>
 </template>

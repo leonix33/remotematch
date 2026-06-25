@@ -284,7 +284,7 @@ onMounted(async () => {
               Upload a PDF resume or add more skills to raise your score and improve job matches.
             </p>
             <p v-else class="mt-4 text-sm text-slate-500">
-              Your resume is in good shape. Use per-job resume diff on the jobs page to tailor further.
+              Your resume is in good shape. Use <strong class="text-slate-300">Application kit</strong> on Jobs or Apply Queue to add job-specific keywords without changing your base resume.
             </p>
           </section>
         </div>

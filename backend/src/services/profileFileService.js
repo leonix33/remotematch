@@ -18,6 +18,7 @@ const DEFAULT = {
   onboardingComplete: false,
   extractedSkills: [],
   resumeFileName: '',
+  tailorResumeOnApply: false,
   savedJobs: [],
   linkedinSavedSearches: [],
 };

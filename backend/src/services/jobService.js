@@ -125,8 +125,8 @@ function listJobsFromSqlite(filters = {}) {
   return jobs;
 }
 
-function jobToApplyItem(job) {
-  return {
+function jobToApplyItem(job, userId) {
+  const base = {
     id: job.jobId,
     title: job.title,
     company: job.company,
@@ -139,14 +139,17 @@ function jobToApplyItem(job) {
     ats_type: job.atsType || detectAts(job.url),
     email_section: job.emailSection || 'strong_review',
   };
+  if (!userId) return base;
+  const applicationKitService = require('./applicationKitService');
+  return applicationKitService.attachKitToApplyItem(userId, base);
 }
 
-function writeApprovedItemsFile(jobs) {
+function writeApprovedItemsFile(jobs, userId) {
   const itemsDir = path.join(env.agentHome, 'items');
   if (!fs.existsSync(itemsDir)) fs.mkdirSync(itemsDir, { recursive: true });
   const ts = Date.now();
   const file = path.join(itemsDir, `approved-${ts}.json`);
-  const items = jobs.map(jobToApplyItem);
+  const items = jobs.map((job) => jobToApplyItem(job, userId));
   fs.writeFileSync(file, JSON.stringify(items, null, 2));
   fs.writeFileSync(
     path.join(env.agentHome, 'approved_jobs.json'),

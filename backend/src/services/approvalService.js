@@ -7,6 +7,7 @@ const profileService = require('./profileService');
 const { scoreJobsForProfile } = require('./jobScoringService');
 const teamService = require('./teamService');
 const localApprovalService = require('./localApprovalService');
+const applicationKitService = require('./applicationKitService');
 
 function requireMongo() {
   if (!env.mongoUri) throw new Error('MongoDB is required');
@@ -170,7 +171,7 @@ async function listForUser(userId, options = {}) {
   return { items: slice, total };
 }
 
-async function setStatus(userId, jobId, status, notes = '') {
+async function setStatus(userId, jobId, status, notes = '', options = {}) {
   if (status === 'approved' && env.mongoUri) {
     await teamService.checkLimit(userId, 'approval');
   }
@@ -180,7 +181,7 @@ async function setStatus(userId, jobId, status, notes = '') {
   if (!env.mongoUri) {
     const existing = localApprovalService.get(userId, jobId);
     if (!job && !existing) throw new Error('Job not found');
-    return localApprovalService.set(userId, jobId, {
+    const row = localApprovalService.set(userId, jobId, {
       ...(existing || {}),
       title: job?.title || existing?.title || 'External job',
       company: job?.company || existing?.company || 'Unknown',
@@ -192,6 +193,13 @@ async function setStatus(userId, jobId, status, notes = '') {
       notes,
       reviewedAt: new Date().toISOString(),
     });
+    if (status === 'approved') {
+      const profile = await profileService.getOrCreate(userId);
+      const tailor =
+        typeof options.tailorResume === 'boolean' ? options.tailorResume : Boolean(profile.tailorResumeOnApply);
+      await applicationKitService.generateOnApprove(userId, jobId, tailor);
+    }
+    return row;
   }
 
   if (!job) {
@@ -218,15 +226,21 @@ async function setStatus(userId, jobId, status, notes = '') {
     { upsert: true, new: true }
   );
 
-  if (status === 'approved') await teamService.incrementUsage(userId, 'approval');
+  if (status === 'approved') {
+    await teamService.incrementUsage(userId, 'approval');
+    const profile = await profileService.getOrCreate(userId);
+    const tailor =
+      typeof options.tailorResume === 'boolean' ? options.tailorResume : Boolean(profile.tailorResumeOnApply);
+    await applicationKitService.generateOnApprove(userId, jobId, tailor);
+  }
   return approval;
 }
 
-async function bulkSetStatus(userId, jobIds, status) {
+async function bulkSetStatus(userId, jobIds, status, options = {}) {
   const results = [];
   for (const jobId of jobIds) {
     try {
-      results.push(await setStatus(userId, jobId, status));
+      results.push(await setStatus(userId, jobId, status, '', options));
     } catch {
       /* skip failures */
     }
