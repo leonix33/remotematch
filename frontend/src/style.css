@@ -437,3 +437,171 @@ body {
 .monitor-table tbody tr:hover {
   @apply bg-slate-800/30;
 }
+
+/* ── Concierge ── */
+.concierge-root {
+  @apply fixed z-50 flex flex-col items-end gap-3;
+  right: 1rem;
+  bottom: 5.5rem;
+}
+
+@media (min-width: 1024px) {
+  .concierge-root {
+    bottom: 1.5rem;
+  }
+}
+
+.concierge-fab {
+  @apply flex items-center gap-2 rounded-full border border-violet-500/40 bg-gradient-to-r from-violet-600 to-teal-600 px-4 py-3 font-semibold text-white shadow-xl shadow-violet-950/50 transition hover:scale-[1.02] active:scale-[0.98];
+}
+
+.concierge-fab-icon {
+  @apply text-lg leading-none;
+}
+
+.concierge-fab-label {
+  @apply text-sm;
+}
+
+.concierge-panel {
+  @apply flex w-[min(100vw-2rem,24rem)] flex-col overflow-hidden rounded-2xl border border-violet-900/40 bg-slate-950/95 shadow-2xl backdrop-blur-xl;
+  max-height: min(70vh, 32rem);
+}
+
+.concierge-panel-enter-active,
+.concierge-panel-leave-active {
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.concierge-panel-enter-from,
+.concierge-panel-leave-to {
+  opacity: 0;
+  transform: translateY(12px) scale(0.96);
+}
+
+.concierge-header {
+  @apply flex items-start justify-between gap-3 border-b border-slate-800/80 bg-gradient-to-r from-violet-950/40 to-teal-950/20 px-4 py-3;
+}
+
+.concierge-eyebrow {
+  @apply text-[10px] font-bold uppercase tracking-[0.18em] text-violet-400;
+}
+
+.concierge-title {
+  @apply text-lg font-bold text-slate-100;
+}
+
+.concierge-sub {
+  @apply mt-0.5 text-xs text-slate-500;
+}
+
+.concierge-close {
+  @apply text-2xl leading-none text-slate-500 transition hover:text-slate-200;
+}
+
+.concierge-demo-banner {
+  @apply bg-amber-500/10 px-4 py-2 text-center text-xs text-amber-300;
+}
+
+.concierge-messages {
+  @apply flex-1 space-y-3 overflow-y-auto px-4 py-4;
+  min-height: 12rem;
+}
+
+.concierge-bubble {
+  @apply max-w-[92%] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed;
+}
+
+.concierge-bubble-user {
+  @apply ml-auto bg-teal-600/30 text-teal-50;
+}
+
+.concierge-bubble-ai {
+  @apply mr-auto border border-slate-800/80 bg-slate-900/80 text-slate-200;
+}
+
+.concierge-typing {
+  @apply animate-pulse text-slate-500;
+}
+
+.concierge-actions {
+  @apply flex flex-wrap gap-2 px-4 pb-2;
+}
+
+.concierge-actions-inline {
+  @apply px-0 pb-4;
+}
+
+.concierge-action-btn {
+  @apply rounded-full border border-teal-700/50 bg-teal-500/10 px-3 py-1.5 text-xs font-medium text-teal-200 transition hover:bg-teal-500/20;
+}
+
+.concierge-chips {
+  @apply flex flex-wrap gap-2 px-4 pb-3;
+}
+
+.concierge-chip {
+  @apply rounded-full border border-slate-700 bg-slate-900/60 px-3 py-1.5 text-left text-xs text-slate-400 transition hover:border-violet-700/50 hover:text-slate-200;
+}
+
+.concierge-error {
+  @apply px-4 pb-2 text-xs text-red-300;
+}
+
+.concierge-input-row {
+  @apply flex items-center gap-2 border-t border-slate-800/80 p-3;
+}
+
+.concierge-input-row-page {
+  @apply mt-4 rounded-2xl border border-slate-800 bg-slate-950/60 p-3;
+}
+
+.concierge-mic {
+  @apply flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-slate-700 text-lg transition hover:border-violet-600;
+}
+
+.concierge-mic-active {
+  @apply border-red-500/50 bg-red-500/10 animate-pulse;
+}
+
+.concierge-input {
+  @apply min-h-0 flex-1 rounded-xl border border-slate-700 bg-slate-900/80 px-3 py-2.5 text-sm text-slate-100 outline-none focus:border-violet-500;
+}
+
+.concierge-send {
+  @apply flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-violet-600 font-bold text-white transition hover:bg-violet-500 disabled:opacity-40;
+}
+
+.concierge-page {
+  @apply mx-auto max-w-3xl;
+}
+
+.concierge-page-header {
+  @apply mb-6 flex flex-wrap items-end justify-between gap-4;
+}
+
+.concierge-stats {
+  @apply flex gap-3;
+}
+
+.concierge-stat {
+  @apply flex flex-col items-center rounded-xl border border-slate-800 bg-slate-900/50 px-4 py-2;
+}
+
+.concierge-stat span {
+  @apply text-xl font-bold text-teal-300;
+}
+
+.concierge-stat small {
+  @apply text-[10px] uppercase tracking-wide text-slate-500;
+}
+
+.concierge-page-messages {
+  @apply min-h-[20rem] space-y-3 rounded-2xl border border-slate-800/80 bg-slate-950/40 p-4;
+  max-height: 28rem;
+  overflow-y: auto;
+}
+
+.concierge-send-page {
+  @apply min-h-10 shrink-0 px-4 py-2 text-sm;
+}

@@ -32,6 +32,7 @@ import MonitorPipelineView from '../views/monitor/MonitorPipelineView.vue';
 import MonitorAgentView from '../views/monitor/MonitorAgentView.vue';
 import MonitorSwarmView from '../views/monitor/MonitorSwarmView.vue';
 import MonitorApplicationsView from '../views/monitor/MonitorApplicationsView.vue';
+import ConciergeView from '../views/ConciergeView.vue';
 
 const router = createRouter({
   history: createWebHistory(),
@@ -42,6 +43,7 @@ const router = createRouter({
     { path: '/terms', component: LegalView, meta: { guest: true } },
     { path: '/onboarding', component: OnboardingView, meta: { requiresAuth: true, skipOnboarding: true } },
     { path: '/', component: DashboardView, meta: { requiresAuth: true, skipOnboarding: true } },
+    { path: '/concierge', component: ConciergeView, meta: { requiresAuth: true, skipOnboarding: true } },
     {
       path: '/monitor',
       component: MonitorLayout,

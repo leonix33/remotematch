@@ -35,7 +35,10 @@ const navGroups = computed(() => {
       id: 'overview',
       label: 'Overview',
       collapsible: false,
-      items: [{ to: '/', label: 'Home', icon: '◉', exact: true }],
+      items: [
+        { to: '/', label: 'Home', icon: '◉', exact: true },
+        { to: '/concierge', label: 'Ask AI', icon: '✦' },
+      ],
     },
     {
       id: 'monitor',

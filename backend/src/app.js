@@ -31,6 +31,7 @@ const teamRoutes = require('./routes/teamRoutes');
 const pushRoutes = require('./routes/pushRoutes');
 const linkedinVisibilityRoutes = require('./routes/linkedinVisibilityRoutes');
 const tractionRoutes = require('./routes/tractionRoutes');
+const conciergeRoutes = require('./routes/conciergeRoutes');
 
 function createApp() {
   const app = express();
@@ -102,6 +103,7 @@ function createApp() {
   app.use('/api/push', pushRoutes);
   app.use('/api/linkedin/visibility', linkedinVisibilityRoutes);
   app.use('/api/traction', tractionRoutes);
+  app.use('/api/concierge', conciergeRoutes);
 
   const distPath = path.join(__dirname, '../../frontend/dist');
   app.use(express.static(distPath));

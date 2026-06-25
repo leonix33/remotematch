@@ -5,6 +5,7 @@ import { useAuthStore } from './stores/auth';
 import PwaPrompt from './components/PwaPrompt.vue';
 import AppLogo from './components/AppLogo.vue';
 import AppSidebar from './components/AppSidebar.vue';
+import AppConcierge from './components/AppConcierge.vue';
 import NotificationBell from './components/NotificationBell.vue';
 import { isProduction } from './config';
 
@@ -96,5 +97,7 @@ onUnmounted(() => {
         </RouterLink>
       </nav>
     </div>
+
+    <AppConcierge v-if="route.path !== '/login' && route.path !== '/onboarding' && route.path !== '/welcome'" />
   </div>
 </template>
