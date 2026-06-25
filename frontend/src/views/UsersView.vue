@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, ref } from 'vue';
+import { onMounted, onUnmounted, ref } from 'vue';
 import http from '../api/http';
 import { useAuthStore } from '../stores/auth';
 
@@ -18,6 +18,7 @@ const upgrading = ref(false);
 const deleteTarget = ref(null);
 const deleteSaving = ref(false);
 const roleSaving = ref('');
+const openMenuId = ref('');
 const loginUrl = import.meta.env.VITE_APP_URL
   ? `${import.meta.env.VITE_APP_URL.replace(/\/$/, '')}/login`
   : `${window.location.origin}/login`;
@@ -139,11 +140,29 @@ function roleClass(role) {
   return role === 'admin' ? 'badge-gold' : 'badge-teal';
 }
 
+function toggleMenu(user) {
+  const id = userId(user);
+  openMenuId.value = openMenuId.value === id ? '' : id;
+}
+
+function closeMenu() {
+  openMenuId.value = '';
+}
+
 function openReset(user) {
+  closeMenu();
   resetTarget.value = user;
   resetPassword.value = '';
   error.value = '';
   success.value = '';
+}
+
+function handleMenuAction(user, action) {
+  closeMenu();
+  if (action === 'make-admin') changeRole(user, 'admin');
+  else if (action === 'make-user') changeRole(user, 'user');
+  else if (action === 'toggle-active') toggleActive(user);
+  else if (action === 'delete') openDelete(user);
 }
 
 async function submitReset() {
@@ -167,7 +186,18 @@ async function submitReset() {
   }
 }
 
-onMounted(load);
+function onDocumentClick(e) {
+  if (!e.target.closest('[data-user-menu]')) closeMenu();
+}
+
+onMounted(() => {
+  load();
+  document.addEventListener('click', onDocumentClick);
+});
+
+onUnmounted(() => {
+  document.removeEventListener('click', onDocumentClick);
+});
 </script>
 
 <template>
@@ -302,30 +332,61 @@ onMounted(load);
               </span>
             </td>
             <td class="px-6 py-4 text-right">
-              <div v-if="!isSelf(u)" class="flex flex-wrap justify-end gap-2">
+              <div v-if="!isSelf(u)" class="relative inline-block text-left" data-user-menu>
                 <button
-                  v-if="u.role !== 'admin'"
-                  class="btn-secondary px-3 py-1.5 text-xs text-amber-200"
+                  type="button"
+                  class="btn-secondary inline-flex items-center gap-1.5 px-3 py-1.5 text-xs"
                   :disabled="roleSaving === userId(u)"
-                  @click="changeRole(u, 'admin')"
+                  @click.stop="toggleMenu(u)"
                 >
-                  {{ roleSaving === userId(u) ? 'Saving…' : 'Make admin' }}
+                  Actions
+                  <span class="text-[10px] text-slate-500">▾</span>
                 </button>
-                <button
-                  v-else
-                  class="btn-secondary px-3 py-1.5 text-xs"
-                  :disabled="roleSaving === userId(u)"
-                  @click="changeRole(u, 'user')"
+                <div
+                  v-if="openMenuId === userId(u)"
+                  class="absolute right-0 z-20 mt-1 min-w-[10.5rem] overflow-hidden rounded-xl border border-slate-700 bg-slate-900 py-1 shadow-xl"
                 >
-                  {{ roleSaving === userId(u) ? 'Saving…' : 'Make user' }}
-                </button>
-                <button class="btn-secondary px-3 py-1.5 text-xs" @click="openReset(u)">Reset pwd</button>
-                <button class="btn-secondary px-3 py-1.5 text-xs" @click="toggleActive(u)">
-                  {{ u.active !== false ? 'Disable' : 'Enable' }}
-                </button>
-                <button class="btn-secondary px-3 py-1.5 text-xs text-red-300 hover:text-red-200" @click="openDelete(u)">
-                  Delete
-                </button>
+                  <button
+                    v-if="u.role !== 'admin'"
+                    type="button"
+                    class="block w-full px-4 py-2 text-left text-xs text-amber-200 hover:bg-slate-800"
+                    :disabled="roleSaving === userId(u)"
+                    @click="handleMenuAction(u, 'make-admin')"
+                  >
+                    Make admin
+                  </button>
+                  <button
+                    v-else
+                    type="button"
+                    class="block w-full px-4 py-2 text-left text-xs text-slate-200 hover:bg-slate-800"
+                    :disabled="roleSaving === userId(u)"
+                    @click="handleMenuAction(u, 'make-user')"
+                  >
+                    Make user
+                  </button>
+                  <button
+                    type="button"
+                    class="block w-full px-4 py-2 text-left text-xs text-slate-200 hover:bg-slate-800"
+                    @click="openReset(u)"
+                  >
+                    Reset password
+                  </button>
+                  <button
+                    type="button"
+                    class="block w-full px-4 py-2 text-left text-xs text-slate-200 hover:bg-slate-800"
+                    @click="handleMenuAction(u, 'toggle-active')"
+                  >
+                    {{ u.active !== false ? 'Disable account' : 'Enable account' }}
+                  </button>
+                  <div class="my-1 border-t border-slate-800" />
+                  <button
+                    type="button"
+                    class="block w-full px-4 py-2 text-left text-xs text-red-300 hover:bg-red-950/40"
+                    @click="handleMenuAction(u, 'delete')"
+                  >
+                    Delete user
+                  </button>
+                </div>
               </div>
               <span v-else class="text-xs text-slate-500">You · {{ u.role }}</span>
             </td>
