@@ -16,10 +16,11 @@ function requireMongo() {
 }
 
 async function loadJobs(minMatch = 60) {
+  const limit = env.openJobMarket !== false ? 5000 : 500;
   if (env.mongoUri) {
     return Job.find({ matchPct: { $gte: minMatch } })
       .sort({ matchPct: -1 })
-      .limit(500)
+      .limit(limit)
       .lean();
   }
   return jobService.readJobsFromSqlite(5000).filter(
@@ -194,7 +195,7 @@ async function listForUser(userId, options = {}) {
     const alignment = profileResumeAlignment(profile);
     const rawJobs = await loadJobs(0);
     if (!rawJobs.length) {
-      hint = 'No jobs in the system yet. Ask an admin to run a job search first.';
+      hint = 'No jobs in the system yet. Run a job search from the Apply tab or ask an admin to refresh listings.';
     } else if (!alignment.aligned && alignment.reason) {
       hint = alignment.reason;
     } else if (Number(minMatch) > (profile.minMatchScore || 60)) {
