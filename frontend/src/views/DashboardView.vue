@@ -7,6 +7,7 @@ import { useAuthStore } from '../stores/auth';
 import ResumeUpload from '../components/ResumeUpload.vue';
 import ResumePreview from '../components/ResumePreview.vue';
 import TailorApplySettings from '../components/TailorApplySettings.vue';
+import TailoredResumeDashboard from '../components/TailoredResumeDashboard.vue';
 import { useQuickApply } from '../composables/useQuickApply';
 
 const profileStore = useProfileStore();
@@ -25,6 +26,7 @@ const saveMessage = ref('');
 const queueCounts = ref({ pending: 0, approved: 0, applied: 0 });
 const recentApplied = ref([]);
 const loading = ref(true);
+const tailoredRefreshKey = ref(0);
 
 const firstName = computed(() => {
   const name = profileStore.profile?.displayName?.trim() || auth.user?.name || '';
@@ -100,6 +102,7 @@ async function startApplying() {
       runSearch: false,
     });
     await loadStatus();
+    tailoredRefreshKey.value += 1;
   } catch {
     /* error shown via applyError */
   }
@@ -201,6 +204,11 @@ onMounted(async () => {
         class="mt-5"
         :show-job-count="true"
       />
+    </section>
+
+    <!-- Tailored resume preview -->
+    <section class="card mt-6 p-6">
+      <TailoredResumeDashboard :refresh-key="tailoredRefreshKey" />
     </section>
 
     <!-- Step 3: Apply -->
