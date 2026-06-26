@@ -104,8 +104,13 @@ async function recordApplicationsFromJobs(userId, jobs = [], options = {}) {
 }
 
 async function activityForUser(userId) {
-  const apps = await listForUser(userId, { limit: 50 });
-  const recentApplied = apps.slice(0, 10).map((app) => ({
+  const apps = await listForUser(userId, { limit: 100 });
+  const appliedApps = apps.filter((a) =>
+    ['submitted', 'queued', 'manual-review', 'email-apply', 'external-apply'].includes(a.status) ||
+    a.submittedAt
+  );
+
+  const recentApplied = appliedApps.slice(0, 25).map((app) => ({
     jobId: app.jobId,
     title: app.title,
     company: app.company,
@@ -118,7 +123,7 @@ async function activityForUser(userId) {
 
   const companies = [];
   const seen = new Set();
-  for (const app of apps) {
+  for (const app of appliedApps) {
     const company = (app.company || '').trim();
     if (!company || seen.has(company.toLowerCase())) continue;
     seen.add(company.toLowerCase());
@@ -128,8 +133,9 @@ async function activityForUser(userId) {
       title: app.title,
       status: app.status,
       appliedAt: app.submittedAt || app.lastAttempted,
+      url: app.applyUrl || app.jobUrl,
     });
-    if (companies.length >= 12) break;
+    if (companies.length >= 30) break;
   }
 
   const byStatus = apps.reduce((acc, app) => {

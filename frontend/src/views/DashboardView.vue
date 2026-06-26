@@ -8,6 +8,8 @@ import ResumeUpload from '../components/ResumeUpload.vue';
 import ResumePreview from '../components/ResumePreview.vue';
 import TailorApplySettings from '../components/TailorApplySettings.vue';
 import TailoredResumeDashboard from '../components/TailoredResumeDashboard.vue';
+import SetupChecklist from '../components/SetupChecklist.vue';
+import AppliedJobsPanel from '../components/AppliedJobsPanel.vue';
 import { useQuickApply } from '../composables/useQuickApply';
 import { useProfileAutosave } from '../composables/useProfileAutosave';
 import { isUnreadableResumeText } from '../utils/resumeText';
@@ -38,6 +40,8 @@ const tailoredSeedKits = ref([]);
 const tailoredPreferredJobId = ref('');
 const showTailoredPreview = ref(false);
 const autosaveEnabled = ref(false);
+const setupRef = ref(null);
+const activityLoading = ref(false);
 
 const firstName = computed(() => {
   const name =
@@ -150,6 +154,50 @@ function onResumeParsed() {
   resumeText.value = profileStore.profile?.resumeText || resumeText.value;
 }
 
+function mergeBatchIntoActivity(result) {
+  if (!result?.jobs?.length) return;
+  const status = result.queued || result.preparedOnly ? 'queued' : 'submitted';
+  const now = new Date().toISOString();
+  const batch = result.jobs.map((j) => ({
+    jobId: j.jobId,
+    title: j.title,
+    company: j.company,
+    url: j.url,
+    source: j.source,
+    status: result.preparedOnly ? 'prepared' : status,
+    submittedAt: result.preparedOnly ? null : now,
+    lastAttempted: now,
+  }));
+  const seen = new Set(batch.map((j) => j.jobId));
+  recentApplied.value = [...batch, ...recentApplied.value.filter((j) => !seen.has(j.jobId))].slice(0, 25);
+  const companySeen = new Set();
+  activityCompanies.value = [
+    ...batch.map((j) => ({
+      name: j.company,
+      jobId: j.jobId,
+      title: j.title,
+      status: j.status,
+      appliedAt: j.submittedAt || j.lastAttempted,
+      url: j.url,
+    })),
+    ...activityCompanies.value,
+  ]
+    .filter((c) => {
+      const key = (c.name || '').toLowerCase();
+      if (!key || companySeen.has(key)) return false;
+      companySeen.add(key);
+      return true;
+    })
+    .slice(0, 30);
+  if (!result.preparedOnly) {
+    totalApplications.value = Math.max(totalApplications.value, recentApplied.value.length);
+    queueCounts.value = {
+      ...queueCounts.value,
+      applied: (queueCounts.value.applied || 0) + batch.length,
+    };
+  }
+}
+
 async function startApplying() {
   await saveResumeText();
   await saveApplySettings();
@@ -173,6 +221,8 @@ async function startApplying() {
       showTailoredPreview.value = true;
     }
     await loadStatus();
+    mergeBatchIntoActivity(result);
+    setupRef.value?.refresh?.();
     tailoredRefreshKey.value += 1;
   } catch {
     /* error shown via applyError */
@@ -180,6 +230,7 @@ async function startApplying() {
 }
 
 async function loadStatus() {
+  activityLoading.value = true;
   try {
     const [summaryRes, activityRes] = await Promise.all([
       http.get('/approvals/summary'),
@@ -198,6 +249,8 @@ async function loadStatus() {
     recentApplied.value = [];
     activityCompanies.value = [];
     totalApplications.value = 0;
+  } finally {
+    activityLoading.value = false;
   }
 }
 
@@ -222,6 +275,8 @@ onMounted(async () => {
       <p class="mt-1 text-slate-400">Upload your resume, set tailoring options, and apply with your email.</p>
       <p v-if="saveStatusLabel" class="mt-2 text-xs text-teal-400/90">{{ saveStatusLabel }}</p>
     </div>
+
+    <SetupChecklist ref="setupRef" class="mt-6" />
 
     <!-- Step 1: Resume -->
     <section class="card mt-8 p-6">
@@ -358,9 +413,19 @@ onMounted(async () => {
       />
     </section>
 
-    <!-- Status -->
+    <!-- Jobs applied -->
     <section v-if="!loading" class="card mt-6 p-6">
-      <h2 class="font-semibold text-slate-200">Your activity</h2>
+      <AppliedJobsPanel
+        :jobs="recentApplied"
+        :companies="activityCompanies"
+        :total="totalApplications"
+        :loading="activityLoading"
+      />
+    </section>
+
+    <!-- Queue stats -->
+    <section v-if="!loading" class="card mt-6 p-6">
+      <h2 class="font-semibold text-slate-200">Queue overview</h2>
       <div class="mt-4 grid grid-cols-3 gap-3 text-center">
         <div class="rounded-xl bg-slate-800/50 p-3">
           <p class="text-2xl font-bold text-amber-300">{{ queueCounts.pending }}</p>
@@ -375,38 +440,11 @@ onMounted(async () => {
           <p class="text-xs text-slate-500">applied</p>
         </div>
       </div>
-
-      <div v-if="recentApplied.length" class="mt-5 space-y-2">
-        <p class="text-sm font-medium text-slate-400">Recently applied</p>
-        <div
-          v-for="job in recentApplied"
-          :key="job.jobId"
-          class="flex items-center justify-between gap-2 rounded-lg bg-slate-800/40 px-3 py-2 text-sm"
-        >
-          <div class="min-w-0 truncate">
-            <span class="text-slate-200">{{ job.title }}</span>
-            <span class="text-slate-500"> · {{ job.company }}</span>
-          </div>
-          <span class="badge badge-teal shrink-0">{{ job.status || 'applied' }}</span>
-        </div>
-      </div>
-
-      <div v-if="activityCompanies.length" class="mt-5">
-        <p class="text-sm font-medium text-slate-400">Companies you've applied to</p>
-        <div class="mt-2 flex flex-wrap gap-2">
-          <span
-            v-for="company in activityCompanies"
-            :key="`${company.name}-${company.jobId}`"
-            class="rounded-full border border-slate-700/80 bg-slate-800/50 px-3 py-1 text-xs text-slate-300"
-            :title="company.title"
-          >
-            {{ company.name }}
-          </span>
-        </div>
-      </div>
-
-      <p v-if="!recentApplied.length && !totalApplications" class="mt-4 text-sm text-slate-500">No applications yet — hit Start applying above.</p>
-      <p v-else-if="totalApplications" class="mt-4 text-xs text-slate-600">{{ totalApplications }} application{{ totalApplications === 1 ? '' : 's' }} on your account</p>
+      <p class="mt-4 text-xs text-slate-600">
+        <RouterLink to="/applications" class="text-teal-400 hover:underline">All applications</RouterLink>
+        ·
+        <RouterLink to="/approvals" class="text-teal-400 hover:underline">Apply queue</RouterLink>
+      </p>
     </section>
 
     <p class="mt-6 text-center text-xs text-slate-600">

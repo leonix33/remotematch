@@ -67,6 +67,10 @@ function createApp() {
       adminConfigured: Boolean(email && env.adminPassword),
       adminEmailHint: email.includes('@') ? `${email.split('@')[0].slice(0, 3)}***@${email.split('@')[1]}` : 'unset',
       emailConfigured: Boolean(env.resendApiKey),
+      emailFrom: env.emailFrom || null,
+      adzunaConfigured: Boolean(
+        require('./config/jobSources').adzunaAppId && require('./config/jobSources').adzunaAppKey
+      ),
       mongoConfigured: Boolean(env.mongoUri),
       mongoConnected,
       openaiConfigured: Boolean(env.openaiApiKey),
