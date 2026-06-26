@@ -10,7 +10,7 @@ const registrar = ref('cloudflare');
 
 const items = computed(() => {
   const h = health.value || {};
-  const usingSandbox = (h.emailFrom || '').includes('resend.dev');
+  const usingSandbox = !(h.emailProduction ?? !(h.emailFrom || '').includes('resend.dev'));
   return [
     {
       id: 'resend',
@@ -163,7 +163,7 @@ defineExpose({ refresh: load });
 
       <p class="text-slate-300">
         <strong>Step 3.</strong> Render → Environment →
-        <code class="text-violet-300">EMAIL_FROM=RemoteMatch &lt;noreply@remotelymatch.app&gt;</code>
+        <code class="text-violet-300">EMAIL_FROM=RemotelyMatch &lt;noreply@remotelymatch.app&gt;</code>
         → redeploy
       </p>
       <p>

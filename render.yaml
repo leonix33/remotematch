@@ -19,7 +19,7 @@ services:
       - key: CUSTOM_DOMAIN
         value: remotelymatch.app
       - key: APP_NAME
-        value: RemoteMatch
+        value: RemotelyMatch
       - key: AGENT_HOME
         value: /app/agent-data
       - key: MONGODB_URI
@@ -49,9 +49,9 @@ services:
         value: "7"
       - key: RESEND_API_KEY
         sync: false
-      # After verifying remotelymatch.app in Resend, use: RemoteMatch <noreply@remotelymatch.app>
+      # Uses noreply@remotelymatch.app automatically when CUSTOM_DOMAIN is set (see env.js)
       - key: EMAIL_FROM
-        value: RemoteMatch <onboarding@resend.dev>
+        value: RemotelyMatch <noreply@remotelymatch.app>
       - key: VAPID_PUBLIC_KEY
         sync: false
       - key: VAPID_PRIVATE_KEY

@@ -16,7 +16,7 @@ ENV_FILE="$ROOT/backend/.env"
 RENDER_SERVICE_NAME="remotematch"
 
 # Sandbox sender — only delivers to your Resend account email until a domain is verified.
-EMAIL_FROM="${EMAIL_FROM:-RemoteMatch <onboarding@resend.dev>}"
+EMAIL_FROM="${EMAIL_FROM:-RemotelyMatch <noreply@remotelymatch.app>}"
 
 if [[ -z "${RESEND_API_KEY:-}" ]]; then
   echo "Paste your Resend API key (starts with re_):"

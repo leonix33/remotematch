@@ -5,6 +5,24 @@ dotenv.config({ path: path.join(__dirname, '../../.env') });
 
 const trim = (v) => (typeof v === 'string' ? v.trim() : v);
 
+function resolveEmailFrom() {
+  const explicit = trim(process.env.EMAIL_FROM) || '';
+  const domain = trim(process.env.CUSTOM_DOMAIN) || '';
+  const appName = trim(process.env.APP_NAME) || 'RemotelyMatch';
+  const sandbox = `${appName} <onboarding@resend.dev>`;
+
+  if (explicit && !explicit.includes('resend.dev')) {
+    return explicit;
+  }
+
+  const isProd = (process.env.NODE_ENV || 'development') === 'production';
+  if (isProd && domain && (!explicit || explicit.includes('resend.dev'))) {
+    return `${appName} <noreply@${domain}>`;
+  }
+
+  return explicit || sandbox;
+}
+
 function parseOrigins() {
   const raw = trim(process.env.CLIENT_ORIGIN) || '';
   const appUrl = trim(process.env.APP_URL) || '';
@@ -36,10 +54,10 @@ module.exports = {
   appUrl: trim(process.env.APP_URL) || trim(process.env.CLIENT_ORIGIN) || 'https://remotelymatch.app',
   customDomain: trim(process.env.CUSTOM_DOMAIN) || 'remotelymatch.app',
   agentHome: process.env.AGENT_HOME || require('path').resolve(__dirname, '../../../..'),
-  appName: trim(process.env.APP_NAME) || 'RemoteMatch',
+  appName: trim(process.env.APP_NAME) || 'RemotelyMatch',
   deployTag: 'sync-v6',
   resendApiKey: trim(process.env.RESEND_API_KEY) || '',
-  emailFrom: trim(process.env.EMAIL_FROM) || 'RemoteMatch <onboarding@resend.dev>',
+  emailFrom: resolveEmailFrom(),
   vapidPublicKey: trim(process.env.VAPID_PUBLIC_KEY) || '',
   vapidPrivateKey: trim(process.env.VAPID_PRIVATE_KEY) || '',
   vapidSubject: trim(process.env.VAPID_SUBJECT) || 'mailto:leonix23@gmail.com',

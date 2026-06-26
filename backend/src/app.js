@@ -79,6 +79,7 @@ function createApp() {
       adminEmailHint: email.includes('@') ? `${email.split('@')[0].slice(0, 3)}***@${email.split('@')[1]}` : 'unset',
       emailConfigured: Boolean(env.resendApiKey),
       emailFrom: env.emailFrom || null,
+      emailProduction: Boolean(env.resendApiKey && env.emailFrom && !env.emailFrom.includes('resend.dev')),
       adzunaConfigured: Boolean(
         require('./config/jobSources').adzunaAppId && require('./config/jobSources').adzunaAppKey
       ),
