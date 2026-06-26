@@ -50,13 +50,12 @@ const items = computed(() => {
     },
     {
       id: 'adzuna',
-      label: 'Adzuna job feed',
+      label: 'Adzuna job feed (optional)',
+      optional: true,
       ok: Boolean(h.adzunaConfigured),
       hint: h.adzunaConfigured
         ? `Pulling extra listings${h.adzunaAppIdHint ? ` (${h.adzunaAppIdHint})` : ''}`
-        : auth.isAdmin
-          ? 'Paste Adzuna API keys below (free at developer.adzuna.com)'
-          : 'Ask admin to add Adzuna keys in Platform setup',
+        : 'Skipped for now — Greenhouse, RemoteOK, Dice, and other feeds still work',
     },
     {
       id: 'openai',
@@ -81,7 +80,7 @@ const allCoreReady = computed(() => {
 });
 
 const needsOpenAi = computed(() => !health.value?.openaiConfigured);
-const needsAdzuna = computed(() => auth.isAdmin && !health.value?.adzunaConfigured);
+const showAdzunaSetup = computed(() => !health.value?.adzunaConfigured);
 
 async function load() {
   loading.value = true;
@@ -159,7 +158,7 @@ defineExpose({ refresh: load });
     <div class="flex flex-wrap items-start justify-between gap-3">
       <div>
         <p class="text-sm font-medium text-slate-200">Platform setup</p>
-        <p class="mt-1 text-xs text-slate-500">Resend, Adzuna, AI, and database — needed for apply + follow-up emails</p>
+        <p class="mt-1 text-xs text-slate-500">Email, AI tailoring, and database — Adzuna is optional for extra listings</p>
       </div>
       <button type="button" class="btn-secondary px-2 py-1 text-xs" :disabled="loading" @click="load">
         {{ loading ? '…' : 'Refresh' }}
@@ -174,9 +173,15 @@ defineExpose({ refresh: load });
       >
         <span
           class="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-xs font-bold"
-          :class="item.ok ? 'bg-teal-500/20 text-teal-300' : 'bg-amber-500/15 text-amber-300'"
+          :class="
+            item.ok
+              ? 'bg-teal-500/20 text-teal-300'
+              : item.optional
+                ? 'bg-slate-700/40 text-slate-500'
+                : 'bg-amber-500/15 text-amber-300'
+          "
         >
-          {{ item.ok ? '✓' : '!' }}
+          {{ item.ok ? '✓' : item.optional ? '○' : '!' }}
         </span>
         <span>
           <span class="font-medium text-slate-200">{{ item.label }}</span>
@@ -211,34 +216,6 @@ defineExpose({ refresh: load });
       <p v-if="openaiError" class="mt-2 text-xs text-red-300">{{ openaiError }}</p>
     </div>
 
-    <div v-if="needsAdzuna" class="mt-4 rounded-lg border border-amber-900/30 bg-amber-950/10 p-4">
-      <p class="text-sm font-medium text-slate-200">Connect Adzuna job feed</p>
-      <p class="mt-1 text-xs text-slate-500">
-        Free API at
-        <a href="https://developer.adzuna.com/" target="_blank" rel="noopener" class="text-teal-400 hover:underline">developer.adzuna.com</a>
-        — adds hundreds of fresh remote listings on each job search.
-      </p>
-      <div class="mt-3 grid gap-3 sm:grid-cols-2">
-        <div>
-          <label class="mb-1 block text-xs text-slate-500">App ID</label>
-          <input v-model="adzunaAppId" class="input font-mono text-sm" placeholder="e.g. abc12345" />
-        </div>
-        <div>
-          <label class="mb-1 block text-xs text-slate-500">App Key</label>
-          <input v-model="adzunaAppKey" type="password" class="input font-mono text-sm" placeholder="App key" autocomplete="off" />
-        </div>
-      </div>
-      <div class="mt-3">
-        <label class="mb-1 block text-xs text-slate-500">Search keywords (optional)</label>
-        <input v-model="adzunaWhat" class="input text-sm" placeholder="platform engineer remote" />
-      </div>
-      <button type="button" class="btn-primary mt-3 text-sm" :disabled="adzunaSaving" @click="saveAdzuna">
-        {{ adzunaSaving ? 'Saving…' : 'Save Adzuna keys' }}
-      </button>
-      <p v-if="adzunaMsg" class="mt-2 text-xs text-teal-300">{{ adzunaMsg }}</p>
-      <p v-if="adzunaError" class="mt-2 text-xs text-red-300">{{ adzunaError }}</p>
-    </div>
-
     <button
       type="button"
       class="mt-4 text-xs text-teal-400 hover:underline"
@@ -248,12 +225,12 @@ defineExpose({ refresh: load });
     </button>
 
     <button
-      v-if="!needsAdzuna"
+      v-if="showAdzunaSetup && auth.isAdmin"
       type="button"
       class="ml-4 mt-4 text-xs text-slate-500 hover:underline"
       @click="showAdzuna = !showAdzuna"
     >
-      {{ showAdzuna ? 'Hide' : 'Show' }} Adzuna setup guide
+      {{ showAdzuna ? 'Hide' : 'Set up Adzuna later' }}
     </button>
 
     <div v-if="showDns" class="mt-3 space-y-4 rounded-lg border border-violet-900/30 bg-violet-950/10 p-4 text-xs text-slate-400">
@@ -316,7 +293,35 @@ defineExpose({ refresh: load });
       <RouterLink to="/profile" class="inline-block text-teal-400 hover:underline">Profile → email & digest settings</RouterLink>
     </div>
 
-    <div v-if="showAdzuna && !needsAdzuna" class="mt-3 rounded-lg border border-slate-800 bg-slate-950/50 p-4 text-xs text-slate-400">
+    <div v-if="showAdzuna && showAdzunaSetup && auth.isAdmin" class="mt-3 rounded-lg border border-slate-800 bg-slate-950/50 p-4">
+      <p class="text-sm font-medium text-slate-200">Adzuna job feed (optional)</p>
+      <p class="mt-1 text-xs text-slate-500">
+        Free at
+        <a href="https://developer.adzuna.com/" target="_blank" rel="noopener" class="text-teal-400 hover:underline">developer.adzuna.com</a>
+        — adds extra listings on top of Greenhouse, RemoteOK, Dice, etc.
+      </p>
+      <div class="mt-3 grid gap-3 sm:grid-cols-2">
+        <div>
+          <label class="mb-1 block text-xs text-slate-500">App ID</label>
+          <input v-model="adzunaAppId" class="input font-mono text-sm" placeholder="e.g. abc12345" />
+        </div>
+        <div>
+          <label class="mb-1 block text-xs text-slate-500">App Key</label>
+          <input v-model="adzunaAppKey" type="password" class="input font-mono text-sm" placeholder="App key" autocomplete="off" />
+        </div>
+      </div>
+      <div class="mt-3">
+        <label class="mb-1 block text-xs text-slate-500">Search keywords (optional)</label>
+        <input v-model="adzunaWhat" class="input text-sm" placeholder="platform engineer remote" />
+      </div>
+      <button type="button" class="btn-secondary mt-3 text-sm" :disabled="adzunaSaving" @click="saveAdzuna">
+        {{ adzunaSaving ? 'Saving…' : 'Save Adzuna keys' }}
+      </button>
+      <p v-if="adzunaMsg" class="mt-2 text-xs text-teal-300">{{ adzunaMsg }}</p>
+      <p v-if="adzunaError" class="mt-2 text-xs text-red-300">{{ adzunaError }}</p>
+    </div>
+
+    <div v-if="showAdzuna && health?.adzunaConfigured" class="mt-3 rounded-lg border border-slate-800 bg-slate-950/50 p-4 text-xs text-slate-400">
       <p>
         Adzuna keys are saved. Run a job search from the Apply tab to ingest new listings.
         Keys can also be set on Render as <code>ADZUNA_APP_ID</code> and <code>ADZUNA_APP_KEY</code>.
