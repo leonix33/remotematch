@@ -1,5 +1,7 @@
 import { defineStore } from 'pinia';
 import http from '../api/http';
+import { clearAuthStorage } from '../utils/authStorage';
+import { useProfileStore } from './profile';
 
 export const useAuthStore = defineStore('auth', {
   state: () => ({
@@ -16,11 +18,16 @@ export const useAuthStore = defineStore('auth', {
       this.accessToken = data.accessToken;
       localStorage.setItem('user', JSON.stringify(data.user));
       localStorage.setItem('accessToken', data.accessToken);
+      const profileStore = useProfileStore();
+      profileStore.hydrateFromCache();
+      await profileStore.fetch().catch(() => {});
     },
     logout() {
+      const userId = this.user?.id;
       this.user = null;
       this.accessToken = null;
-      localStorage.clear();
+      clearAuthStorage(userId);
+      useProfileStore().reset();
     },
   },
 });

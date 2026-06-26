@@ -85,16 +85,19 @@ router.beforeEach(async (to) => {
   if (to.meta.guest && auth.accessToken && !['/welcome', '/privacy', '/terms'].includes(to.path)) return '/';
   if (to.meta.adminOnly && auth.user?.role !== 'admin') return '/';
 
-  if (auth.accessToken && to.meta.requiresAuth && !to.meta.skipOnboarding) {
+  if (auth.accessToken && to.meta.requiresAuth) {
     const profileStore = useProfileStore();
-    if (!profileStore.loaded) {
+    if (!profileStore.loaded && !profileStore.fetching) {
+      profileStore.hydrateFromCache();
       try {
         await profileStore.fetch();
       } catch {
-        return true;
+        /* cached profile may still be shown */
       }
     }
+
     if (
+      !to.meta.skipOnboarding &&
       !profileStore.complete &&
       !profileStore.profile?.mongoRequired &&
       !profileStore.profile?.onboardingComplete &&

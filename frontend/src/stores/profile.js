@@ -1,10 +1,21 @@
 import { defineStore } from 'pinia';
 import http from '../api/http';
+import { readProfileCache, writeProfileCache } from '../utils/profileDraft';
+
+function currentUserId() {
+  try {
+    const user = JSON.parse(localStorage.getItem('user') || 'null');
+    return user?.id || user?._id || null;
+  } catch {
+    return null;
+  }
+}
 
 export const useProfileStore = defineStore('profile', {
   state: () => ({
     profile: null,
     loaded: false,
+    fetching: false,
   }),
   getters: {
     complete: (s) => Boolean(s.profile?.complete),
@@ -27,19 +38,39 @@ export const useProfileStore = defineStore('profile', {
     extractedSkills: (s) => s.profile?.extractedSkills || [],
   },
   actions: {
+    hydrateFromCache() {
+      const userId = currentUserId();
+      const cached = readProfileCache(userId);
+      if (cached) {
+        this.profile = cached;
+        this.loaded = true;
+      }
+      return cached;
+    },
     async fetch() {
-      const { data } = await http.get('/profile/me');
-      this.profile = data;
-      this.loaded = true;
-      return data;
+      const userId = currentUserId();
+      if (!this.loaded) this.hydrateFromCache();
+      this.fetching = true;
+      try {
+        const { data } = await http.get('/profile/me');
+        this.profile = data;
+        this.loaded = true;
+        writeProfileCache(userId, data);
+        return data;
+      } finally {
+        this.fetching = false;
+      }
     },
     async save(payload) {
+      const userId = currentUserId();
       const { data } = await http.patch('/profile/me', payload);
-      this.profile = data;
+      this.profile = { ...this.profile, ...data };
       this.loaded = true;
+      writeProfileCache(userId, this.profile);
       return data;
     },
     async parseResume({ fileBase64, filename, applyToProfile = false, mergeSkills = true }) {
+      const userId = currentUserId();
       const { data } = await http.post('/profile/resume/parse', {
         fileBase64,
         filename,
@@ -49,12 +80,14 @@ export const useProfileStore = defineStore('profile', {
       if (data.profile) {
         this.profile = data.profile;
         this.loaded = true;
+        writeProfileCache(userId, this.profile);
       }
       return data;
     },
     reset() {
       this.profile = null;
       this.loaded = false;
+      this.fetching = false;
     },
     async toggleSavedJob(job) {
       const saved = [...(this.profile?.savedJobs || [])];

@@ -9,10 +9,12 @@ import ResumePreview from '../components/ResumePreview.vue';
 import TailorApplySettings from '../components/TailorApplySettings.vue';
 import TailoredResumeDashboard from '../components/TailoredResumeDashboard.vue';
 import { useQuickApply } from '../composables/useQuickApply';
+import { useProfileAutosave } from '../composables/useProfileAutosave';
 
 const profileStore = useProfileStore();
 const auth = useAuthStore();
 const { applying, message, error: applyError, step, quickApply } = useQuickApply();
+const { saveState, schedule, flush } = useProfileAutosave();
 
 const resumeText = ref('');
 const resumeMode = ref('tailored');
@@ -27,6 +29,7 @@ const queueCounts = ref({ pending: 0, approved: 0, applied: 0 });
 const recentApplied = ref([]);
 const loading = ref(true);
 const tailoredRefreshKey = ref(0);
+const autosaveEnabled = ref(false);
 
 const firstName = computed(() => {
   const name = profileStore.profile?.displayName?.trim() || auth.user?.name || '';
@@ -63,21 +66,38 @@ function syncFromProfile(p) {
 
 watch(() => profileStore.profile, syncFromProfile, { immediate: true });
 
-async function saveApplySettings() {
-  await profileStore.save({
+function dashboardPayload() {
+  return {
+    resumeText: resumeText.value,
     defaultApplyResumeMode: resumeMode.value,
     defaultSupplementPages: supplementPages.value,
     defaultTailorMode: tailorMode.value,
     digestEmail: digestEmail.value.trim(),
     contactPhone: contactPhone.value.trim(),
-  });
+  };
+}
+
+watch([resumeText, resumeMode, supplementPages, tailorMode, digestEmail, contactPhone], () => {
+  if (!autosaveEnabled.value || !profileStore.loaded) return;
+  schedule(dashboardPayload);
+});
+
+const saveStatusLabel = computed(() => {
+  if (saveState.value === 'saving') return 'Saving…';
+  if (saveState.value === 'saved') return 'Saved';
+  if (saveState.value === 'error') return 'Save failed — will retry when you edit';
+  return '';
+});
+
+async function saveApplySettings() {
+  await flush(dashboardPayload);
 }
 
 async function saveResumeText() {
   savingResume.value = true;
   saveMessage.value = '';
   try {
-    await profileStore.save({ resumeText: resumeText.value });
+    await flush(dashboardPayload);
     saveMessage.value = 'Resume saved';
     setTimeout(() => { saveMessage.value = ''; }, 2500);
   } catch (e) {
@@ -123,9 +143,13 @@ async function loadStatus() {
 }
 
 onMounted(async () => {
-  if (!profileStore.loaded) await profileStore.fetch().catch(() => {});
+  if (!profileStore.loaded) {
+    profileStore.hydrateFromCache();
+    await profileStore.fetch().catch(() => {});
+  }
   syncFromProfile(profileStore.profile);
   loading.value = false;
+  autosaveEnabled.value = true;
   await loadStatus();
 });
 </script>
@@ -137,6 +161,7 @@ onMounted(async () => {
         {{ firstName ? `Hi ${firstName}` : 'Welcome' }}
       </h1>
       <p class="mt-1 text-slate-400">Upload your resume, set tailoring options, and apply with your email.</p>
+      <p v-if="saveStatusLabel" class="mt-2 text-xs text-teal-400/90">{{ saveStatusLabel }}</p>
     </div>
 
     <!-- Step 1: Resume -->

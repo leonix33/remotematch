@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { clearAuthStorage } from '../utils/authStorage';
 
 const http = axios.create({ baseURL: '/api', withCredentials: true });
 
@@ -12,7 +13,14 @@ http.interceptors.response.use(
   (res) => res,
   (err) => {
     if (err.response?.status === 401 && !err.config?.url?.includes('/auth/login')) {
-      localStorage.clear();
+      let userId = null;
+      try {
+        const user = JSON.parse(localStorage.getItem('user') || 'null');
+        userId = user?.id;
+      } catch {
+        /* ignore */
+      }
+      clearAuthStorage(userId);
       if (!window.location.pathname.includes('/login')) {
         window.location.href = '/login';
       }

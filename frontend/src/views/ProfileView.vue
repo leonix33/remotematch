@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, ref } from 'vue';
+import { onMounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import http from '../api/http';
 import { useProfileStore } from '../stores/profile';
@@ -8,6 +8,7 @@ import { appUrl } from '../config';
 import ResumeUpload from '../components/ResumeUpload.vue';
 import ResumePreview from '../components/ResumePreview.vue';
 import TailorApplySettings from '../components/TailorApplySettings.vue';
+import { useProfileAutosave } from '../composables/useProfileAutosave';
 
 const router = useRouter();
 const profileStore = useProfileStore();
@@ -35,6 +36,8 @@ const openaiTesting = ref(false);
 const openaiMsg = ref('');
 const openaiError = ref('');
 const aiStatus = ref(null);
+const { saveState, schedule } = useProfileAutosave();
+const autosaveEnabled = ref(false);
 
 const form = ref({
   displayName: '',
@@ -145,8 +148,12 @@ async function connectExtension() {
 }
 
 onMounted(async () => {
+  if (!profileStore.loaded) {
+    profileStore.hydrateFromCache();
+  }
   const p = await profileStore.fetch();
   loadForm(p);
+  autosaveEnabled.value = true;
   await loadAiStatus();
   window.addEventListener('message', (e) => {
     if (e.data?.type === 'REMOTEMATCH_EXT_CONFIGURED') {
@@ -156,19 +163,28 @@ onMounted(async () => {
   });
 });
 
+function profilePayload() {
+  return {
+    ...form.value,
+    targetTitles: form.value.targetTitles.split('\n').filter(Boolean),
+    mustHaveSkills: form.value.mustHaveSkills.split('\n').filter(Boolean),
+    niceToHaveSkills: form.value.niceToHaveSkills.split('\n').filter(Boolean),
+    targetCompanies: form.value.targetCompanies.split('\n').filter(Boolean),
+    onboardingComplete: profileStore.profile?.onboardingComplete ?? true,
+  };
+}
+
+watch(form, () => {
+  if (!autosaveEnabled.value || !profileStore.loaded) return;
+  schedule(profilePayload);
+}, { deep: true });
+
 async function save() {
   error.value = '';
   success.value = '';
   saving.value = true;
   try {
-    await profileStore.save({
-      ...form.value,
-      targetTitles: form.value.targetTitles.split('\n').filter(Boolean),
-      mustHaveSkills: form.value.mustHaveSkills.split('\n').filter(Boolean),
-      niceToHaveSkills: form.value.niceToHaveSkills.split('\n').filter(Boolean),
-      targetCompanies: form.value.targetCompanies.split('\n').filter(Boolean),
-      onboardingComplete: true,
-    });
+    await profileStore.save(profilePayload());
     success.value = 'Profile saved.';
   } catch (e) {
     error.value = e.response?.data?.message || 'Save failed';
@@ -283,7 +299,9 @@ async function removeOpenAiKey() {
 <template>
   <div>
     <h2 class="page-title text-2xl font-bold text-slate-100">My profile</h2>
-    <p class="page-subtitle mt-1 text-slate-400">Your name, resume, and how you want to apply</p>
+    <p class="page-subtitle mt-1 text-slate-400">Your name, resume, and how you want to apply — saved automatically.</p>
+    <p v-if="saveState === 'saving'" class="mt-1 text-xs text-slate-500">Saving…</p>
+    <p v-else-if="saveState === 'saved'" class="mt-1 text-xs text-teal-400">Saved</p>
 
     <form class="card mt-8 space-y-6 p-6" @submit.prevent="save">
       <div class="grid gap-4 md:grid-cols-2">

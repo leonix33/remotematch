@@ -1,15 +1,22 @@
 <script setup>
-import { ref } from 'vue';
+import { onMounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { useProfileStore } from '../stores/profile';
 import { useAuthStore } from '../stores/auth';
 import ResumeUpload from '../components/ResumeUpload.vue';
 import ResumePreview from '../components/ResumePreview.vue';
 import TailorApplySettings from '../components/TailorApplySettings.vue';
+import { useProfileAutosave } from '../composables/useProfileAutosave';
+import {
+  clearOnboardingStep,
+  readOnboardingStep,
+  writeOnboardingStep,
+} from '../utils/profileDraft';
 
 const router = useRouter();
 const profileStore = useProfileStore();
 const auth = useAuthStore();
+const { saveState, schedule, flush } = useProfileAutosave({ delay: 700 });
 
 const steps = [
   { label: 'About you' },
@@ -20,6 +27,7 @@ const steps = [
 const step = ref(1);
 const saving = ref(false);
 const error = ref('');
+const autosaveEnabled = ref(false);
 
 const resumeMode = ref('tailored');
 const supplementPages = ref(3);
@@ -69,6 +77,50 @@ const form = ref({
   resumeText: '',
 });
 
+function draftPayload() {
+  return {
+    displayName: form.value.displayName,
+    headline: form.value.headline,
+    linkedin: form.value.linkedin,
+    resumeText: form.value.resumeText,
+    targetTitles: form.value.targetTitles.split('\n').filter(Boolean),
+    mustHaveSkills: form.value.mustHaveSkills.split('\n').filter(Boolean),
+    niceToHaveSkills: form.value.niceToHaveSkills.split('\n').filter(Boolean),
+    contactPhone: contactPhone.value.trim(),
+    digestEmail: digestEmail.value.trim(),
+    defaultApplyResumeMode: resumeMode.value,
+    defaultSupplementPages: supplementPages.value,
+    defaultTailorMode: tailorMode.value,
+    onboardingComplete: false,
+  };
+}
+
+function loadFromProfile(p) {
+  if (!p) return;
+  form.value.displayName = p.displayName || form.value.displayName || auth.user?.name || '';
+  form.value.headline = p.headline || '';
+  form.value.linkedin = p.linkedin || '';
+  form.value.resumeText = p.resumeText || '';
+  if (p.targetTitles?.length) form.value.targetTitles = p.targetTitles.join('\n');
+  if (p.mustHaveSkills?.length) form.value.mustHaveSkills = p.mustHaveSkills.join('\n');
+  if (p.niceToHaveSkills?.length) form.value.niceToHaveSkills = p.niceToHaveSkills.join('\n');
+  digestEmail.value = p.digestEmail || auth.user?.email || '';
+  contactPhone.value = p.contactPhone || '';
+  resumeMode.value = p.defaultApplyResumeMode === 'base' ? 'base' : 'tailored';
+  supplementPages.value = p.defaultSupplementPages || 3;
+  tailorMode.value = p.defaultTailorMode === 'high_match' ? 'high_match' : 'balanced';
+}
+
+watch(
+  [form, resumeMode, supplementPages, tailorMode, digestEmail, contactPhone],
+  () => {
+    if (!autosaveEnabled.value || !profileStore.loaded) return;
+    schedule(draftPayload);
+    writeOnboardingStep(auth.user?.id, step.value);
+  },
+  { deep: true }
+);
+
 async function finish() {
   error.value = '';
   if (!form.value.resumeText.trim() || form.value.resumeText.trim().length < 50) {
@@ -82,17 +134,10 @@ async function finish() {
   saving.value = true;
   try {
     await profileStore.save({
-      ...form.value,
-      contactPhone: contactPhone.value.trim(),
-      digestEmail: digestEmail.value.trim(),
-      defaultApplyResumeMode: resumeMode.value,
-      defaultSupplementPages: supplementPages.value,
-      defaultTailorMode: tailorMode.value,
-      targetTitles: form.value.targetTitles.split('\n').filter(Boolean),
-      mustHaveSkills: form.value.mustHaveSkills.split('\n').filter(Boolean),
-      niceToHaveSkills: form.value.niceToHaveSkills.split('\n').filter(Boolean),
+      ...draftPayload(),
       onboardingComplete: true,
     });
+    clearOnboardingStep(auth.user?.id);
     router.push('/');
   } catch (e) {
     error.value = e.response?.data?.message || 'Could not save profile';
@@ -100,13 +145,43 @@ async function finish() {
     saving.value = false;
   }
 }
+
+async function goNext() {
+  if (step.value === 2 && form.value.resumeText.trim().length < 50) {
+    error.value = 'Please upload or paste your resume first.';
+    return;
+  }
+  if (step.value === 3 && !digestEmail.value.trim()) {
+    error.value = 'Add your personal email before continuing.';
+    return;
+  }
+  error.value = '';
+  await flush(draftPayload);
+  writeOnboardingStep(auth.user?.id, step.value + 1);
+  step.value += 1;
+}
+
+onMounted(async () => {
+  step.value = readOnboardingStep(auth.user?.id);
+  if (!profileStore.loaded) {
+    profileStore.hydrateFromCache();
+    await profileStore.fetch().catch(() => {});
+  }
+  loadFromProfile(profileStore.profile);
+  autosaveEnabled.value = true;
+  if (profileStore.profile?.onboardingComplete) {
+    router.replace('/');
+  }
+});
 </script>
 
 <template>
   <div class="min-h-screen safe-top px-4 pb-4 pt-4 lg:py-8">
     <div class="mx-auto max-w-2xl">
       <h1 class="text-2xl font-bold text-slate-100">Set up your account</h1>
-      <p class="mt-1 text-slate-400">Three quick steps — then you can start applying.</p>
+      <p class="mt-1 text-slate-400">Three quick steps — your progress is saved automatically.</p>
+      <p v-if="saveState === 'saving'" class="mt-1 text-xs text-slate-500">Saving…</p>
+      <p v-else-if="saveState === 'saved'" class="mt-1 text-xs text-teal-400">Progress saved</p>
 
       <div class="mt-6">
         <p class="text-sm font-medium text-slate-300">Step {{ step }} of {{ steps.length }}</p>
@@ -120,18 +195,7 @@ async function finish() {
         </div>
       </div>
 
-      <form
-        class="card relative mt-6 space-y-4 p-6 pb-28 sm:pb-6"
-        @submit.prevent="
-          step === 2 && form.resumeText.trim().length < 50
-            ? (error = 'Please upload or paste your resume first.')
-            : step === 3 && !digestEmail.trim()
-              ? (error = 'Add your personal email before continuing.')
-              : step < 3
-                ? (error = '', step++)
-                : finish()
-        "
-      >
+      <form class="card relative mt-6 space-y-4 p-6 pb-28 sm:pb-6" @submit.prevent="step < 3 ? goNext() : finish()">
         <template v-if="step === 1">
           <h2 class="font-semibold text-slate-200">About you</h2>
           <input v-model="form.displayName" required class="input" placeholder="Your full name" />

@@ -2,6 +2,7 @@
 import { computed, onMounted, onUnmounted } from 'vue';
 import { useRoute, useRouter, RouterLink, RouterView } from 'vue-router';
 import { useAuthStore } from './stores/auth';
+import { useProfileStore } from './stores/profile';
 import PwaPrompt from './components/PwaPrompt.vue';
 import AppLogo from './components/AppLogo.vue';
 import AppSidebar from './components/AppSidebar.vue';
@@ -40,8 +41,14 @@ function onSwMessage(event) {
   }
 }
 
-onMounted(() => {
+onMounted(async () => {
   navigator.serviceWorker?.addEventListener('message', onSwMessage);
+  const auth = useAuthStore();
+  const profileStore = useProfileStore();
+  if (auth.accessToken && !profileStore.loaded) {
+    profileStore.hydrateFromCache();
+    await profileStore.fetch().catch(() => {});
+  }
 });
 
 onUnmounted(() => {
