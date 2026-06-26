@@ -2,7 +2,7 @@ const applicationKitService = require('../services/applicationKitService');
 
 async function listKits(req, res, next) {
   try {
-    res.json(applicationKitService.listKits(req.user.sub));
+    res.json(await applicationKitService.listKits(req.user.sub));
   } catch (err) {
     next(err);
   }
@@ -16,7 +16,7 @@ async function getKit(req, res, next) {
     }
     res.json({
       ...kit,
-      ...applicationKitService.applicationMetaForJob(req.user.sub, req.params.jobId),
+      ...(await applicationKitService.applicationMetaForJob(req.user.sub, req.params.jobId)),
     });
   } catch (err) {
     next(err);

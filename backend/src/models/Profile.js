@@ -4,6 +4,7 @@ const profileSchema = new mongoose.Schema(
   {
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, unique: true },
     displayName: { type: String, trim: true, default: '' },
+    applicantName: { type: String, trim: true, default: '' },
     headline: { type: String, trim: true, default: '' },
     bio: { type: String, default: '' },
     linkedin: { type: String, default: '' },
@@ -28,6 +29,7 @@ const profileSchema = new mongoose.Schema(
     contactPhone: { type: String, default: '' },
     defaultSupplementPages: { type: Number, default: 3, min: 1, max: 6 },
     defaultTailorMode: { type: String, enum: ['balanced', 'high_match'], default: 'balanced' },
+    defaultQuickApplyCount: { type: Number, default: 15, min: 5, max: 50 },
     highMatchTarget: { type: Number, default: 90, min: 80, max: 98 },
     openaiApiKeyEncrypted: { type: String, default: '', select: false },
     openaiKeyHint: { type: String, default: '' },

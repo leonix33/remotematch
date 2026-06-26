@@ -9,6 +9,7 @@ const supplementPages = defineModel('supplementPages', { type: Number, default: 
 const tailorMode = defineModel('tailorMode', { type: String, default: 'balanced' });
 const digestEmail = defineModel('digestEmail', { type: String, default: '' });
 const contactPhone = defineModel('contactPhone', { type: String, default: '' });
+const applicantName = defineModel('applicantName', { type: String, default: '' });
 
 const props = defineProps({
   showResumeMode: { type: Boolean, default: true },
@@ -16,7 +17,7 @@ const props = defineProps({
   showApplicantContact: { type: Boolean, default: true },
 });
 
-const jobCount = defineModel('jobCount', { type: Number, default: 5 });
+const jobCount = defineModel('jobCount', { type: Number, default: 15 });
 
 const profileStore = useProfileStore();
 const auth = useAuthStore();
@@ -35,7 +36,13 @@ const tailorModeLabel = computed(() => {
 
 const applySummary = computed(() => {
   const contact = applyPreview.value?.contact;
-  const name = contact?.name || profileStore.profile?.displayName || auth.user?.name || '—';
+  const name =
+    applicantName.value?.trim() ||
+    contact?.name ||
+    profileStore.profile?.applicantName ||
+    profileStore.profile?.displayName ||
+    auth.user?.name ||
+    '—';
   const email = contact?.email || digestEmail.value || auth.user?.email || '—';
   const phone = contact?.phone || contactPhone.value || '—';
   return { name, email, phone };
@@ -58,12 +65,13 @@ async function loadApplyPreview() {
   }
 }
 
-watch([digestEmail, contactPhone], () => {
+watch([digestEmail, contactPhone, applicantName], () => {
   if (applyPreview.value?.contact) {
     applyPreview.value = {
       ...applyPreview.value,
       contact: {
         ...applyPreview.value.contact,
+        name: applicantName.value?.trim() || applyPreview.value.contact.name,
         email: digestEmail.value || applyPreview.value.contact.email,
         phone: contactPhone.value || applyPreview.value.contact.phone,
       },
@@ -82,6 +90,16 @@ onMounted(loadApplyPreview);
       <p class="mt-1 text-xs text-slate-500">This name and email go on every job form and tailored resume.</p>
 
       <div class="mt-4 grid gap-3 sm:grid-cols-2">
+        <div class="sm:col-span-2">
+          <label class="mb-1 block text-xs text-slate-500">Name employers see on applications</label>
+          <input
+            v-model="applicantName"
+            type="text"
+            class="input text-sm"
+            placeholder="Legal name as it should appear on forms"
+            required
+          />
+        </div>
         <div>
           <label class="mb-1 block text-xs text-slate-500">Your email on applications</label>
           <input
@@ -196,11 +214,14 @@ onMounted(loadApplyPreview);
 
     <div v-if="showJobCount">
       <label class="mb-1 block text-sm text-slate-400">How many jobs to apply to</label>
-      <select v-model.number="jobCount" class="input w-auto">
-        <option :value="3">Top 3 matches</option>
-        <option :value="5">Top 5 matches</option>
+      <select v-model.number="jobCount" class="input w-auto min-w-[12rem]">
         <option :value="10">Top 10 matches</option>
+        <option :value="15">Top 15 matches</option>
+        <option :value="20">Top 20 matches</option>
+        <option :value="25">Top 25 matches</option>
+        <option :value="50">Top 50 matches</option>
       </select>
+      <p class="mt-1 text-xs text-slate-600">More jobs = more applications. Kits are built when you submit.</p>
     </div>
   </div>
 </template>

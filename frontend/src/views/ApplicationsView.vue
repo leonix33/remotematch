@@ -26,6 +26,7 @@ async function load() {
 
 function statusClass(s) {
   if (s === 'submitted') return 'badge-teal';
+  if (s === 'queued') return 'badge-amber';
   if (s === 'bot-blocked') return 'badge-red';
   return 'badge-slate';
 }
@@ -36,7 +37,7 @@ onMounted(load);
 <template>
   <div>
     <h2 class="text-2xl font-bold text-slate-100">Applications</h2>
-    <p class="mt-1 text-slate-400">Track what the agent submitted after you approved jobs in your queue.</p>
+    <p class="mt-1 text-slate-400">Your applications only — track what you submitted after approving jobs.</p>
 
     <ApplyWorkflowBanner class="mt-6" />
 

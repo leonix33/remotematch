@@ -5,6 +5,7 @@ const JobApproval = require('../models/JobApproval');
 const CalendarEvent = require('../models/CalendarEvent');
 const profileFileService = require('./profileFileService');
 const localApprovalService = require('./localApprovalService');
+const localApplicationService = require('./localApplicationService');
 const profileService = require('./profileService');
 
 function requireMongo() {
@@ -19,20 +20,23 @@ async function exportUserData(userId) {
   if (!env.mongoUri) {
     const profile = profileFileService.get(userId);
     const approvals = Object.values(localApprovalService.listForUser(userId) || {});
+    const applications = localApplicationService.listForUser(userId);
     return {
       exportedAt: new Date().toISOString(),
       profile: profileService.toResponse(profile),
       approvals,
+      applications,
       calendarEvents: [],
       note: 'Limited export in local dev mode (no MongoDB).',
     };
   }
 
   requireMongo();
-  const [user, profile, approvals, calendarEvents] = await Promise.all([
+  const [user, profile, approvals, applications, calendarEvents] = await Promise.all([
     User.findById(userId).select('-passwordHash').lean(),
     Profile.findOne({ userId }).lean(),
     JobApproval.find({ userId }).lean(),
+    require('../models/Application').find({ userId }).lean(),
     CalendarEvent.find({ userId }).lean(),
   ]);
 
@@ -41,6 +45,7 @@ async function exportUserData(userId) {
     user,
     profile,
     approvals,
+    applications,
     calendarEvents,
   };
 }
@@ -67,6 +72,7 @@ async function deleteUserAccount(userId, password) {
   await Promise.all([
     Profile.deleteOne({ userId }),
     JobApproval.deleteMany({ userId }),
+    require('../models/Application').deleteMany({ userId }),
     CalendarEvent.deleteMany({ userId }),
   ]);
 
@@ -90,6 +96,7 @@ async function adminRemoveUser(userId) {
     require('../models/Watchlist'),
     require('../models/CommunityResume'),
     require('../models/Outcome'),
+    require('../models/Application'),
     require('../models/InterviewSession'),
     require('../models/SwarmRun'),
     require('../models/Victory'),

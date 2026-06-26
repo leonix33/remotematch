@@ -1,11 +1,13 @@
 const { z } = require('zod');
 const bcrypt = require('bcryptjs');
 const User = require('../models/User');
+const Profile = require('../models/Profile');
 const teamService = require('../services/teamService');
 const Team = require('../models/Team');
 const emailService = require('../services/emailService');
 const userDataService = require('../services/userDataService');
 const authService = require('../services/authService');
+const profileService = require('../services/profileService');
 const env = require('../config/env');
 
 const createUserSchema = z.object({
@@ -17,8 +19,26 @@ const createUserSchema = z.object({
 
 async function listUsers(req, res, next) {
   try {
-    const users = await User.find().select('-passwordHash').sort({ createdAt: -1 });
-    res.json(users);
+    const users = await User.find().select('-passwordHash').sort({ createdAt: -1 }).lean();
+    if (!env.mongoUri || !users.length) {
+      return res.json(users);
+    }
+    const profiles = await Profile.find({
+      userId: { $in: users.map((u) => u._id) },
+    })
+      .select('userId applicantName displayName')
+      .lean();
+    const profileByUser = new Map(profiles.map((p) => [p.userId.toString(), p]));
+    res.json(
+      users.map((user) => {
+        const profile = profileByUser.get(user._id.toString());
+        return {
+          ...user,
+          applicantName: profile?.applicantName || '',
+          displayName: profile?.displayName || '',
+        };
+      })
+    );
   } catch (err) {
     next(err);
   }
@@ -55,6 +75,10 @@ async function createUser(req, res, next) {
       passwordHash,
       teamId: adminTeam?._id,
       active: true,
+    });
+    await profileService.update(user._id, {
+      applicantName: body.name.trim(),
+      displayName: body.name.trim(),
     });
 
     let inviteEmailSent = false;
@@ -93,6 +117,8 @@ const patchUserSchema = z.object({
   name: z.string().min(2).optional(),
   role: z.enum(['admin', 'user']).optional(),
   active: z.boolean().optional(),
+  applicantName: z.string().min(2).optional().or(z.literal('')),
+  displayName: z.string().min(2).optional().or(z.literal('')),
 });
 
 async function updateUser(req, res, next) {
@@ -119,7 +145,24 @@ async function updateUser(req, res, next) {
     if (body.role === 'admin') {
       await teamService.ensureTeamForUser(user);
     }
-    res.json({ id: user._id, name: user.name, email: user.email, role: user.role, active: user.active });
+    let profileFields = {};
+    if (body.applicantName !== undefined) profileFields.applicantName = body.applicantName.trim();
+    if (body.displayName !== undefined) profileFields.displayName = body.displayName.trim();
+    if (Object.keys(profileFields).length) {
+      const profile = await profileService.update(user._id, profileFields);
+      profileFields = {
+        applicantName: profile.applicantName || '',
+        displayName: profile.displayName || '',
+      };
+    }
+    res.json({
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      active: user.active,
+      ...profileFields,
+    });
   } catch (err) {
     next(err);
   }

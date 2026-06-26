@@ -14,6 +14,7 @@ const {
 
 const updateSchema = z.object({
   displayName: z.string().min(2).optional(),
+  applicantName: z.string().min(2).optional().or(z.literal('')),
   headline: z.string().optional(),
   bio: z.string().optional(),
   linkedin: z.string().optional(),
@@ -37,6 +38,7 @@ const updateSchema = z.object({
   contactPhone: z.string().optional(),
   defaultSupplementPages: z.number().min(1).max(6).optional(),
   defaultTailorMode: z.enum(['balanced', 'high_match']).optional(),
+  defaultQuickApplyCount: z.number().min(5).max(50).optional(),
   highMatchTarget: z.number().min(80).max(98).optional(),
   savedJobs: z
     .array(

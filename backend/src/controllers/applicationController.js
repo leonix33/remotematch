@@ -1,19 +1,23 @@
-const Application = require('../models/Application');
-const jobService = require('../services/jobService');
+const applicationService = require('../services/applicationService');
 const env = require('../config/env');
 
 async function listApplications(req, res, next) {
   try {
-    let apps;
-    if (env.mongoUri) {
-      apps = await Application.find().sort({ lastAttempted: -1 }).limit(5000).lean();
-    } else {
-      apps = jobService.readApplicationsFromSqlite();
-    }
-    if (req.query.status) {
-      apps = apps.filter((a) => a.status === req.query.status);
-    }
+    const apps = await applicationService.listForUser(req.user.sub, {
+      status: req.query.status || '',
+      limit: req.query.limit || 500,
+      offset: req.query.offset || 0,
+    });
     res.json(apps);
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function myActivity(req, res, next) {
+  try {
+    const activity = await applicationService.activityForUser(req.user.sub);
+    res.json(activity);
   } catch (err) {
     next(err);
   }
@@ -31,7 +35,7 @@ async function importApplications(req, res, next) {
     let imported = 0;
     for (const app of applications) {
       if (!app.jobId) continue;
-      await Application.findOneAndUpdate({ jobId: app.jobId }, app, { upsert: true, new: true });
+      await applicationService.upsertForUser(req.user.sub, app.jobId, app);
       imported += 1;
     }
     res.json({ imported });
@@ -40,4 +44,4 @@ async function importApplications(req, res, next) {
   }
 }
 
-module.exports = { listApplications, importApplications };
+module.exports = { listApplications, myActivity, importApplications };

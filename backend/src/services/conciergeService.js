@@ -48,7 +48,7 @@ async function buildSnapshot(userId) {
   const [profile, queueCounts, analytics, queueList] = await Promise.all([
     profileService.getOrCreate(userId),
     approvalService.counts(userId).catch(() => ({ pending: 0, approved: 0, rejected: 0 })),
-    analyticsService.summary().catch(() => null),
+    analyticsService.summary(userId).catch(() => null),
     approvalService.listForUser(userId, { status: 'pending', limit: 8, sort: 'match' }).catch(() => ({ items: [] })),
   ]);
 

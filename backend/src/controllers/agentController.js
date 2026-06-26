@@ -1,3 +1,4 @@
+const applicationService = require('../services/applicationService');
 const AgentRun = require('../models/AgentRun');
 const jobService = require('../services/jobService');
 const approvalService = require('../services/approvalService');
@@ -16,7 +17,6 @@ async function runAgent(req, res, next) {
     }
     const output = await jobService.runAgentScript({ autoApply: false });
     await jobService.syncJobsToMongo();
-    await jobService.syncApplicationsToMongo();
     let ingestNote = '';
     if (env.mongoUri && env.openJobMarket !== false) {
       try {
@@ -52,9 +52,20 @@ async function runAgent(req, res, next) {
 
 async function applyApproved(req, res, next) {
   try {
-    const approved = await approvalService.listApproved(req.user.sub);
+    let approved = await approvalService.listApproved(req.user.sub);
     if (!approved.length) {
       return res.status(400).json({ message: 'No approved jobs in your queue. Approve jobs first.' });
+    }
+
+    const requestedIds = Array.isArray(req.body?.jobIds)
+      ? req.body.jobIds.map(String).filter(Boolean)
+      : [];
+    if (requestedIds.length) {
+      const idSet = new Set(requestedIds);
+      approved = approved.filter((job) => idSet.has(job.jobId));
+      if (!approved.length) {
+        return res.status(400).json({ message: 'None of the selected jobs are approved. Try again from Start applying.' });
+      }
     }
 
     const profile = await profileService.getOrCreate(req.user.sub);
@@ -93,9 +104,19 @@ async function applyApproved(req, res, next) {
     if (contact.portfolio) applicantEnv.PORTFOLIO_URL = contact.portfolio;
 
     let output;
+    const agentAvailable = jobService.isAgentApplyAvailable();
     try {
-      output = await jobService.runApprovedAutoApply(itemsFile, applicantEnv);
-      await jobService.syncApplicationsToMongo();
+      if (agentAvailable) {
+        output = await jobService.runApprovedAutoApply(itemsFile, applicantEnv);
+      } else {
+        throw new Error(
+          'Python agent not on this server. Approved jobs saved to approved_jobs.json — run apply from your Mac with AGENT_HOME set.'
+        );
+      }
+      await applicationService.recordApplicationsFromJobs(req.user.sub, scored, {
+        status: 'submitted',
+        submittedAt: new Date(),
+      });
       await approvalService.markApplied(
         req.user.sub,
         scored.map((j) => j.jobId)
@@ -120,6 +141,37 @@ async function applyApproved(req, res, next) {
         output: output.slice(-2000),
       });
     } catch (applyErr) {
+      const unavailable = !agentAvailable || jobService.isAgentUnavailableError(applyErr);
+      if (unavailable) {
+        await applicationService.recordApplicationsFromJobs(req.user.sub, scored, {
+          status: 'queued',
+          notes: 'Application kits ready — submit via Chrome extension or local agent',
+          submittedAt: new Date(),
+        });
+        await approvalService.markApplied(
+          req.user.sub,
+          scored.map((j) => j.jobId)
+        );
+        if (run) {
+          run.status = 'completed';
+          run.output = `Cloud queue: ${scored.length} jobs prepared. ${applyErr.message}`.slice(-4000);
+          run.finishedAt = new Date();
+          await run.save();
+        }
+        const modeLabel = useTailoredResume ? 'tailored kits' : 'base resume';
+        return res.json({
+          message: `Queued ${scored.length} application(s) with ${modeLabel}. Open each job in Chrome and use the RemoteMatch extension to submit forms.`,
+          count: scored.length,
+          useTailoredResume,
+          tailoredCount,
+          missingKitCount,
+          queued: true,
+          recorded: true,
+          itemsFile,
+          hint: 'Install the Chrome extension from Team access, open a job posting, and click Apply with RemoteMatch.',
+        });
+      }
+
       if (run) {
         run.status = 'failed';
         run.error = applyErr.message;
@@ -142,7 +194,8 @@ async function applyApproved(req, res, next) {
 async function listRuns(req, res, next) {
   try {
     if (!env.mongoUri) return res.json([]);
-    const runs = await AgentRun.find().sort({ createdAt: -1 }).limit(20).lean();
+    const q = req.user.role === 'admin' ? {} : { startedBy: req.user.sub };
+    const runs = await AgentRun.find(q).sort({ createdAt: -1 }).limit(20).lean();
     res.json(runs);
   } catch (err) {
     next(err);

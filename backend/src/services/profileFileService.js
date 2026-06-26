@@ -4,6 +4,7 @@ const env = require('../config/env');
 
 const DEFAULT = {
   displayName: '',
+  applicantName: '',
   headline: '',
   bio: '',
   linkedin: '',
@@ -27,6 +28,7 @@ const DEFAULT = {
   contactPhone: '',
   defaultSupplementPages: 3,
   defaultTailorMode: 'balanced',
+  defaultQuickApplyCount: 15,
   highMatchTarget: 90,
   openaiApiKeyEncrypted: '',
   openaiKeyHint: '',

@@ -23,17 +23,24 @@ const supplementPages = ref(3);
 const tailorMode = ref('balanced');
 const digestEmail = ref('');
 const contactPhone = ref('');
-const jobCount = ref(5);
+const applicantName = ref('');
+const jobCount = ref(15);
 const savingResume = ref(false);
 const saveMessage = ref('');
 const queueCounts = ref({ pending: 0, approved: 0, applied: 0 });
 const recentApplied = ref([]);
+const activityCompanies = ref([]);
+const totalApplications = ref(0);
 const loading = ref(true);
 const tailoredRefreshKey = ref(0);
 const autosaveEnabled = ref(false);
 
 const firstName = computed(() => {
-  const name = profileStore.profile?.displayName?.trim() || auth.user?.name || '';
+  const name =
+    profileStore.profile?.applicantName?.trim() ||
+    profileStore.profile?.displayName?.trim() ||
+    auth.user?.name ||
+    '';
   return name ? name.split(' ')[0] : '';
 });
 
@@ -44,7 +51,8 @@ const hasResume = computed(
   () => !resumeUnreadable.value && (resumeText.value || '').trim().length >= 50
 );
 const hasEmail = computed(() => Boolean(digestEmail.value?.trim()));
-const profileReady = computed(() => hasResume.value && profileStore.profile?.onboardingComplete && hasEmail.value);
+const hasApplicantName = computed(() => Boolean(applicantName.value?.trim()));
+const profileReady = computed(() => hasResume.value && profileStore.profile?.onboardingComplete && hasEmail.value && hasApplicantName.value);
 const canApply = computed(() => profileReady.value && !applying.value);
 
 const extractedSkills = computed(() => profileStore.extractedSkills);
@@ -72,6 +80,8 @@ function syncFromProfile(p) {
   tailorMode.value = p.defaultTailorMode === 'high_match' ? 'high_match' : 'balanced';
   digestEmail.value = p.digestEmail || '';
   contactPhone.value = p.contactPhone || '';
+  applicantName.value = p.applicantName || p.displayName || auth.user?.name || '';
+  if (p.defaultQuickApplyCount) jobCount.value = p.defaultQuickApplyCount;
 }
 
 watch(() => profileStore.profile, syncFromProfile, { immediate: true });
@@ -84,10 +94,12 @@ function dashboardPayload() {
     defaultTailorMode: tailorMode.value,
     digestEmail: digestEmail.value.trim(),
     contactPhone: contactPhone.value.trim(),
+    applicantName: applicantName.value.trim(),
+    defaultQuickApplyCount: jobCount.value,
   };
 }
 
-watch([resumeText, resumeMode, supplementPages, tailorMode, digestEmail, contactPhone], () => {
+watch([resumeText, resumeMode, supplementPages, tailorMode, digestEmail, contactPhone, applicantName, jobCount], () => {
   if (!autosaveEnabled.value || !profileStore.loaded) return;
   schedule(dashboardPayload);
 });
@@ -133,7 +145,7 @@ async function startApplying() {
       count: jobCount.value,
       useTailoredResume: resumeMode.value === 'tailored',
       minMatch: profileStore.profile?.minMatchScore || 40,
-      runSearch: false,
+      runSearch: true,
     });
     await loadStatus();
     tailoredRefreshKey.value += 1;
@@ -144,15 +156,23 @@ async function startApplying() {
 
 async function loadStatus() {
   try {
-    const [summaryRes, appliedRes] = await Promise.all([
+    const [summaryRes, activityRes] = await Promise.all([
       http.get('/approvals/summary'),
-      http.get('/approvals', { params: { status: 'applied', limit: 5, offset: 0 } }),
+      http.get('/applications/activity'),
     ]);
     queueCounts.value = summaryRes.data || { pending: 0, approved: 0, applied: 0 };
-    recentApplied.value = appliedRes.data?.items || [];
+    const activity = activityRes.data || {};
+    recentApplied.value = activity.recentApplied || [];
+    activityCompanies.value = activity.companies || [];
+    totalApplications.value = activity.totalApplications || 0;
+    if (activity.submitted != null) {
+      queueCounts.value = { ...queueCounts.value, applied: activity.submitted };
+    }
   } catch {
     queueCounts.value = { pending: 0, approved: 0, applied: 0 };
     recentApplied.value = [];
+    activityCompanies.value = [];
+    totalApplications.value = 0;
   }
 }
 
@@ -241,6 +261,7 @@ onMounted(async () => {
         v-model:tailor-mode="tailorMode"
         v-model:digest-email="digestEmail"
         v-model:contact-phone="contactPhone"
+        v-model:applicant-name="applicantName"
         v-model:job-count="jobCount"
         class="mt-5"
         :show-job-count="true"
@@ -276,6 +297,9 @@ onMounted(async () => {
       </div>
       <div v-else-if="!hasEmail" class="mt-5 rounded-xl border border-amber-700/40 bg-amber-950/20 p-4 text-sm text-amber-200">
         Add your personal email in step 2 — applications need your real address.
+      </div>
+      <div v-else-if="!hasApplicantName" class="mt-5 rounded-xl border border-amber-700/40 bg-amber-950/20 p-4 text-sm text-amber-200">
+        Add your application name in step 2 — employers need the name that should appear on forms.
       </div>
       <div v-else-if="!profileStore.profile?.onboardingComplete" class="mt-5 rounded-xl border border-amber-700/40 bg-amber-950/20 p-4">
         <p class="text-sm text-amber-200">Finish setting up your profile first.</p>
@@ -330,10 +354,26 @@ onMounted(async () => {
             <span class="text-slate-200">{{ job.title }}</span>
             <span class="text-slate-500"> · {{ job.company }}</span>
           </div>
-          <span class="badge badge-teal shrink-0">applied</span>
+          <span class="badge badge-teal shrink-0">{{ job.status || 'applied' }}</span>
         </div>
       </div>
-      <p v-else class="mt-4 text-sm text-slate-500">No applications yet — hit Start applying above.</p>
+
+      <div v-if="activityCompanies.length" class="mt-5">
+        <p class="text-sm font-medium text-slate-400">Companies you've applied to</p>
+        <div class="mt-2 flex flex-wrap gap-2">
+          <span
+            v-for="company in activityCompanies"
+            :key="`${company.name}-${company.jobId}`"
+            class="rounded-full border border-slate-700/80 bg-slate-800/50 px-3 py-1 text-xs text-slate-300"
+            :title="company.title"
+          >
+            {{ company.name }}
+          </span>
+        </div>
+      </div>
+
+      <p v-if="!recentApplied.length && !totalApplications" class="mt-4 text-sm text-slate-500">No applications yet — hit Start applying above.</p>
+      <p v-else-if="totalApplications" class="mt-4 text-xs text-slate-600">{{ totalApplications }} application{{ totalApplications === 1 ? '' : 's' }} on your account</p>
     </section>
 
     <p class="mt-6 text-center text-xs text-slate-600">

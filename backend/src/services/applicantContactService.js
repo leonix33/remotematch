@@ -38,13 +38,31 @@ async function resolveAuthEmail(userId, authEmail) {
   }
 }
 
+function resolveApplicantName(profile, userName = '') {
+  return (
+    profile?.applicantName?.trim() ||
+    profile?.displayName?.trim() ||
+    String(userName || '').trim() ||
+    ''
+  );
+}
+
 async function resolveApplicantContact(userId, profile, authEmail) {
   const userEmail = await resolveAuthEmail(userId, authEmail);
+  let accountName = '';
+  if (env.mongoUri && userId) {
+    try {
+      const user = await User.findById(userId).select('name');
+      accountName = user?.name?.trim() || '';
+    } catch {
+      accountName = '';
+    }
+  }
   const email = resolveContactEmail(profile, userEmail);
   const phone = profile?.contactPhone?.trim() || '';
 
   return {
-    name: profile?.displayName?.trim() || '',
+    name: resolveApplicantName(profile, accountName),
     email,
     phone,
     linkedin: profile?.linkedin?.trim() || '',
@@ -73,6 +91,7 @@ function contactSignature(contact) {
 module.exports = {
   isAppOrSystemEmail,
   resolveContactEmail,
+  resolveApplicantName,
   resolveApplicantContact,
   contactHeader,
   contactSignature,

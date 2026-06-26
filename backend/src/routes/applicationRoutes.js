@@ -4,6 +4,7 @@ const applicationController = require('../controllers/applicationController');
 const applicationKitController = require('../controllers/applicationKitController');
 
 router.get('/', requireAuth, applicationController.listApplications);
+router.get('/activity', requireAuth, applicationController.myActivity);
 router.post('/import', requireAuth, applicationController.importApplications);
 router.get('/kits', requireAuth, applicationKitController.listKits);
 router.get('/kit/:jobId', requireAuth, applicationKitController.getKit);

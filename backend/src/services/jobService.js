@@ -248,6 +248,21 @@ function runAgentScript({ autoApply = false } = {}) {
   });
 }
 
+function isAgentApplyAvailable() {
+  const script = path.join(env.agentHome, 'apply_approved.sh');
+  const autoApplyPy = path.join(env.agentHome, 'auto_apply.py');
+  return fs.existsSync(script) || fs.existsSync(autoApplyPy);
+}
+
+function isAgentUnavailableError(err) {
+  const msg = String(err?.message || '');
+  return (
+    msg.includes('Python agent not on this server') ||
+    msg.includes('Agent script not found') ||
+    msg.includes('apply_approved.sh')
+  );
+}
+
 module.exports = {
   readJobsFromSqlite,
   readApplicationsFromSqlite,
@@ -258,4 +273,6 @@ module.exports = {
   writeApprovedItemsFile,
   runApprovedAutoApply,
   jobToApplyItem,
+  isAgentApplyAvailable,
+  isAgentUnavailableError,
 };

@@ -1,4 +1,5 @@
 const jobService = require('./jobService');
+const localApplicationService = require('./localApplicationService');
 const localOutcomeStore = require('./localOutcomeStore');
 
 const POSITIVE_STAGES = new Set(['screen', 'onsite', 'offer']);
@@ -36,7 +37,7 @@ function rate(replies, total, fallback = DEFAULT_REPLY_RATE) {
 }
 
 function getConversionContext(userId) {
-  const applications = jobService.readApplicationsFromSqlite(2000);
+  const applications = localApplicationService.listForUser(userId);
   const outcomes = localOutcomeStore.list(userId);
   const appBySource = buildSourceStatsFromApplications(applications);
   const outcomeBySource = buildSourceStatsFromOutcomes(outcomes);

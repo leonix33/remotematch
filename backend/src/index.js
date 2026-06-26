@@ -42,8 +42,7 @@ async function bootstrapData() {
   await ensureAdmin();
   try {
     const synced = await jobService.syncJobsToMongo();
-    const apps = await jobService.syncApplicationsToMongo();
-    console.log(`Synced ${synced} jobs and ${apps} applications from agent SQLite`);
+    console.log(`Synced ${synced} jobs from agent SQLite`);
   } catch (err) {
     console.warn('SQLite sync skipped:', err.message);
   }

@@ -5,9 +5,12 @@ const { enrichProfileResponse } = require('./resumeParseService');
 const { encryptApiKey, maskApiKey } = require('./openaiKeyCrypto');
 
 function isComplete(profile) {
+  const hasName = Boolean(
+    profile?.applicantName?.trim() || profile?.displayName?.trim()
+  );
   return Boolean(
     profile?.onboardingComplete &&
-    profile?.displayName?.trim() &&
+    hasName &&
     profile?.targetTitles?.length &&
     profile?.mustHaveSkills?.length
   );

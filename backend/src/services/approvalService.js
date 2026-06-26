@@ -78,25 +78,27 @@ async function buildJobList(userId) {
       }
     }
 
-    return jobs.map((job) => {
-      const row = local[job.jobId];
-      return {
-        jobId: job.jobId,
-        title: job.title,
-        company: job.company,
-        url: job.url,
-        matchPct: job.matchPct,
-        personalMatchPct: job.personalMatchPct ?? job.matchPct,
-        agentMatchPct: job.agentMatchPct ?? job.matchPct,
-        atsType: job.atsType,
-        source: job.source,
-        emailSection: job.emailSection,
-        status: row?.status || 'pending',
-        notes: row?.notes || '',
-        reviewedAt: row?.reviewedAt,
-        kit: applicationKitService.kitSummary(userId, job.jobId),
-      };
-    });
+    return Promise.all(
+      jobs.map(async (job) => {
+        const row = local[job.jobId];
+        return {
+          jobId: job.jobId,
+          title: job.title,
+          company: job.company,
+          url: job.url,
+          matchPct: job.matchPct,
+          personalMatchPct: job.personalMatchPct ?? job.matchPct,
+          agentMatchPct: job.agentMatchPct ?? job.matchPct,
+          atsType: job.atsType,
+          source: job.source,
+          emailSection: job.emailSection,
+          status: row?.status || 'pending',
+          notes: row?.notes || '',
+          reviewedAt: row?.reviewedAt,
+          kit: await applicationKitService.kitSummary(userId, job.jobId),
+        };
+      })
+    );
   }
 
   const approvals = await JobApproval.find({ userId }).lean();
@@ -118,26 +120,28 @@ async function buildJobList(userId) {
     }
   }
 
-  return jobs.map((job) => {
-    const existing = byJob.get(job.jobId);
-    return {
-      jobId: job.jobId,
-      title: job.title,
-      company: job.company,
-      url: job.url,
-      matchPct: job.matchPct,
-      personalMatchPct: job.personalMatchPct ?? job.matchPct,
-      agentMatchPct: job.matchPct,
-      atsType: job.atsType,
-      source: job.source,
-      emailSection: job.emailSection,
-      status: existing?.status || 'pending',
-      notes: existing?.notes || '',
-      reviewedAt: existing?.reviewedAt,
-      _id: existing?._id,
-      kit: applicationKitService.kitSummary(userId, job.jobId),
-    };
-  });
+  return Promise.all(
+    jobs.map(async (job) => {
+      const existing = byJob.get(job.jobId);
+      return {
+        jobId: job.jobId,
+        title: job.title,
+        company: job.company,
+        url: job.url,
+        matchPct: job.matchPct,
+        personalMatchPct: job.personalMatchPct ?? job.matchPct,
+        agentMatchPct: job.matchPct,
+        atsType: job.atsType,
+        source: job.source,
+        emailSection: job.emailSection,
+        status: existing?.status || 'pending',
+        notes: existing?.notes || '',
+        reviewedAt: existing?.reviewedAt,
+        _id: existing?._id,
+        kit: await applicationKitService.kitSummary(userId, job.jobId),
+      };
+    })
+  );
 }
 
 function applyFilters(items, { statusFilter, search, minMatch, ats, sort }) {
@@ -233,9 +237,11 @@ async function setStatus(userId, jobId, status, notes = '', options = {}) {
       const profile = await profileService.getOrCreate(userId);
       const tailor =
         typeof options.tailorResume === 'boolean' ? options.tailorResume : Boolean(profile.tailorResumeOnApply);
-      await applicationKitService.generateOnApprove(userId, jobId, tailor, {
-        authEmail: options.authEmail,
-      });
+      if (!options.skipKitGeneration) {
+        await applicationKitService.generateOnApprove(userId, jobId, tailor, {
+          authEmail: options.authEmail,
+        });
+      }
     }
     return row;
   }
@@ -269,9 +275,11 @@ async function setStatus(userId, jobId, status, notes = '', options = {}) {
     const profile = await profileService.getOrCreate(userId);
     const tailor =
       typeof options.tailorResume === 'boolean' ? options.tailorResume : Boolean(profile.tailorResumeOnApply);
-    await applicationKitService.generateOnApprove(userId, jobId, tailor, {
-      authEmail: options.authEmail,
-    });
+    if (!options.skipKitGeneration) {
+      await applicationKitService.generateOnApprove(userId, jobId, tailor, {
+        authEmail: options.authEmail,
+      });
+    }
   }
   return approval;
 }

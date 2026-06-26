@@ -1,5 +1,6 @@
 const profileService = require('./profileService');
 const jobService = require('./jobService');
+const applicationService = require('./applicationService');
 const approvalService = require('./approvalService');
 const localOutcomeStore = require('./localOutcomeStore');
 const localFollowUpStore = require('./localFollowUpStore');
@@ -37,7 +38,7 @@ function followUpUrgency(days) {
 
 async function buildTractionTrace(userId) {
   const profile = await profileService.getOrCreate(userId);
-  const applications = jobService.readApplicationsFromSqlite(500);
+  const applications = await applicationService.listForUser(userId, { limit: 500 });
   const outcomes = localOutcomeStore.list(userId);
   const outcomeByJob = new Map(outcomes.map((o) => [o.jobId, o]));
 
@@ -167,8 +168,8 @@ async function buildTractionTrace(userId) {
   };
 }
 
-function buildAppliedJobsDigest(userId, profile) {
-  const applications = jobService.readApplicationsFromSqlite(200);
+async function buildAppliedJobsDigest(userId, profile) {
+  const applications = await applicationService.listForUser(userId, { limit: 200 });
   const allJobs = scoreJobsForProfile(jobService.readJobsFromSqlite(5000), profile, userId);
   const jobById = new Map(allJobs.map((j) => [j.jobId, j]));
 
@@ -204,7 +205,7 @@ async function sendAppliedDigestEmail(userId) {
   const to = resolveDigestEmail(profile);
   if (!to) return { sent: false, reason: 'No digest email configured' };
 
-  const applied = buildAppliedJobsDigest(userId, profile);
+  const applied = await buildAppliedJobsDigest(userId, profile);
   const { trace, summary } = await buildTractionTrace(userId);
   const followUps = trace.filter((t) => t.type === 'follow_up').slice(0, 8);
   const approveNow = trace.filter((t) => t.type === 'approve_now').slice(0, 5);
@@ -271,7 +272,7 @@ async function markFollowUpDone(userId, jobId, notes = '') {
 
 async function previewDigest(userId) {
   const profile = await profileService.getOrCreate(userId);
-  const applied = buildAppliedJobsDigest(userId, profile);
+  const applied = await buildAppliedJobsDigest(userId, profile);
   const { trace, summary } = await buildTractionTrace(userId);
   return {
     digestEmail: resolveDigestEmail(profile),

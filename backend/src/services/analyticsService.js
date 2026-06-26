@@ -3,9 +3,10 @@ const Application = require('../models/Application');
 const Generation = require('../models/Generation');
 const AgentRun = require('../models/AgentRun');
 const jobService = require('./jobService');
+const applicationService = require('./applicationService');
 const env = require('../config/env');
 
-async function summary() {
+async function summary(userId = null) {
   let jobs = [];
   let applications = [];
   let generations = 0;
@@ -13,12 +14,20 @@ async function summary() {
 
   if (env.mongoUri) {
     jobs = await Job.find().lean();
-    applications = await Application.find().lean();
-    generations = await Generation.countDocuments();
-    agentRuns = await AgentRun.countDocuments();
+    if (userId) {
+      applications = await Application.find({ userId }).lean();
+      generations = await Generation.countDocuments({ createdBy: userId });
+      agentRuns = await AgentRun.countDocuments({ startedBy: userId });
+    } else {
+      applications = await Application.find().lean();
+      generations = await Generation.countDocuments();
+      agentRuns = await AgentRun.countDocuments();
+    }
   } else {
     jobs = jobService.readJobsFromSqlite();
-    applications = jobService.readApplicationsFromSqlite();
+    applications = userId
+      ? await applicationService.listForUser(userId, { limit: 5000 })
+      : jobService.readApplicationsFromSqlite();
   }
 
   const bySection = jobs.reduce((acc, job) => {

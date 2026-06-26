@@ -20,6 +20,9 @@ const upgrading = ref(false);
 const deleteTarget = ref(null);
 const deleteSaving = ref(false);
 const roleSaving = ref('');
+const nameEditTarget = ref(null);
+const nameEditValue = ref('');
+const nameEditSaving = ref(false);
 const openMenuId = ref('');
 const loginUrl = import.meta.env.VITE_APP_URL
   ? `${import.meta.env.VITE_APP_URL.replace(/\/$/, '')}/login`
@@ -164,6 +167,39 @@ async function confirmDelete() {
   }
 }
 
+function applicationNameFor(user) {
+  return user.applicantName?.trim() || user.displayName?.trim() || user.name || '';
+}
+
+function openNameEdit(user) {
+  closeMenu();
+  nameEditTarget.value = user;
+  nameEditValue.value = applicationNameFor(user);
+  error.value = '';
+  success.value = '';
+}
+
+async function submitNameEdit() {
+  if (!nameEditTarget.value || nameEditValue.value.trim().length < 2) return;
+  nameEditSaving.value = true;
+  error.value = '';
+  success.value = '';
+  try {
+    const id = userId(nameEditTarget.value);
+    const { data } = await http.patch(`/users/${id}`, {
+      applicantName: nameEditValue.value.trim(),
+    });
+    success.value = `Application name updated for ${nameEditTarget.value.email}.`;
+    nameEditTarget.value = null;
+    nameEditValue.value = '';
+    await load();
+  } catch (e) {
+    error.value = e.response?.data?.message || 'Could not update application name';
+  } finally {
+    nameEditSaving.value = false;
+  }
+}
+
 function roleClass(role) {
   return role === 'admin' ? 'badge-gold' : 'badge-teal';
 }
@@ -187,7 +223,8 @@ function openReset(user) {
 
 function handleMenuAction(user, action) {
   closeMenu();
-  if (action === 'make-admin') changeRole(user, 'admin');
+  if (action === 'edit-application-name') openNameEdit(user);
+  else if (action === 'make-admin') changeRole(user, 'admin');
   else if (action === 'make-user') changeRole(user, 'user');
   else if (action === 'toggle-active') toggleActive(user);
   else if (action === 'delete') openDelete(user);
@@ -399,6 +436,9 @@ onUnmounted(() => {
             <td class="px-6 py-4">
               <p class="font-medium text-slate-200">{{ u.name }}</p>
               <p class="text-slate-500">{{ u.email }}</p>
+              <p class="mt-1 text-xs text-slate-600">
+                Applies as: <span class="text-slate-400">{{ applicationNameFor(u) }}</span>
+              </p>
             </td>
             <td class="px-6 py-4">
               <span class="badge capitalize" :class="roleClass(u.role)">{{ u.role }}</span>
@@ -423,6 +463,13 @@ onUnmounted(() => {
                   v-if="openMenuId === userId(u)"
                   class="absolute right-0 z-20 mt-1 min-w-[10.5rem] overflow-hidden rounded-xl border border-slate-700 bg-slate-900 py-1 shadow-xl"
                 >
+                  <button
+                    type="button"
+                    class="block w-full px-4 py-2 text-left text-xs text-slate-200 hover:bg-slate-800"
+                    @click="handleMenuAction(u, 'edit-application-name')"
+                  >
+                    Edit application name
+                  </button>
                   <button
                     v-if="u.role !== 'admin'"
                     type="button"
@@ -470,6 +517,36 @@ onUnmounted(() => {
           </tr>
         </tbody>
       </table>
+    </div>
+
+    <div
+      v-if="nameEditTarget"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+      @click.self="nameEditTarget = null"
+    >
+      <form class="card w-full max-w-md p-6" @submit.prevent="submitNameEdit">
+        <h3 class="font-semibold text-slate-200">Application name</h3>
+        <p class="mt-1 text-sm text-slate-500">
+          {{ nameEditTarget.name }} · {{ nameEditTarget.email }}
+        </p>
+        <p class="mt-2 text-xs text-slate-600">
+          This is the name employers and recruiters see on job forms and tailored resumes.
+        </p>
+        <input
+          v-model="nameEditValue"
+          type="text"
+          required
+          minlength="2"
+          class="input mt-4"
+          placeholder="Full legal name"
+        />
+        <div class="mt-6 flex gap-3">
+          <button type="button" class="btn-secondary flex-1" @click="nameEditTarget = null">Cancel</button>
+          <button type="submit" class="btn-primary flex-1" :disabled="nameEditSaving">
+            {{ nameEditSaving ? 'Saving…' : 'Save' }}
+          </button>
+        </div>
+      </form>
     </div>
 
     <div

@@ -24,7 +24,7 @@ export const useProfileStore = defineStore('profile', {
       const p = s.profile;
       if (!p) return 0;
       const checks = [
-        Boolean(p.displayName?.trim()),
+        Boolean(p.applicantName?.trim() || p.displayName?.trim()),
         Boolean(p.targetTitles?.length),
         Boolean(p.mustHaveSkills?.length),
         Boolean((p.resumeText || '').trim().length >= 50),

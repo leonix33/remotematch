@@ -41,6 +41,7 @@ const autosaveEnabled = ref(false);
 
 const form = ref({
   displayName: '',
+  applicantName: '',
   headline: '',
   bio: '',
   linkedin: '',
@@ -65,6 +66,7 @@ const form = ref({
 function loadForm(p) {
   form.value = {
     displayName: p.displayName || '',
+    applicantName: p.applicantName || p.displayName || auth.user?.name || '',
     headline: p.headline || '',
     bio: p.bio || '',
     linkedin: p.linkedin || '',
@@ -306,10 +308,20 @@ async function removeOpenAiKey() {
     <form class="card mt-8 space-y-6 p-6" @submit.prevent="save">
       <div class="grid gap-4 md:grid-cols-2">
         <div>
-          <label class="mb-1 block text-sm text-slate-400">Display name</label>
-          <input v-model="form.displayName" required class="input" />
+          <label class="mb-1 block text-sm text-slate-400">Name on applications</label>
+          <input
+            v-model="form.applicantName"
+            required
+            class="input"
+            placeholder="Full name employers and recruiters will see"
+          />
+          <p class="mt-1 text-xs text-slate-600">Used on job forms, tailored resumes, and cover letters.</p>
         </div>
         <div>
+          <label class="mb-1 block text-sm text-slate-400">Display name in app</label>
+          <input v-model="form.displayName" class="input" placeholder="Optional — how we greet you here" />
+        </div>
+        <div class="md:col-span-2">
           <label class="mb-1 block text-sm text-slate-400">Headline</label>
           <input v-model="form.headline" class="input" placeholder="Platform Engineer | Azure | Databricks | Terraform" />
         </div>
@@ -440,6 +452,7 @@ async function removeOpenAiKey() {
           v-model:tailor-mode="form.defaultTailorMode"
           v-model:digest-email="form.digestEmail"
           v-model:contact-phone="form.contactPhone"
+          v-model:applicant-name="form.applicantName"
           class="mt-4"
           :show-resume-mode="false"
           :show-applicant-contact="false"

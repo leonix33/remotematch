@@ -57,6 +57,7 @@ function onResumeParsed(result) {
 
 const form = ref({
   displayName: auth.user?.name || '',
+  applicantName: auth.user?.name || '',
   headline: '',
   linkedin: '',
   targetTitles: '',
@@ -67,7 +68,8 @@ const form = ref({
 
 function draftPayload() {
   return {
-    displayName: form.value.displayName,
+    displayName: form.value.displayName || form.value.applicantName,
+    applicantName: form.value.applicantName,
     headline: form.value.headline,
     linkedin: form.value.linkedin,
     resumeText: form.value.resumeText,
@@ -86,6 +88,7 @@ function draftPayload() {
 function loadFromProfile(p) {
   if (!p) return;
   form.value.displayName = p.displayName || form.value.displayName || auth.user?.name || '';
+  form.value.applicantName = p.applicantName || p.displayName || form.value.applicantName || auth.user?.name || '';
   form.value.headline = p.headline || '';
   form.value.linkedin = p.linkedin || '';
   form.value.resumeText = p.resumeText || '';
@@ -119,6 +122,10 @@ async function finish() {
     error.value = 'Add your personal email — applications need your real address.';
     return;
   }
+  if (!form.value.applicantName.trim()) {
+    error.value = 'Add the name employers should see on your applications.';
+    return;
+  }
   saving.value = true;
   try {
     await profileStore.save({
@@ -135,6 +142,10 @@ async function finish() {
 }
 
 async function goNext() {
+  if (step.value === 1 && !form.value.applicantName.trim()) {
+    error.value = 'Enter the name employers should see on applications.';
+    return;
+  }
   if (step.value === 2 && form.value.resumeText.trim().length < 50) {
     error.value = 'Please upload or paste your resume first.';
     return;
@@ -186,7 +197,15 @@ onMounted(async () => {
       <form class="card relative mt-6 space-y-4 p-6 pb-28 sm:pb-6" @submit.prevent="step < 3 ? goNext() : finish()">
         <template v-if="step === 1">
           <h2 class="font-semibold text-slate-200">About you</h2>
-          <input v-model="form.displayName" required class="input" placeholder="Your full name" />
+          <div>
+            <label class="mb-1 block text-sm text-slate-400">Name on applications</label>
+            <input
+              v-model="form.applicantName"
+              required
+              class="input"
+              placeholder="Full name employers and recruiters will see"
+            />
+          </div>
           <input
             v-model="form.headline"
             class="input"
@@ -226,6 +245,7 @@ onMounted(async () => {
             v-model:tailor-mode="tailorMode"
             v-model:digest-email="digestEmail"
             v-model:contact-phone="contactPhone"
+            v-model:applicant-name="form.applicantName"
             :show-job-count="false"
           />
 

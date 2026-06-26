@@ -4,7 +4,7 @@ const PLANS = {
   free: {
     agentRunsPerMonth: 5,
     aiCallsPerMonth: 30,
-    approvalsPerMonth: 50,
+    approvalsPerMonth: 200,
     members: 3,
   },
   pro: {

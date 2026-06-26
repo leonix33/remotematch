@@ -110,6 +110,7 @@ async function bulkApprove(req, res, next) {
     const results = await approvalService.bulkSetStatus(req.user.sub, jobIds, 'approved', {
       tailorResume: req.body.tailorResume,
       authEmail: req.user.email,
+      skipKitGeneration: Boolean(req.body.skipKitGeneration),
     });
     res.json({ count: results.length, message: `Approved ${results.length} job(s)` });
   } catch (err) {
