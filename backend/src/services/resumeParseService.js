@@ -247,8 +247,14 @@ async function extractTextFromBuffer(buffer, filename = '') {
     return (data.text || '').replace(/\s+/g, ' ').trim();
   }
   if (name.endsWith('.docx')) {
-    const { value } = await mammoth.extractRawText({ buffer });
-    return (value || '').replace(/\s+/g, ' ').trim();
+    try {
+      const { value } = await mammoth.extractRawText({ buffer });
+      return (value || '').replace(/\s+/g, ' ').trim();
+    } catch (err) {
+      const error = new Error('Could not read this Word file. Try saving as PDF or paste your resume text.');
+      error.status = 400;
+      throw error;
+    }
   }
   if (name.endsWith('.doc')) {
     const err = new Error('Legacy .doc files are not supported. Save as .docx or PDF and upload again.');
@@ -388,6 +394,10 @@ function shouldReplaceCriteriaFromResume(profile = {}, parsed = {}) {
 
 async function parseResumeFile(buffer, filename = 'resume.pdf') {
   const resumeText = await extractTextFromBuffer(buffer, filename);
+  return buildParseResult(resumeText);
+}
+
+function buildParseResult(resumeText) {
   if (!resumeText || resumeText.length < 20 || isUnreadableResumeText(resumeText)) {
     const err = new Error(
       'Could not extract readable text from this file. Upload PDF or .docx, or paste your resume text.'
@@ -408,6 +418,11 @@ async function parseResumeFile(buffer, filename = 'resume.pdf') {
     wordCount: resumeText.split(/\s+/).filter(Boolean).length,
     charCount: resumeText.length,
   };
+}
+
+function parseResumeFromText(resumeText) {
+  const cleaned = String(resumeText || '').replace(/\s+/g, ' ').trim();
+  return buildParseResult(cleaned);
 }
 
 function enrichProfileResponse(profile) {
@@ -431,6 +446,7 @@ module.exports = {
   extractSkillsFromText,
   computeResumeScore,
   parseResumeFile,
+  parseResumeFromText,
   enrichProfileResponse,
   mergeSkillLists,
   criteriaFromResumeText,

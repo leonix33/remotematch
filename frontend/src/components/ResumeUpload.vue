@@ -1,7 +1,9 @@
 <script setup>
 import { computed, ref } from 'vue';
+import mammoth from 'mammoth';
 import { useProfileStore } from '../stores/profile';
 import ResumePreview from './ResumePreview.vue';
+import { formatResumeUploadError, isUnreadableResumeText } from '../utils/resumeText';
 
 const props = defineProps({
   modelValue: { type: String, default: '' },
@@ -10,7 +12,7 @@ const props = defineProps({
   mergeSkills: { type: Boolean, default: false },
 });
 
-const emit = defineEmits(['update:modelValue', 'parsed', 'error']);
+const emit = defineEmits(['update:modelValue', 'parsed', 'error', 'cleared']);
 
 const profileStore = useProfileStore();
 const parsing = ref(false);
@@ -26,7 +28,47 @@ async function fileToBase64(file) {
   return btoa(binary);
 }
 
+async function extractDocxText(file) {
+  const arrayBuffer = await file.arrayBuffer();
+  const { value } = await mammoth.extractRawText({ arrayBuffer });
+  return (value || '').replace(/\s+/g, ' ').trim();
+}
+
 const MAX_RESUME_BYTES = 8 * 1024 * 1024;
+
+const savedResumeUnreadable = computed(
+  () => profileStore.profile?.resumeUnreadable || isUnreadableResumeText(props.modelValue)
+);
+
+async function applyParseResult(result) {
+  emit('update:modelValue', result.resumeText);
+  parseSummary.value = {
+    skills: result.extractedSkills?.all?.length || 0,
+    words: result.wordCount || 0,
+    score: result.resumeScore ?? profileStore.resumeScore,
+    mustHave: result.extractedSkills?.mustHave || [],
+    niceToHave: result.extractedSkills?.niceToHave || [],
+    suggestedHeadline: result.suggestedHeadline || '',
+    suggestedTitles: result.suggestedTitles || [],
+  };
+  emit('parsed', result);
+}
+
+async function clearCorruptResume() {
+  localError.value = '';
+  parsing.value = true;
+  try {
+    await profileStore.save({ resumeText: '', resumeFileName: '', extractedSkills: [] });
+    emit('update:modelValue', '');
+    parseSummary.value = null;
+    fileName.value = '';
+    emit('cleared');
+  } catch (e) {
+    localError.value = e.response?.data?.message || 'Could not clear resume';
+  } finally {
+    parsing.value = false;
+  }
+}
 
 async function handleFile(event) {
   const file = event.target.files?.[0];
@@ -66,27 +108,34 @@ async function handleFile(event) {
   fileName.value = file.name;
 
   try {
-    const fileBase64 = await fileToBase64(file);
-    const result = await profileStore.parseResume({
-      fileBase64,
-      filename: file.name,
-      applyToProfile: props.applyToProfile,
-      mergeSkills: props.mergeSkills,
-    });
+    let result;
+    if (lowerName.endsWith('.docx')) {
+      const resumeText = await extractDocxText(file);
+      if (isUnreadableResumeText(resumeText)) {
+        throw new Error('Could not read this Word file. Try PDF or paste your resume text below.');
+      }
+      result = await profileStore.parseResume({
+        resumeText,
+        filename: file.name,
+        applyToProfile: props.applyToProfile,
+        mergeSkills: props.mergeSkills,
+      });
+    } else {
+      const fileBase64 = await fileToBase64(file);
+      result = await profileStore.parseResume({
+        fileBase64,
+        filename: file.name,
+        applyToProfile: props.applyToProfile,
+        mergeSkills: props.mergeSkills,
+      });
+      if (isUnreadableResumeText(result.resumeText)) {
+        throw new Error('Could not extract readable text from this file. Try PDF or paste text.');
+      }
+    }
 
-    emit('update:modelValue', result.resumeText);
-    parseSummary.value = {
-      skills: result.extractedSkills?.all?.length || 0,
-      words: result.wordCount || 0,
-      score: result.resumeScore ?? profileStore.resumeScore,
-      mustHave: result.extractedSkills?.mustHave || [],
-      niceToHave: result.extractedSkills?.niceToHave || [],
-      suggestedHeadline: result.suggestedHeadline || '',
-      suggestedTitles: result.suggestedTitles || [],
-    };
-    emit('parsed', result);
+    await applyParseResult(result);
   } catch (e) {
-    localError.value = e.response?.data?.message || e.message || 'Could not parse resume';
+    localError.value = formatResumeUploadError(e);
     emit('error', localError.value);
   } finally {
     parsing.value = false;
@@ -99,6 +148,11 @@ const previewSkills = computed(() => {
     return [...parseSummary.value.mustHave, ...(parseSummary.value.niceToHave || [])];
   }
   return profileStore.extractedSkills;
+});
+
+const previewText = computed(() => {
+  const text = props.modelValue || profileStore.profile?.resumeText || '';
+  return savedResumeUnreadable.value ? '' : text;
 });
 </script>
 
@@ -123,19 +177,23 @@ const previewSkills = computed(() => {
     </label>
 
     <p v-if="localError" class="text-sm text-red-300">{{ localError }}</p>
-    <p
-      v-else-if="profileStore.profile?.resumeUnreadable"
-      class="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-200"
+    <div
+      v-else-if="savedResumeUnreadable"
+      class="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-3 text-sm text-amber-200"
     >
-      Your saved resume looks like a broken file upload (not readable text). Re-upload as PDF or .docx.
-    </p>
+      <p>Your saved resume is broken file data, not readable text. Clear it and upload again.</p>
+      <button type="button" class="btn-secondary mt-3 text-xs" :disabled="parsing" @click="clearCorruptResume">
+        Clear broken resume
+      </button>
+    </div>
 
     <ResumePreview
       v-if="showPreview"
-      :resume-text="modelValue || profileStore.profile?.resumeText || ''"
-      :score="parseSummary?.score ?? profileStore.resumeScore"
+      :resume-text="previewText"
+      :score="savedResumeUnreadable ? 0 : (parseSummary?.score ?? profileStore.resumeScore)"
       :skills="previewSkills"
       :file-name="fileName"
+      :unreadable="savedResumeUnreadable"
     />
   </div>
 </template>

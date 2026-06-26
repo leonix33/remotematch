@@ -35,7 +35,7 @@ module.exports = {
   customDomain: trim(process.env.CUSTOM_DOMAIN) || '',
   agentHome: process.env.AGENT_HOME || require('path').resolve(__dirname, '../../../..'),
   appName: trim(process.env.APP_NAME) || 'RemoteMatch',
-  deployTag: 'sync-v4',
+  deployTag: 'sync-v5',
   resendApiKey: trim(process.env.RESEND_API_KEY) || '',
   emailFrom: trim(process.env.EMAIL_FROM) || 'RemoteMatch <onboarding@resend.dev>',
   vapidPublicKey: trim(process.env.VAPID_PUBLIC_KEY) || '',

@@ -10,6 +10,7 @@ import TailorApplySettings from '../components/TailorApplySettings.vue';
 import TailoredResumeDashboard from '../components/TailoredResumeDashboard.vue';
 import { useQuickApply } from '../composables/useQuickApply';
 import { useProfileAutosave } from '../composables/useProfileAutosave';
+import { isUnreadableResumeText } from '../utils/resumeText';
 
 const profileStore = useProfileStore();
 const auth = useAuthStore();
@@ -36,7 +37,12 @@ const firstName = computed(() => {
   return name ? name.split(' ')[0] : '';
 });
 
-const hasResume = computed(() => (resumeText.value || '').trim().length >= 50);
+const resumeUnreadable = computed(
+  () => profileStore.profile?.resumeUnreadable || isUnreadableResumeText(resumeText.value)
+);
+const hasResume = computed(
+  () => !resumeUnreadable.value && (resumeText.value || '').trim().length >= 50
+);
 const hasEmail = computed(() => Boolean(digestEmail.value?.trim()));
 const profileReady = computed(() => hasResume.value && profileStore.profile?.onboardingComplete && hasEmail.value);
 const canApply = computed(() => profileReady.value && !applying.value);
@@ -56,7 +62,11 @@ const applyPlanSummary = computed(() => {
 
 function syncFromProfile(p) {
   if (!p) return;
-  resumeText.value = p.resumeText || '';
+  if (p.resumeUnreadable || isUnreadableResumeText(p.resumeText || '')) {
+    resumeText.value = '';
+  } else {
+    resumeText.value = p.resumeText || '';
+  }
   resumeMode.value = p.defaultApplyResumeMode === 'base' ? 'base' : 'tailored';
   supplementPages.value = p.defaultSupplementPages || 3;
   tailorMode.value = p.defaultTailorMode === 'high_match' ? 'high_match' : 'balanced';
@@ -94,6 +104,10 @@ async function saveApplySettings() {
 }
 
 async function saveResumeText() {
+  if (isUnreadableResumeText(resumeText.value)) {
+    saveMessage.value = 'This looks like a broken file upload. Upload PDF or .docx instead.';
+    return;
+  }
   savingResume.value = true;
   saveMessage.value = '';
   try {
@@ -203,9 +217,10 @@ onMounted(async () => {
 
       <ResumePreview
         class="mt-5"
-        :resume-text="resumeText"
-        :score="profileStore.resumeScore"
+        :resume-text="resumeUnreadable ? '' : resumeText"
+        :score="resumeUnreadable ? 0 : profileStore.resumeScore"
         :skills="extractedSkills"
+        :unreadable="resumeUnreadable"
       />
     </section>
 
@@ -252,7 +267,10 @@ onMounted(async () => {
         <p class="mt-1 text-xs text-slate-500">{{ jobCount }} top-matching jobs · forms filled with the email above</p>
       </div>
 
-      <div v-if="!hasResume" class="mt-5 rounded-xl border border-amber-700/40 bg-amber-950/20 p-4 text-sm text-amber-200">
+      <div v-if="resumeUnreadable" class="mt-5 rounded-xl border border-amber-700/40 bg-amber-950/20 p-4 text-sm text-amber-200">
+        Your resume data is corrupted. Use <strong>Clear broken resume</strong> above, then re-upload your .docx or PDF.
+      </div>
+      <div v-else-if="!hasResume" class="mt-5 rounded-xl border border-amber-700/40 bg-amber-950/20 p-4 text-sm text-amber-200">
         Upload or paste your resume above before applying.
       </div>
       <div v-else-if="!hasEmail" class="mt-5 rounded-xl border border-amber-700/40 bg-amber-950/20 p-4 text-sm text-amber-200">

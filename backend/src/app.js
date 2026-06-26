@@ -117,7 +117,7 @@ function createApp() {
   });
 
   app.use((err, req, res, next) => {
-    const status = err.name === 'ZodError' ? 400 : 400;
+    const status = err.status || (err.name === 'ZodError' ? 400 : 500);
     res.status(status).json({ message: err.message || 'Server error' });
   });
 

@@ -4,6 +4,7 @@ const openaiService = require('../services/openaiService');
 const applicantContactService = require('../services/applicantContactService');
 const {
   parseResumeFile,
+  parseResumeFromText,
   mergeSkillLists,
   extractSkillsFromText,
   criteriaFromResumeText,
@@ -61,12 +62,17 @@ const updateSchema = z.object({
     .optional(),
 });
 
-const parseResumeSchema = z.object({
-  fileBase64: z.string().min(1),
-  filename: z.string().min(1).max(255),
-  applyToProfile: z.boolean().optional(),
-  mergeSkills: z.boolean().optional(),
-});
+const parseResumeSchema = z
+  .object({
+    fileBase64: z.string().min(1).optional(),
+    resumeText: z.string().min(20).optional(),
+    filename: z.string().min(1).max(255),
+    applyToProfile: z.boolean().optional(),
+    mergeSkills: z.boolean().optional(),
+  })
+  .refine((body) => Boolean(body.fileBase64 || body.resumeText), {
+    message: 'Provide a resume file or extracted resume text',
+  });
 
 function parseListField(value) {
   if (Array.isArray(value)) return value.map((v) => v.trim().toLowerCase()).filter(Boolean);
@@ -124,12 +130,17 @@ async function updateMe(req, res, next) {
 async function parseResume(req, res, next) {
   try {
     const body = parseResumeSchema.parse(req.body);
-    const buffer = Buffer.from(body.fileBase64, 'base64');
-    if (buffer.length > 8 * 1024 * 1024) {
-      return res.status(400).json({ message: 'Resume file must be under 8 MB' });
+    let parsed;
+    if (body.resumeText) {
+      parsed = parseResumeFromText(body.resumeText);
+    } else {
+      const buffer = Buffer.from(body.fileBase64, 'base64');
+      if (buffer.length > 8 * 1024 * 1024) {
+        return res.status(400).json({ message: 'Resume file must be under 8 MB' });
+      }
+      parsed = await parseResumeFile(buffer, body.filename);
     }
 
-    const parsed = await parseResumeFile(buffer, body.filename);
     let profile = await profileService.getOrCreate(req.user.sub);
 
     if (body.applyToProfile) {

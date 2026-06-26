@@ -6,6 +6,7 @@ const props = defineProps({
   score: { type: Number, default: 0 },
   skills: { type: Array, default: () => [] },
   fileName: { type: String, default: '' },
+  unreadable: { type: Boolean, default: false },
   emptyMessage: {
     type: String,
     default: 'Upload or paste your resume to preview it here before applying.',
@@ -14,7 +15,7 @@ const props = defineProps({
 
 const expanded = ref(false);
 
-const hasContent = computed(() => (props.resumeText || '').trim().length >= 20);
+const hasContent = computed(() => !props.unreadable && (props.resumeText || '').trim().length >= 20);
 
 const previewLines = computed(() => {
   const text = (props.resumeText || '').trim();
@@ -61,7 +62,12 @@ const barColor = computed(() => {
     </div>
 
     <div v-if="!hasContent" class="px-4 py-8 text-center text-sm text-slate-500">
-      {{ emptyMessage }}
+      <template v-if="unreadable">
+        Resume file was not read correctly. Clear it and upload PDF or .docx again.
+      </template>
+      <template v-else>
+        {{ emptyMessage }}
+      </template>
     </div>
 
     <template v-else>

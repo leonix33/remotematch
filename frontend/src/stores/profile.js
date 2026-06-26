@@ -69,14 +69,19 @@ export const useProfileStore = defineStore('profile', {
       writeProfileCache(userId, this.profile);
       return data;
     },
-    async parseResume({ fileBase64, filename, applyToProfile = false, mergeSkills = true }) {
+    async parseResume({ fileBase64, filename, applyToProfile = false, mergeSkills = true, resumeText }) {
       const userId = currentUserId();
-      const { data } = await http.post('/profile/resume/parse', {
-        fileBase64,
+      const payload = {
         filename,
         applyToProfile,
         mergeSkills,
-      });
+      };
+      if (resumeText) {
+        payload.resumeText = resumeText;
+      } else {
+        payload.fileBase64 = fileBase64;
+      }
+      const { data } = await http.post('/profile/resume/parse', payload);
       if (data.profile) {
         this.profile = data.profile;
         this.loaded = true;
