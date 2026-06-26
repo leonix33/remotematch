@@ -55,7 +55,7 @@ export function useQuickApply() {
   const error = ref('');
   const step = ref('');
 
-  async function quickApply({ count = 15, useTailoredResume = false, minMatch, runSearch = false } = {}) {
+  async function quickApply({ count = 15, useTailoredResume = false, autoApply = true, minMatch, runSearch = false } = {}) {
     applying.value = true;
     message.value = '';
     error.value = '';
@@ -106,11 +106,14 @@ export function useQuickApply() {
         );
       }
 
-      step.value = `Preparing and submitting ${approveData.count} application(s)…`;
+      step.value = autoApply
+        ? `Preparing and submitting ${approveData.count} application(s)…`
+        : `Preparing ${approveData.count} application(s) for review…`;
       const { data, status } = await http.post(
         '/agent/apply-approved',
         {
           useTailoredResume,
+          autoApply,
           jobIds,
         },
         { timeout: APPLY_TIMEOUT_MS, validateStatus: (s) => s < 500 }
@@ -125,6 +128,7 @@ export function useQuickApply() {
       }
 
       const queued = Boolean(data.queued || data.recorded);
+      const preparedOnly = Boolean(data.preparedOnly);
       if (status === 202 || queued) {
         const hint = data.hint || data.message;
         message.value =
@@ -141,6 +145,18 @@ export function useQuickApply() {
           kits,
           output: data.output,
           queued: true,
+          preparedOnly: false,
+        };
+      }
+
+      if (preparedOnly) {
+        message.value = data.message || `Prepared ${data.count || jobs.length} application(s) for review`;
+        return {
+          count: data.count || jobs.length,
+          jobs,
+          kits,
+          preparedOnly: true,
+          autoApply: false,
         };
       }
 
@@ -151,6 +167,7 @@ export function useQuickApply() {
         kits,
         output: data.output,
         queued: Boolean(data.queued),
+        preparedOnly: false,
       };
     } catch (e) {
       const status = e.response?.status;

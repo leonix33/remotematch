@@ -30,6 +30,7 @@ const updateSchema = z.object({
   extractedSkills: z.array(z.string()).optional(),
   resumeFileName: z.string().optional(),
   tailorResumeOnApply: z.boolean().optional(),
+  autoApplyEnabled: z.boolean().optional(),
   defaultApplyResumeMode: z.enum(['base', 'tailored']).optional(),
   digestEmail: z.string().email().optional().or(z.literal('')),
   notificationEmail: z.string().email().optional().or(z.literal('')),
@@ -265,6 +266,7 @@ async function getApplyPreview(req, res, next) {
         defaultSupplementPages: profile.defaultSupplementPages || 3,
         defaultTailorMode: profile.defaultTailorMode || 'balanced',
         highMatchTarget: profile.highMatchTarget || 90,
+        autoApplyEnabled: profile.autoApplyEnabled !== false,
       },
       emailWarning,
     });

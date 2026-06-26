@@ -21,6 +21,7 @@ const profileSchema = new mongoose.Schema(
     resumeFileName: { type: String, default: '' },
     resumeParsedAt: { type: Date },
     tailorResumeOnApply: { type: Boolean, default: false },
+    autoApplyEnabled: { type: Boolean, default: true },
     defaultApplyResumeMode: { type: String, enum: ['base', 'tailored'], default: 'base' },
     digestEmail: { type: String, default: '' },
     notificationEmail: { type: String, default: '' },

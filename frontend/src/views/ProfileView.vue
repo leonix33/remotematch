@@ -54,6 +54,7 @@ const form = ref({
   resumeText: '',
   minMatchScore: 40,
   tailorResumeOnApply: false,
+  autoApplyEnabled: true,
   defaultApplyResumeMode: 'base',
   digestEmail: '',
   emailDigestEnabled: true,
@@ -79,6 +80,7 @@ function loadForm(p) {
     resumeText: p.resumeText || '',
     minMatchScore: p.minMatchScore || 40,
     tailorResumeOnApply: Boolean(p.tailorResumeOnApply),
+    autoApplyEnabled: p.autoApplyEnabled !== false,
     defaultApplyResumeMode: p.defaultApplyResumeMode === 'tailored' ? 'tailored' : 'base',
     digestEmail: p.digestEmail || '',
     emailDigestEnabled: p.emailDigestEnabled !== false,
@@ -392,7 +394,16 @@ async function removeOpenAiKey() {
             </span>
           </span>
         </label>
-        <label class="mt-4 block text-sm text-slate-400">Default for auto-apply</label>
+        <label class="mt-4 flex cursor-pointer items-start gap-3 text-sm text-slate-300">
+          <input v-model="form.autoApplyEnabled" type="checkbox" class="mt-0.5 accent-teal-500" />
+          <span>
+            <strong class="text-slate-200">Auto apply</strong>
+            <span class="mt-1 block text-slate-500">
+              When on, Start applying submits applications. When off, jobs are approved and resumes prepared for your review first.
+            </span>
+          </span>
+        </label>
+        <label class="mt-4 block text-sm text-slate-400">Resume on apply</label>
         <div class="mt-2 space-y-2 text-sm text-slate-300">
           <label class="flex cursor-pointer items-center gap-2">
             <input v-model="form.defaultApplyResumeMode" type="radio" value="base" class="accent-teal-500" />
@@ -450,6 +461,7 @@ async function removeOpenAiKey() {
           v-model:resume-mode="form.defaultApplyResumeMode"
           v-model:supplement-pages="form.defaultSupplementPages"
           v-model:tailor-mode="form.defaultTailorMode"
+          v-model:auto-apply="form.autoApplyEnabled"
           v-model:digest-email="form.digestEmail"
           v-model:contact-phone="form.contactPhone"
           v-model:applicant-name="form.applicantName"

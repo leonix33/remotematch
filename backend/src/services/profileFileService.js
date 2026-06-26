@@ -20,6 +20,7 @@ const DEFAULT = {
   extractedSkills: [],
   resumeFileName: '',
   tailorResumeOnApply: false,
+  autoApplyEnabled: true,
   defaultApplyResumeMode: 'base',
   digestEmail: '',
   notificationEmail: '',

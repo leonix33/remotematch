@@ -125,6 +125,7 @@ async function applyApproved() {
   try {
     const { data } = await http.post('/agent/apply-approved', {
       useTailoredResume: applyResumeMode.value === 'tailored',
+      autoApply: true,
     });
     applyMessage.value = data.message || `Applied to ${data.count} jobs`;
     await load();

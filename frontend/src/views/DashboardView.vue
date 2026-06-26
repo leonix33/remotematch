@@ -25,6 +25,7 @@ const digestEmail = ref('');
 const contactPhone = ref('');
 const applicantName = ref('');
 const jobCount = ref(15);
+const autoApplyEnabled = ref(true);
 const savingResume = ref(false);
 const saveMessage = ref('');
 const queueCounts = ref({ pending: 0, approved: 0, applied: 0 });
@@ -61,14 +62,21 @@ const canApply = computed(() => profileReady.value && !applying.value);
 const extractedSkills = computed(() => profileStore.extractedSkills);
 
 const applyPlanSummary = computed(() => {
+  const submitNote = autoApplyEnabled.value ? 'will submit' : 'prepare only';
   if (resumeMode.value === 'base') {
-    return `Base resume · submitted as ${digestEmail.value || 'your email'}`;
+    return `Base resume · ${submitNote} as ${digestEmail.value || 'your email'}`;
   }
   const mode =
     tailorMode.value === 'high_match'
       ? 'close match to job posting'
       : 'balanced tailoring';
-  return `Tailored · ${supplementPages.value} page${supplementPages.value === 1 ? '' : 's'} · ${mode} · ${digestEmail.value || 'your email'}`;
+  return `Tailored · ${supplementPages.value} page${supplementPages.value === 1 ? '' : 's'} · ${mode} · ${submitNote} · ${digestEmail.value || 'your email'}`;
+});
+
+const applyButtonLabel = computed(() => {
+  if (applying.value) return step.value || 'Working…';
+  if (autoApplyEnabled.value) return `Start applying to ${jobCount.value} jobs`;
+  return `Prepare ${jobCount.value} applications`;
 });
 
 function syncFromProfile(p) {
@@ -85,6 +93,7 @@ function syncFromProfile(p) {
   contactPhone.value = p.contactPhone || '';
   applicantName.value = p.applicantName || p.displayName || auth.user?.name || '';
   if (p.defaultQuickApplyCount) jobCount.value = p.defaultQuickApplyCount;
+  autoApplyEnabled.value = p.autoApplyEnabled !== false;
 }
 
 watch(() => profileStore.profile, syncFromProfile, { immediate: true });
@@ -99,10 +108,11 @@ function dashboardPayload() {
     contactPhone: contactPhone.value.trim(),
     applicantName: applicantName.value.trim(),
     defaultQuickApplyCount: jobCount.value,
+    autoApplyEnabled: autoApplyEnabled.value,
   };
 }
 
-watch([resumeText, resumeMode, supplementPages, tailorMode, digestEmail, contactPhone, applicantName, jobCount], () => {
+watch([resumeText, resumeMode, supplementPages, tailorMode, digestEmail, contactPhone, applicantName, jobCount, autoApplyEnabled], () => {
   if (!autosaveEnabled.value || !profileStore.loaded) return;
   schedule(dashboardPayload);
 });
@@ -150,10 +160,11 @@ async function startApplying() {
     const result = await quickApply({
       count: jobCount.value,
       useTailoredResume: resumeMode.value === 'tailored',
+      autoApply: autoApplyEnabled.value,
       minMatch: profileStore.profile?.minMatchScore || 40,
       runSearch: false,
     });
-    if (result?.kits?.length) {
+    if (result?.kits?.length || (resumeMode.value === 'tailored' && (result?.count || result?.preparedOnly))) {
       tailoredSeedKits.value = result.kits;
       tailoredPreferredJobId.value = result.kits[0]?.jobId || result.jobs?.[0]?.jobId || '';
       showTailoredPreview.value = true;
@@ -277,6 +288,7 @@ onMounted(async () => {
         v-model:contact-phone="contactPhone"
         v-model:applicant-name="applicantName"
         v-model:job-count="jobCount"
+        v-model:auto-apply="autoApplyEnabled"
         class="mt-5"
         :show-job-count="true"
       />
@@ -295,7 +307,10 @@ onMounted(async () => {
       <div class="mt-5 rounded-xl border border-teal-900/40 bg-teal-950/20 p-4 text-sm">
         <p class="font-medium text-teal-200">Your apply plan</p>
         <p class="mt-2 text-slate-300">{{ applyPlanSummary }}</p>
-        <p class="mt-1 text-xs text-slate-500">{{ jobCount }} top-matching jobs · forms filled with the email above</p>
+        <p class="mt-1 text-xs text-slate-500">
+          {{ jobCount }} top-matching jobs ·
+          {{ autoApplyEnabled ? 'forms filled with the email above' : 'approved and resumes prepared — submit when ready' }}
+        </p>
       </div>
 
       <div v-if="resumeUnreadable" class="mt-5 rounded-xl border border-amber-700/40 bg-amber-950/20 p-4 text-sm text-amber-200">
@@ -320,7 +335,7 @@ onMounted(async () => {
         :disabled="!canApply"
         @click="startApplying"
       >
-        {{ applying ? step || 'Applying…' : `Start applying to ${jobCount} jobs` }}
+        {{ applyButtonLabel }}
       </button>
 
       <p v-if="applyError" class="mt-4 rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-300">{{ applyError }}</p>

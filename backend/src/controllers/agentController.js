@@ -75,6 +75,8 @@ async function applyApproved(req, res, next) {
       typeof req.body?.useTailoredResume === 'boolean'
         ? req.body.useTailoredResume
         : profile.defaultApplyResumeMode === 'tailored';
+    const autoApply =
+      typeof req.body?.autoApply === 'boolean' ? req.body.autoApply : profile.autoApplyEnabled !== false;
 
     const agentAvailable = jobService.isAgentApplyAvailable();
     const jobCount = scored.length;
@@ -128,6 +130,27 @@ async function applyApproved(req, res, next) {
     const jobIds = scored.map((j) => j.jobId);
     let kits = await applicationKitService.getKitsForJobIds(req.user.sub, jobIds);
     kits = kits.map(applicationKitService.kitListItem);
+
+    if (!autoApply) {
+      if (run) {
+        run.status = 'completed';
+        run.output = `Prepared ${scored.length} jobs (auto-apply off)`.slice(-4000);
+        run.finishedAt = new Date();
+        await run.save();
+      }
+      return res.json({
+        message: `Prepared ${scored.length} job(s)${useTailoredResume ? ' with tailored resumes' : ''}. Review below, then turn on Auto apply or submit from the queue.`,
+        count: scored.length,
+        preparedOnly: true,
+        autoApply: false,
+        useTailoredResume,
+        tailoredCount,
+        missingKitCount,
+        kits,
+        jobIds,
+        kitsGenerating: shouldDeferKits,
+      });
+    }
 
     let output;
     try {
