@@ -24,7 +24,7 @@ function fallbackIcon() {
   <div class="flex items-center gap-3">
     <img :src="imgSrc" :alt="brand.name" :class="sizes[size].img" class="rounded-2xl shadow-lg shadow-teal-900/40" @error="fallbackIcon" />
     <div v-if="showText">
-      <p class="font-semibold uppercase tracking-[0.2em] text-teal-400" :class="sizes[size].sub">{{ brand.nameTop }}</p>
+      <p class="font-semibold tracking-wide text-teal-400" :class="sizes[size].sub">{{ brand.nameTop }}</p>
       <p class="font-bold text-amber-300" :class="sizes[size].title">{{ brand.nameBottom }}</p>
     </div>
   </div>

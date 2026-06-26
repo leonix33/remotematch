@@ -10,12 +10,19 @@ const localApprovalService = require('./localApprovalService');
 const applicationKitService = require('./applicationKitService');
 const { profileResumeAlignment } = require('./resumeParseService');
 
+const JOB_LIST_CACHE_MS = 60_000;
+const jobListCache = new Map();
+
+function invalidateJobListCache(userId) {
+  jobListCache.delete(String(userId));
+}
+
 function requireMongo() {
   if (!env.mongoUri) throw new Error('MongoDB is required');
 }
 
 async function loadJobs(minMatch = 60) {
-  const limit = env.openJobMarket !== false ? 5000 : 500;
+  const limit = env.openJobMarket !== false ? 2000 : 500;
   if (env.mongoUri) {
     return Job.find({ matchPct: { $gte: minMatch } })
       .sort({ matchPct: -1 })
@@ -28,6 +35,12 @@ async function loadJobs(minMatch = 60) {
 }
 
 async function buildJobList(userId) {
+  const cacheKey = String(userId);
+  const cached = jobListCache.get(cacheKey);
+  if (cached && Date.now() - cached.at < JOB_LIST_CACHE_MS) {
+    return cached.data;
+  }
+
   const profile = await profileService.getOrCreate(userId);
   const openMarket = env.openJobMarket !== false;
   const minMatch = profile.minMatchScore || (openMarket ? 40 : 60);
@@ -78,27 +91,26 @@ async function buildJobList(userId) {
       }
     }
 
-    return Promise.all(
-      jobs.map(async (job) => {
-        const row = local[job.jobId];
-        return {
-          jobId: job.jobId,
-          title: job.title,
-          company: job.company,
-          url: job.url,
-          matchPct: job.matchPct,
-          personalMatchPct: job.personalMatchPct ?? job.matchPct,
-          agentMatchPct: job.agentMatchPct ?? job.matchPct,
-          atsType: job.atsType,
-          source: job.source,
-          emailSection: job.emailSection,
-          status: row?.status || 'pending',
-          notes: row?.notes || '',
-          reviewedAt: row?.reviewedAt,
-          kit: await applicationKitService.kitSummary(userId, job.jobId),
-        };
-      })
-    );
+    const result = jobs.map((job) => {
+      const row = local[job.jobId];
+      return {
+        jobId: job.jobId,
+        title: job.title,
+        company: job.company,
+        url: job.url,
+        matchPct: job.matchPct,
+        personalMatchPct: job.personalMatchPct ?? job.matchPct,
+        agentMatchPct: job.agentMatchPct ?? job.matchPct,
+        atsType: job.atsType,
+        source: job.source,
+        emailSection: job.emailSection,
+        status: row?.status || 'pending',
+        notes: row?.notes || '',
+        reviewedAt: row?.reviewedAt,
+      };
+    });
+    jobListCache.set(cacheKey, { at: Date.now(), data: result });
+    return result;
   }
 
   const approvals = await JobApproval.find({ userId }).lean();
@@ -120,28 +132,28 @@ async function buildJobList(userId) {
     }
   }
 
-  return Promise.all(
-    jobs.map(async (job) => {
-      const existing = byJob.get(job.jobId);
-      return {
-        jobId: job.jobId,
-        title: job.title,
-        company: job.company,
-        url: job.url,
-        matchPct: job.matchPct,
-        personalMatchPct: job.personalMatchPct ?? job.matchPct,
-        agentMatchPct: job.matchPct,
-        atsType: job.atsType,
-        source: job.source,
-        emailSection: job.emailSection,
-        status: existing?.status || 'pending',
-        notes: existing?.notes || '',
-        reviewedAt: existing?.reviewedAt,
-        _id: existing?._id,
-        kit: await applicationKitService.kitSummary(userId, job.jobId),
-      };
-    })
-  );
+  const result = jobs.map((job) => {
+    const existing = byJob.get(job.jobId);
+    return {
+      jobId: job.jobId,
+      title: job.title,
+      company: job.company,
+      url: job.url,
+      matchPct: job.matchPct,
+      personalMatchPct: job.personalMatchPct ?? job.matchPct,
+      agentMatchPct: job.matchPct,
+      atsType: job.atsType,
+      source: job.source,
+      emailSection: job.emailSection,
+      status: existing?.status || 'pending',
+      notes: existing?.notes || '',
+      reviewedAt: existing?.reviewedAt,
+      _id: existing?._id,
+    };
+  });
+
+  jobListCache.set(cacheKey, { at: Date.now(), data: result });
+  return result;
 }
 
 function applyFilters(items, { statusFilter, search, minMatch, ats, sort }) {
@@ -188,16 +200,36 @@ async function listForUser(userId, options = {}) {
     offset = 0,
   } = options;
 
-  const all = applyFilters(await buildJobList(userId), { statusFilter, search, minMatch, ats, sort });
+  const base = await buildJobList(userId);
+  const counts = {
+    pending: base.filter((j) => j.status === 'pending').length,
+    approved: base.filter((j) => j.status === 'approved').length,
+    rejected: base.filter((j) => j.status === 'rejected').length,
+    applied: base.filter((j) => j.status === 'applied').length,
+  };
+
+  const all = applyFilters(base, { statusFilter, search, minMatch, ats, sort });
   const total = all.length;
   const slice = limit > 0 ? all.slice(Number(offset), Number(offset) + Number(limit)) : all;
+
+  const items = await Promise.all(
+    slice.map(async (job) => ({
+      ...job,
+      kit: await applicationKitService.kitSummary(userId, job.jobId),
+    }))
+  );
 
   let hint = null;
   if (total === 0 && statusFilter === 'pending') {
     const profile = await profileService.getOrCreate(userId);
     const alignment = profileResumeAlignment(profile);
-    const rawJobs = await loadJobs(0);
-    if (!rawJobs.length) {
+    let rawJobCount = 0;
+    if (env.mongoUri) {
+      rawJobCount = await Job.countDocuments({});
+    } else {
+      rawJobCount = jobService.readJobsFromSqlite(500).length;
+    }
+    if (!rawJobCount) {
       hint = 'No jobs in the system yet. Run a job search from the Apply tab or ask an admin to refresh listings.';
     } else if (!alignment.aligned && alignment.reason) {
       hint = alignment.reason;
@@ -208,7 +240,7 @@ async function listForUser(userId, options = {}) {
     }
   }
 
-  return { items: slice, total, hint };
+  return { items, total, hint, counts };
 }
 
 async function loadJobSnapshots(jobIds) {
@@ -274,7 +306,7 @@ async function setStatus(userId, jobId, status, notes = '', options = {}) {
     await teamService.checkLimit(userId, 'approval');
   }
 
-  const job = await resolveJobSnapshot(userId, jobId, options.jobSnapshot);
+  let job = await resolveJobSnapshot(userId, jobId, options.jobSnapshot);
 
   if (!env.mongoUri) {
     const existing = localApprovalService.get(userId, jobId);
@@ -301,6 +333,7 @@ async function setStatus(userId, jobId, status, notes = '', options = {}) {
         });
       }
     }
+    invalidateJobListCache(userId);
     return row;
   }
 
@@ -309,6 +342,8 @@ async function setStatus(userId, jobId, status, notes = '', options = {}) {
     if (!existing) throw new Error('Job not found');
     job = existing;
   }
+
+  invalidateJobListCache(userId);
 
   const approval = await JobApproval.findOneAndUpdate(
     { userId, jobId },
@@ -357,12 +392,13 @@ async function bulkSetStatus(userId, jobIds, status, options = {}) {
       console.warn(`bulkSetStatus skip ${jobId}:`, err.message);
     }
   }
+  invalidateJobListCache(userId);
   return results;
 }
 
 async function counts(userId) {
   if (env.mongoUri) {
-    const rows = await JobApproval.find({ userId }).lean();
+    const rows = await JobApproval.find({ userId }).select('status').lean();
     return {
       pending: rows.filter((r) => r.status === 'pending').length,
       approved: rows.filter((r) => r.status === 'approved').length,
@@ -370,12 +406,13 @@ async function counts(userId) {
       applied: rows.filter((r) => r.status === 'applied').length,
     };
   }
-  const items = await buildJobList(userId);
+  const local = localApprovalService.listForUser(userId);
+  const rows = Object.values(local);
   return {
-    pending: items.filter((i) => i.status === 'pending').length,
-    approved: items.filter((i) => i.status === 'approved').length,
-    rejected: items.filter((i) => i.status === 'rejected').length,
-    applied: items.filter((i) => i.status === 'applied').length,
+    pending: rows.filter((i) => i.status === 'pending').length,
+    approved: rows.filter((i) => i.status === 'approved').length,
+    rejected: rows.filter((i) => i.status === 'rejected').length,
+    applied: rows.filter((i) => i.status === 'applied').length,
   };
 }
 
@@ -414,6 +451,7 @@ async function markApplied(userId, jobIds) {
         localApprovalService.set(userId, jobId, { ...row, status: 'applied' });
       }
     }
+    invalidateJobListCache(userId);
     return;
   }
   requireMongo();
@@ -421,6 +459,7 @@ async function markApplied(userId, jobIds) {
     { userId, jobId: { $in: jobIds }, status: 'approved' },
     { status: 'applied', reviewedAt: new Date() }
   );
+  invalidateJobListCache(userId);
 }
 
 async function addExternal(userId, { url, title, company, source, notify = true }) {
@@ -475,6 +514,7 @@ async function addExternal(userId, { url, title, company, source, notify = true 
     }
   }
 
+  invalidateJobListCache(userId);
   return result;
 }
 
@@ -563,6 +603,7 @@ async function queueJob(userId, { jobId, title, company, url, matchPct = 0, atsT
     }
   }
 
+  invalidateJobListCache(userId);
   return result;
 }
 

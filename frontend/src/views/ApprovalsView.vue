@@ -34,7 +34,7 @@ const highlightJobId = ref('');
 const queueBanner = ref('');
 
 const search = ref('');
-const minMatch = ref('85');
+const minMatch = ref('');
 const ats = ref('all');
 const page = ref(1);
 const pageSize = 25;
@@ -89,24 +89,21 @@ async function load() {
   error.value = '';
   const currentStatus = status.value;
   try {
-    const [listRes, summaryRes] = await Promise.all([
-      http.get('/approvals', {
-        params: {
-          status: currentStatus,
-          search: search.value,
-          minMatch: minMatch.value,
-          ats: ats.value,
-          sort: 'match',
-          limit: pageSize,
-          offset: (page.value - 1) * pageSize,
-        },
-      }),
-      http.get('/approvals/summary'),
-    ]);
+    const listRes = await http.get('/approvals', {
+      params: {
+        status: currentStatus,
+        search: search.value,
+        minMatch: minMatch.value,
+        ats: ats.value,
+        sort: 'match',
+        limit: pageSize,
+        offset: (page.value - 1) * pageSize,
+      },
+    });
     const payload = listRes.data;
     items.value = Array.isArray(payload?.items) ? payload.items : Array.isArray(payload) ? payload : [];
     total.value = payload?.total ?? items.value.length;
-    counts.value = summaryRes.data;
+    if (payload?.counts) counts.value = payload.counts;
     selected.value = new Set();
   } catch (e) {
     const msg = e.response?.data?.message || e.message || 'Could not load approval queue';

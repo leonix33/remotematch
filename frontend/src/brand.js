@@ -1,12 +1,12 @@
-export const appName = import.meta.env.VITE_APP_NAME || 'RemoteMatch';
+export const appName = import.meta.env.VITE_APP_NAME || 'RemotelyMatch';
 export const appUrl = import.meta.env.VITE_APP_URL || (typeof window !== 'undefined' ? window.location.origin : '');
 export const canonicalDomain = import.meta.env.VITE_CUSTOM_DOMAIN || 'remotelymatch.app';
 export const isProduction = import.meta.env.PROD;
 
 export const brand = {
-  name: import.meta.env.VITE_APP_NAME || 'RemoteMatch',
-  nameTop: import.meta.env.VITE_BRAND_NAME_TOP || 'Remote',
-  nameBottom: import.meta.env.VITE_BRAND_NAME_BOTTOM || 'Match',
+  name: import.meta.env.VITE_APP_NAME || 'RemotelyMatch',
+  nameTop: import.meta.env.VITE_BRAND_NAME_TOP || 'remotely',
+  nameBottom: import.meta.env.VITE_BRAND_NAME_BOTTOM || 'match',
   tagline: import.meta.env.VITE_BRAND_TAGLINE || 'AI-powered remote job intelligence',
   heroEyebrow: import.meta.env.VITE_BRAND_HERO_EYEBROW || 'All remote roles · any industry',
   heroTitle: import.meta.env.VITE_BRAND_HERO_TITLE || 'Find roles. Review matches. Apply as a squad.',
