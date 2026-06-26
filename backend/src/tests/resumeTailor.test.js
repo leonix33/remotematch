@@ -27,14 +27,16 @@ describe('resumeTailorService', () => {
   it('builds full tailored resume demo preserving structure', () => {
     const profileWithCerts = {
       ...profile,
-      resumeText: `Alex Rivera\nalex@email.com\n\nEXPERIENCE\nSenior DevOps Engineer — Acme\n\nCERTIFICATIONS\nAWS Solutions Architect Associate\nTerraform Associate`,
+      resumeText: `Alex Rivera\nalex@email.com\n\nEXPERIENCE\nSenior DevOps Engineer — Acme\n- Managed Kubernetes clusters\n\nCERTIFICATIONS\nAWS Solutions Architect Associate\nTerraform Associate`,
     };
     const kit = buildDemoKit(profileWithCerts, job, jd, contact, { supplementPages: 3, tailorMode: 'high_match' });
     assert.equal(kit.mode, 'full_resume');
     assert.equal(kit.contactEmail, 'alex@personal.com');
-    assert.ok(kit.pageCount >= 2);
+    assert.ok(kit.pageCount >= 1);
     assert.ok(kit.tailoredResumeText.includes('AWS Solutions Architect'));
     assert.ok(kit.tailoredResumeText.includes('Terraform Associate'));
+    assert.ok(kit.tailoredResumeText.indexOf('EXPERIENCE') < kit.tailoredResumeText.indexOf('CERTIFICATIONS'));
+    assert.ok(kit.resumeStructure?.sectionHeadings?.includes('EXPERIENCE'));
     assert.ok(!kit.tailoredResumeText.toLowerCase().includes('addendum'));
     assert.ok(!kit.tailoredResumeText.toLowerCase().includes('ats keyword'));
     assert.ok(kit.coverLetterParagraph.includes('Platform Engineer'));

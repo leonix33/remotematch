@@ -47,7 +47,13 @@ const resumeText = computed(() => {
 
       <div v-if="resumeText" class="mt-5">
         <p class="text-sm font-medium text-slate-200">Tailored resume</p>
-        <p class="mt-1 text-xs text-slate-500">Same structure as your original — credentials and certificates kept, wording aligned to the job.</p>
+        <p class="mt-1 text-xs text-slate-500">
+          Same sections and headings as your original — credentials copied verbatim, experience bullets aligned to the job.
+        </p>
+        <p v-if="kit.resumeStructure?.sectionHeadings?.length" class="mt-2 text-xs text-slate-600">
+          Sections:
+          {{ kit.resumeStructure.sectionHeadings.join(' · ') }}
+        </p>
         <pre class="custom-scrollbar mt-3 max-h-[32rem] overflow-y-auto whitespace-pre-wrap rounded-lg border border-slate-700/80 bg-white/[0.03] p-5 font-sans text-sm leading-relaxed text-slate-200">{{ resumeText }}</pre>
       </div>
 

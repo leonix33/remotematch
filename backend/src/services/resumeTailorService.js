@@ -2,6 +2,14 @@ const openaiService = require('./openaiService');
 const env = require('../config/env');
 const { contactHeader, contactSignature } = require('./applicantContactService');
 const { HUMAN_WRITING_PROMPT, humanizeKit } = require('./humanizeWritingService');
+const {
+  parseResumeStructure,
+  describeStructureForPrompt,
+  reassembleResume,
+  findMissingPreservedLines,
+  injectMissingIntoSection,
+  structureToSectionPayload,
+} = require('./resumeStructureService');
 
 const TECH_KEYWORDS = [
   'kubernetes', 'k8s', 'terraform', 'ansible', 'aws', 'azure', 'gcp', 'docker',
@@ -131,45 +139,104 @@ function splitResumeIntoPages(resumeText, pageTarget) {
   }));
 }
 
+function finalizeTailoredResume(originalResume, structure, kit) {
+  let text = '';
+
+  if (Array.isArray(kit.sections) && kit.sections.length) {
+    text = reassembleResume(structure, kit.sections);
+  } else {
+    text = kit.tailoredResumeText || kit.fullSupplementText || '';
+  }
+
+  if (!text) return text;
+
+  const headerBlock = structure.headerLines.join('\n').trim();
+  if (headerBlock && !text.includes(structure.headerLines[0]?.trim())) {
+    text = `${headerBlock}\n\n${text.replace(new RegExp(`^${structure.headerLines[0]?.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'm'), '').trim()}`.trim();
+  }
+
+  for (const section of structure.sections) {
+    if (!section.immutable || !section.content) continue;
+    const heading = section.heading;
+    if (!heading) continue;
+    const sectionInOutput = new RegExp(`${heading.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'i').test(text);
+    if (!sectionInOutput && section.content) {
+      text = `${text.trim()}\n\n${heading}\n${section.content}`;
+    } else if (sectionInOutput) {
+      const originalLines = section.content.split('\n').filter((l) => l.trim().length > 8);
+      const missing = findMissingPreservedLines(originalLines, text);
+      if (missing.length) {
+        const re = new RegExp(`(${heading.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\n)`, 'i');
+        if (re.test(text)) {
+          text = text.replace(re, `$1${missing.join('\n')}\n`);
+        }
+      }
+    }
+  }
+
+  const preserved = extractMustPreserveFromResume(originalResume);
+  const stillMissing = findMissingPreservedLines(preserved, text);
+  if (stillMissing.length) {
+    text = injectMissingIntoSection(text, structure, stillMissing);
+  }
+
+  return text.trim();
+}
+
 function buildTailoredResumeDemo(profile, job, jobDescription, contact = {}, options = {}) {
   const original = String(profile?.resumeText || '').trim();
+  const structure = parseResumeStructure(original);
   const pageTarget = inferResumePageTarget(original, options.supplementPages);
   const highMatch = options.tailorMode === 'high_match';
   const skills = (profile?.mustHaveSkills || []).slice(0, 12).join(', ') || 'cloud and platform engineering';
   const reqs = extractJdRequirements(jobDescription).slice(0, 6);
-  const preserved = extractMustPreserveFromResume(original);
   const name = contact.name || profile?.displayName || profile?.applicantName || 'Candidate';
-  const header = contactHeader(contact) || `${name}\n${contact.email || ''}`;
+  const header = contactHeader(contact) || structure.headerLines.join('\n') || `${name}\n${contact.email || ''}`;
 
-  const summaryLines = [
-    header,
-    '',
-    'SUMMARY',
-    `${job?.title || 'Engineer'} with hands-on ${skills} experience. ${reqs.length ? `Background aligns with ${job?.company || 'this role'}'s focus on ${reqs[0].slice(0, 80)}.` : ''}`.trim(),
-  ];
-
-  let body = original;
-  if (!/^(summary|profile|objective)\b/im.test(original)) {
-    body = `${summaryLines.join('\n')}\n\n${original}`;
-  } else {
-    body = `${header}\n\n${original}`;
-  }
-
-  const missingCerts = preserved.filter((line) => !body.toLowerCase().includes(line.toLowerCase()));
-  if (missingCerts.length) {
-    body = `${body}\n\nCERTIFICATIONS\n${missingCerts.join('\n')}`;
-  }
-
-  if (highMatch && reqs.length) {
-    const summaryMatch = body.match(/\n(SUMMARY|PROFILE|OBJECTIVE)\b/i);
-    if (summaryMatch) {
-      const insertAt = summaryMatch.index + summaryMatch[0].length;
-      const extra = ` ${reqs[0].slice(0, 120).replace(/^[-•]\s*/, '')}.`;
-      body = `${body.slice(0, insertAt)}${extra}${body.slice(insertAt)}`;
+  const sectionOutputs = structure.sections.map((section) => {
+    if (section.immutable) {
+      return { heading: section.heading, content: section.content };
     }
-  }
 
-  const tailoredResumeText = body.trim();
+    if (section.key === 'summary') {
+      const summaryBody =
+        section.content ||
+        `${job?.title || 'Engineer'} with hands-on ${skills} experience.${reqs.length ? ` Background aligns with ${job?.company || 'this role'}'s focus on ${reqs[0].slice(0, 80)}.` : ''}`;
+      let content = summaryBody;
+      if (highMatch && reqs.length) {
+        content = `${content} ${reqs[0].slice(0, 100).replace(/^[-•]\s*/, '')}.`.trim();
+      }
+      return { heading: section.heading, content };
+    }
+
+    if (section.key === 'experience' && highMatch && reqs.length && section.content) {
+      const lines = section.content.split('\n');
+      const bulletIdx = lines.findIndex((l) => /^[-•*●]\s/.test(l.trim()));
+      if (bulletIdx >= 0) {
+        lines[bulletIdx] = `${lines[bulletIdx].trimEnd()} — ${reqs[0].slice(0, 80).replace(/^[-•]\s*/, '')}`;
+      }
+      return { heading: section.heading, content: lines.join('\n') };
+    }
+
+    return { heading: section.heading, content: section.content };
+  });
+
+  let tailoredResumeText = finalizeTailoredResume(original, structure, {
+    sections: sectionOutputs,
+    tailoredResumeText: reassembleResume(structure, sectionOutputs),
+  });
+
+  if (!structure.sections.length) {
+    tailoredResumeText = original;
+    if (!/^(summary|profile|objective)\b/im.test(original)) {
+      tailoredResumeText = `${header}\n\nSUMMARY\n${job?.title || 'Engineer'} with ${skills} experience.\n\n${original}`;
+    } else {
+      tailoredResumeText = `${header}\n\n${original}`;
+    }
+  } else if (header && !tailoredResumeText.startsWith(structure.headerLines[0]?.trim())) {
+    const withoutDupHeader = tailoredResumeText.replace(/^[^\n]+\n[^\n]+\n?/, '').trim();
+    tailoredResumeText = `${header}\n\n${withoutDupHeader}`.trim();
+  }
   const supplementPages = splitResumeIntoPages(tailoredResumeText, pageTarget);
   const signature = contactSignature(contact);
 
@@ -198,6 +265,7 @@ function buildDemoKit(profile, job, jobDescription, contact = {}, options = {}) 
   const pageTarget = inferResumePageTarget(profile?.resumeText, options.supplementPages);
   const tailorMode = options.tailorMode === 'high_match' ? 'high_match' : 'balanced';
   const missingKeywords = inferMissingKeywords(profile, jobDescription);
+  const structure = parseResumeStructure(profile?.resumeText || '');
   const { tailoredResumeText, supplementPages, coverLetterParagraph } = buildTailoredResumeDemo(
     profile,
     job,
@@ -228,6 +296,11 @@ function buildDemoKit(profile, job, jobDescription, contact = {}, options = {}) 
     coverLetterParagraph,
     contactEmail: contact.email || '',
     contactName: contact.name || profile?.displayName || '',
+    resumeStructure: {
+      sectionOrder: structure.sectionOrder,
+      headingStyle: structure.headingStyle,
+      sectionHeadings: structure.sections.map((s) => s.heading).filter(Boolean),
+    },
     atsTips: [],
     guardrails: 'Full tailored resume — all credentials preserved, original formatting style.',
     jobDescriptionLength: jobDescription.length,
@@ -242,12 +315,22 @@ function parseKitJson(raw) {
 }
 
 function normalizeKit(kit, profile, job, jobDescription, missingKeywords, contact = {}, options = {}) {
+  const original = String(profile?.resumeText || '').trim();
+  const structure = parseResumeStructure(original);
   const pageTarget = inferResumePageTarget(profile?.resumeText, options.supplementPages ?? kit.supplementPagesTarget);
-  let tailoredResumeText = kit.tailoredResumeText || kit.fullSupplementText || '';
+
+  let tailoredResumeText = finalizeTailoredResume(original, structure, kit);
   let supplementPages = kit.supplementPages || [];
 
   if (!tailoredResumeText && supplementPages.length) {
     tailoredResumeText = supplementPages.map((p) => p.content).join('\n\n');
+  }
+
+  if (tailoredResumeText) {
+    tailoredResumeText = finalizeTailoredResume(original, structure, {
+      ...kit,
+      tailoredResumeText,
+    });
   }
 
   if (!tailoredResumeText || supplementPages.length < pageTarget) {
@@ -284,6 +367,11 @@ function normalizeKit(kit, profile, job, jobDescription, missingKeywords, contac
     tailoredResumeText,
     fullSupplementText: tailoredResumeText,
     resumeAddendum: tailoredResumeText,
+    resumeStructure: {
+      sectionOrder: structure.sectionOrder,
+      headingStyle: structure.headingStyle,
+      sectionHeadings: structure.sections.map((s) => s.heading).filter(Boolean),
+    },
     missingKeywords: kit.missingKeywords?.length ? kit.missingKeywords : missingKeywords,
     contactEmail: contact.email || kit.contactEmail || '',
     contactName: contact.name || kit.contactName || profile?.displayName || '',
@@ -308,6 +396,9 @@ async function generateAdditiveKit({
   const options = { supplementPages: pageTarget, tailorMode, highMatchTarget };
   const missingKeywords = inferMissingKeywords(profile, jobDescription);
   const preservedCredentials = extractMustPreserveFromResume(profile?.resumeText);
+  const structure = parseResumeStructure(profile?.resumeText || '');
+  const structureGuide = describeStructureForPrompt(structure);
+  const sectionPayload = structureToSectionPayload(structure);
   const client = userId ? await getClient(userId) : null;
   const fullJd = jobDescription.slice(0, 14000);
 
@@ -323,36 +414,47 @@ async function generateAdditiveKit({
 
   const system = `You are an expert resume writer helping a candidate tailor their resume for one job application.
 
-OUTPUT: A complete tailored resume (not a separate addendum) plus a short cover letter paragraph.
+OUTPUT: Return a structured tailored resume that mirrors the candidate's original layout section-by-section, plus a short cover letter.
 
-STRICT RULES:
-1. Keep the SAME section order, header style, and formatting as the candidate's original resume (e.g. ALL CAPS section headers, bullet style, spacing).
-2. Include EVERY job, employer, date, education entry, certification, license, and credential from the original — NEVER remove or omit credentials or certificates.
-3. ${jdAlignmentNote}
-4. Do not invent employers, dates, certifications, degrees, or metrics.
-5. Target length: match the original resume (${pageTarget} pages when printed). Do not truncate to 2 pages if the original is longer.
-6. Write in the candidate's voice — plain, professional, human. No emojis. No AI/meta language.
-7. FORBIDDEN in resume text: "addendum", "supplement", "JD mapping", "ATS glossary", "keyword alignment", "AI", "generated", match percentages, or template section titles.
-8. Cover letter: 3-5 sentences, plain sign-off with name and email: ${contact.email || '[email]'}.
+STRUCTURE RULES (highest priority):
+1. Use the EXACT section headings from the original resume, in the SAME order.
+2. Copy the contact/header block exactly — do not change name, email, phone, or links.
+3. Education, certifications, credentials, licenses, and training sections: COPY VERBATIM — no rewording.
+4. Experience: keep every employer name, job title, and date line exactly as written; only rewrite bullet/description lines to align with the job.
+5. Summary/profile: tailor wording to the role; keep similar length and tone.
+6. Do not add, remove, or rename sections. Do not merge sections.
+7. Match bullet style (•, -, *) and heading style (${structure.headingStyle}) from the original.
+8. Target length: ~${pageTarget} printed pages — do not truncate if the original is longer.
+9. ${jdAlignmentNote}
+10. Do not invent employers, dates, certifications, degrees, or metrics.
+11. Plain professional English — no emojis, no AI/meta language.
+12. FORBIDDEN: "addendum", "supplement", "JD mapping", "ATS glossary", match percentages.
 
 ${HUMAN_WRITING_PROMPT}
 
 Return JSON only:
 {
-  "tailoredResumeText": "complete resume as plain text, same structure as original",
+  "sections": [
+    { "heading": "EXACT heading from original", "content": "section body text" }
+  ],
   "coverLetterParagraph": "short cover letter body",
-  "missingKeywords": ["internal only — jd terms addressed"],
+  "missingKeywords": ["internal jd terms addressed"],
   "estimatedMatchPct": number
 }`;
 
   const user = `CANDIDATE CONTACT:
 ${contactBlock || `${contact.name || 'Candidate'}\n${contact.email || ''}`}
 
-ORIGINAL RESUME (preserve all sections, certs, education — tailor wording only):
+${structureGuide}
+
+ORIGINAL RESUME SECTIONS (use these headings exactly):
+${JSON.stringify(sectionPayload, null, 2)}
+
+FULL ORIGINAL RESUME:
 ${(profile?.resumeText || profile?.bio || 'No resume').slice(0, 12000)}
 
-MUST PRESERVE VERBATIM (certifications/credentials/education lines — do not drop):
-${preservedCredentials.length ? preservedCredentials.join('\n') : 'Extract all cert/credential/education lines from resume above'}
+MUST PRESERVE VERBATIM (never drop these lines):
+${preservedCredentials.length ? preservedCredentials.join('\n') : 'All certification, education, and credential lines from the resume above'}
 
 TARGET ROLE: ${job?.title} at ${job?.company}
 TAILOR MODE: ${tailorMode}
@@ -376,6 +478,11 @@ ${fullJd}${tailorFocus ? `\n\nNOTES FROM CANDIDATE:\n${String(tailorFocus).slice
   const raw = response.choices[0]?.message?.content?.trim() || '';
   try {
     const kit = parseKitJson(raw);
+    if (kit.sections?.length) {
+      kit.tailoredResumeText = finalizeTailoredResume(profile?.resumeText, structure, kit);
+    } else if (kit.tailoredResumeText) {
+      kit.tailoredResumeText = finalizeTailoredResume(profile?.resumeText, structure, kit);
+    }
     if (kit.tailoredResumeText) {
       kit.supplementPages = splitResumeIntoPages(kit.tailoredResumeText, pageTarget);
       kit.fullSupplementText = kit.tailoredResumeText;
@@ -419,6 +526,7 @@ module.exports = {
   inferResumePageTarget,
   formatKitAsText,
   clampPageCount,
+  finalizeTailoredResume,
   MIN_SUPPLEMENT_PAGES,
   MAX_SUPPLEMENT_PAGES,
   DEFAULT_SUPPLEMENT_PAGES,
