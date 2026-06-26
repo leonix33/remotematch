@@ -3,7 +3,11 @@ import { computed, ref } from 'vue';
 import mammoth from 'mammoth';
 import { useProfileStore } from '../stores/profile';
 import ResumePreview from './ResumePreview.vue';
-import { formatResumeUploadError, isUnreadableResumeText } from '../utils/resumeText';
+import {
+  formatResumeUploadError,
+  isUnreadableResumeText,
+  isZipDocxFile,
+} from '../utils/resumeText';
 
 const props = defineProps({
   modelValue: { type: String, default: '' },
@@ -19,6 +23,7 @@ const parsing = ref(false);
 const fileName = ref('');
 const parseSummary = ref(null);
 const localError = ref('');
+const saveWarning = ref('');
 
 async function fileToBase64(file) {
   const buffer = await file.arrayBuffer();
@@ -29,9 +34,16 @@ async function fileToBase64(file) {
 }
 
 async function extractDocxText(file) {
+  if (!(await isZipDocxFile(file))) {
+    throw new Error('This is not a valid .docx file. Save as .docx from Word or export as PDF.');
+  }
   const arrayBuffer = await file.arrayBuffer();
-  const { value } = await mammoth.extractRawText({ arrayBuffer });
-  return (value || '').replace(/\s+/g, ' ').trim();
+  const { value, messages } = await mammoth.extractRawText({ arrayBuffer });
+  const text = (value || '').replace(/\s+/g, ' ').trim();
+  if (!text && messages?.length) {
+    throw new Error('Word file opened but no text was found. Try PDF or paste your resume.');
+  }
+  return text;
 }
 
 const MAX_RESUME_BYTES = 8 * 1024 * 1024;
@@ -40,33 +52,70 @@ const savedResumeUnreadable = computed(
   () => profileStore.profile?.resumeUnreadable || isUnreadableResumeText(props.modelValue)
 );
 
-async function applyParseResult(result) {
-  emit('update:modelValue', result.resumeText);
-  parseSummary.value = {
-    skills: result.extractedSkills?.all?.length || 0,
-    words: result.wordCount || 0,
+function buildParseSummary(result, resumeText) {
+  return {
+    skills: result.extractedSkills?.all?.length || profileStore.extractedSkills?.length || 0,
+    words: result.wordCount || resumeText.split(/\s+/).filter(Boolean).length,
     score: result.resumeScore ?? profileStore.resumeScore,
     mustHave: result.extractedSkills?.mustHave || [],
     niceToHave: result.extractedSkills?.niceToHave || [],
     suggestedHeadline: result.suggestedHeadline || '',
     suggestedTitles: result.suggestedTitles || [],
   };
-  emit('parsed', result);
+}
+
+async function applyLocalResume(resumeText, meta = {}) {
+  emit('update:modelValue', resumeText);
+  parseSummary.value = {
+    skills: profileStore.extractedSkills?.length || 0,
+    words: resumeText.split(/\s+/).filter(Boolean).length,
+    score: profileStore.resumeScore || 0,
+    mustHave: [],
+    niceToHave: [],
+    suggestedHeadline: '',
+    suggestedTitles: [],
+    ...meta,
+  };
 }
 
 async function clearCorruptResume() {
   localError.value = '';
+  saveWarning.value = '';
   parsing.value = true;
   try {
-    await profileStore.save({ resumeText: '', resumeFileName: '', extractedSkills: [] });
+    await profileStore.clearResume();
     emit('update:modelValue', '');
     parseSummary.value = null;
     fileName.value = '';
     emit('cleared');
   } catch (e) {
-    localError.value = e.response?.data?.message || 'Could not clear resume';
+    localError.value = formatResumeUploadError(e);
   } finally {
     parsing.value = false;
+  }
+}
+
+async function saveDocxResume(file, resumeText) {
+  applyLocalResume(resumeText);
+  saveWarning.value = '';
+
+  if (!props.applyToProfile) {
+    emit('parsed', { resumeText, extractedSkills: { all: profileStore.extractedSkills } });
+    return;
+  }
+
+  try {
+    const profile = await profileStore.saveResumeText(resumeText, { resumeFileName: file.name });
+    parseSummary.value = buildParseSummary({ resumeScore: profile.resumeScore }, resumeText);
+    emit('parsed', {
+      resumeText,
+      extractedSkills: { all: profile.extractedSkills || [] },
+      resumeScore: profile.resumeScore,
+    });
+  } catch {
+    saveWarning.value =
+      'Resume text loaded here but the server could not save yet. Wait 30 seconds and click Save resume, or paste the text below.';
+    emit('parsed', { resumeText, extractedSkills: { all: [] } });
   }
 }
 
@@ -103,37 +152,48 @@ async function handleFile(event) {
   }
 
   localError.value = '';
+  saveWarning.value = '';
   parseSummary.value = null;
   parsing.value = true;
   fileName.value = file.name;
 
   try {
-    let result;
     if (lowerName.endsWith('.docx')) {
       const resumeText = await extractDocxText(file);
       if (isUnreadableResumeText(resumeText)) {
         throw new Error('Could not read this Word file. Try PDF or paste your resume text below.');
       }
-      result = await profileStore.parseResume({
-        resumeText,
-        filename: file.name,
-        applyToProfile: props.applyToProfile,
-        mergeSkills: props.mergeSkills,
-      });
-    } else {
-      const fileBase64 = await fileToBase64(file);
-      result = await profileStore.parseResume({
-        fileBase64,
-        filename: file.name,
-        applyToProfile: props.applyToProfile,
-        mergeSkills: props.mergeSkills,
-      });
-      if (isUnreadableResumeText(result.resumeText)) {
-        throw new Error('Could not extract readable text from this file. Try PDF or paste text.');
+      try {
+        await saveDocxResume(file, resumeText);
+      } catch (e) {
+        localError.value = formatResumeUploadError(e);
+        emit('error', localError.value);
       }
+      return;
     }
 
-    await applyParseResult(result);
+    if (lowerName.endsWith('.txt') || lowerName.endsWith('.md') || lowerName.endsWith('.text')) {
+      const resumeText = (await file.text()).trim();
+      if (isUnreadableResumeText(resumeText)) {
+        throw new Error('Could not read this file. Paste your resume text instead.');
+      }
+      await saveDocxResume(file, resumeText);
+      return;
+    }
+
+    const fileBase64 = await fileToBase64(file);
+    const result = await profileStore.parseResume({
+      fileBase64,
+      filename: file.name,
+      applyToProfile: props.applyToProfile,
+      mergeSkills: props.mergeSkills,
+    });
+    if (isUnreadableResumeText(result.resumeText)) {
+      throw new Error('Could not extract readable text from this PDF. Paste your resume text instead.');
+    }
+    emit('update:modelValue', result.resumeText);
+    parseSummary.value = buildParseSummary(result, result.resumeText);
+    emit('parsed', result);
   } catch (e) {
     localError.value = formatResumeUploadError(e);
     emit('error', localError.value);
@@ -151,8 +211,8 @@ const previewSkills = computed(() => {
 });
 
 const previewText = computed(() => {
-  const text = props.modelValue || profileStore.profile?.resumeText || '';
-  return savedResumeUnreadable.value ? '' : text;
+  if (savedResumeUnreadable.value) return '';
+  return props.modelValue || profileStore.profile?.resumeText || '';
 });
 </script>
 
@@ -164,7 +224,7 @@ const previewText = computed(() => {
     >
       <span class="text-2xl">{{ parsing ? '⏳' : '📄' }}</span>
       <span class="mt-2 text-sm font-medium text-slate-300">
-        {{ parsing ? 'Parsing resume…' : fileName || 'Upload resume (PDF, .docx, .txt, .md)' }}
+        {{ parsing ? 'Reading resume…' : fileName || 'Upload resume (PDF, .docx, .txt, .md)' }}
       </span>
       <span class="mt-1 text-xs text-slate-500">PDF, Word (.docx), .txt, or .md · max 8 MB</span>
       <input
@@ -177,8 +237,9 @@ const previewText = computed(() => {
     </label>
 
     <p v-if="localError" class="text-sm text-red-300">{{ localError }}</p>
+    <p v-if="saveWarning" class="text-sm text-amber-300">{{ saveWarning }}</p>
     <div
-      v-else-if="savedResumeUnreadable"
+      v-if="savedResumeUnreadable"
       class="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-3 text-sm text-amber-200"
     >
       <p>Your saved resume is broken file data, not readable text. Clear it and upload again.</p>

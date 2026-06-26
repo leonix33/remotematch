@@ -7,7 +7,6 @@ const profileService = require('./profileService');
 const { scoreJobsForProfile } = require('./jobScoringService');
 const teamService = require('./teamService');
 const localApprovalService = require('./localApprovalService');
-const queueNotifyService = require('./queueNotifyService');
 const applicationKitService = require('./applicationKitService');
 const { profileResumeAlignment } = require('./resumeParseService');
 
@@ -389,7 +388,7 @@ async function addExternal(userId, { url, title, company, source, notify = true 
 
   if (notify && isNew) {
     try {
-      await queueNotifyService.notifyQueuedJob(userId, result);
+      await require('./queueNotifyService').notifyQueuedJob(userId, result);
     } catch (err) {
       console.warn('Queue notify failed:', err.message);
     }
@@ -477,7 +476,7 @@ async function queueJob(userId, { jobId, title, company, url, matchPct = 0, atsT
 
   if (notify && isNew) {
     try {
-      await queueNotifyService.notifyQueuedJob(userId, result);
+      await require('./queueNotifyService').notifyQueuedJob(userId, result);
     } catch (err) {
       console.warn('Queue notify failed:', err.message);
     }

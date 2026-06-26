@@ -72,7 +72,7 @@ describe('resumeParseService', () => {
   });
 
   it('flags raw docx binary as unreadable resume text', () => {
-    const corrupt = 'PK\x03\x04 ! [Content_Types].xml \x00\x01\x02 broken';
+    const corrupt = 'PK\x03\x04 ! [Content_Types].xml \x00\x01\x02 broken word/document.xml';
     assert.equal(isUnreadableResumeText(corrupt), true);
     assert.equal(isUnreadableResumeText('Platform Engineer with AWS, Kubernetes, and Terraform.'), false);
   });

@@ -87,7 +87,14 @@ function parseListField(value) {
 
 async function getMe(req, res, next) {
   try {
-    const profile = await profileService.getOrCreate(req.user.sub);
+    let profile = await profileService.getOrCreate(req.user.sub);
+    if (profile.resumeUnreadable) {
+      profile = await profileService.update(req.user.sub, {
+        resumeText: '',
+        resumeFileName: '',
+        extractedSkills: [],
+      });
+    }
     res.json(profile);
   } catch (err) {
     next(err);

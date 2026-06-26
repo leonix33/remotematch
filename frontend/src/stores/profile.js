@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia';
 import http from '../api/http';
-import { readProfileCache, writeProfileCache } from '../utils/profileDraft';
+import { readProfileCache, writeProfileCache, clearProfileCache } from '../utils/profileDraft';
+import { isUnreadableResumeText, sanitizeResumeProfile, sleep } from '../utils/resumeText';
 
 function currentUserId() {
   try {
@@ -42,10 +43,10 @@ export const useProfileStore = defineStore('profile', {
       const userId = currentUserId();
       const cached = readProfileCache(userId);
       if (cached) {
-        this.profile = cached;
+        this.profile = sanitizeResumeProfile(cached);
         this.loaded = true;
       }
-      return cached;
+      return this.profile;
     },
     async fetch() {
       const userId = currentUserId();
@@ -53,20 +54,58 @@ export const useProfileStore = defineStore('profile', {
       this.fetching = true;
       try {
         const { data } = await http.get('/profile/me');
-        this.profile = data;
+        this.profile = sanitizeResumeProfile(data);
         this.loaded = true;
-        writeProfileCache(userId, data);
-        return data;
+        writeProfileCache(userId, this.profile);
+        return this.profile;
       } finally {
         this.fetching = false;
       }
     },
-    async save(payload) {
+    async save(payload, { retries = 2 } = {}) {
       const userId = currentUserId();
-      const { data } = await http.patch('/profile/me', payload);
-      this.profile = { ...this.profile, ...data };
-      this.loaded = true;
-      writeProfileCache(userId, this.profile);
+      const clean = { ...payload };
+      if (clean.resumeText && isUnreadableResumeText(clean.resumeText)) {
+        throw new Error('Resume text is not readable. Upload PDF or .docx instead of raw file data.');
+      }
+      let lastError;
+      for (let attempt = 0; attempt <= retries; attempt += 1) {
+        try {
+          const { data } = await http.patch('/profile/me', clean);
+          this.profile = sanitizeResumeProfile({ ...this.profile, ...data });
+          this.loaded = true;
+          writeProfileCache(userId, this.profile);
+          return this.profile;
+        } catch (error) {
+          lastError = error;
+          const status = error?.response?.status;
+          if (attempt < retries && (status === 502 || status === 503 || status === 504 || !status)) {
+            await sleep(2000 * (attempt + 1));
+            continue;
+          }
+          throw error;
+        }
+      }
+      throw lastError;
+    },
+    async saveResumeText(resumeText, { resumeFileName = '', extra = {} } = {}) {
+      if (isUnreadableResumeText(resumeText)) {
+        throw new Error('Could not read this file. Try PDF or paste your resume text.');
+      }
+      return this.save(
+        {
+          resumeText,
+          resumeFileName,
+          ...extra,
+        },
+        { retries: 3 }
+      );
+    },
+    async clearResume() {
+      const userId = currentUserId();
+      const data = await this.save({ resumeText: '', resumeFileName: '', extractedSkills: [] });
+      clearProfileCache(userId);
+      writeProfileCache(userId, data);
       return data;
     },
     async parseResume({ fileBase64, filename, applyToProfile = false, mergeSkills = true, resumeText }) {

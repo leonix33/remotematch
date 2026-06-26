@@ -201,10 +201,11 @@ onMounted(async () => {
       <div class="mt-4">
         <label class="mb-1 block text-sm text-slate-400">Or paste resume text</label>
         <textarea
-          v-model="resumeText"
+          :value="resumeUnreadable ? '' : resumeText"
           rows="6"
           class="input text-sm"
           placeholder="Paste your resume here…"
+          @input="resumeText = $event.target.value"
           @blur="saveResumeText"
         />
         <div class="mt-3 flex flex-wrap items-center gap-3">

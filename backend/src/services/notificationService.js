@@ -3,7 +3,6 @@ const env = require('../config/env');
 const jobService = require('./jobService');
 const profileService = require('./profileService');
 const ChatRequest = require('../models/ChatRequest');
-const approvalService = require('./approvalService');
 const Watchlist = require('../models/Watchlist');
 const emailService = require('./emailService');
 const { scoreJobsForProfile } = require('./jobScoringService');
@@ -174,7 +173,7 @@ async function scanAndNotify(userId) {
   }
 
   try {
-    const counts = await approvalService.counts(userId);
+    const counts = await require('./approvalService').counts(userId);
     if (counts.pending >= 5) {
       const exists = await Notification.findOne({
         userId,

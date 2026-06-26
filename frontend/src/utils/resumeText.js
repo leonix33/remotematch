@@ -3,25 +3,60 @@ export function isUnreadableResumeText(text = '') {
   const trimmed = String(text).trim();
   if (trimmed.length < 20) return true;
 
-  const head = trimmed.slice(0, 1000);
+  const sample = trimmed.slice(0, 4000);
+
   if (
-    head.includes('[Content_Types].xml') ||
-    head.includes('word/_rels/document.xml.rels') ||
-    head.startsWith('PK')
+    /\[Content_Types\]|word\/document\.xml|word\/_rels|word\/fontTable\.xml|word\/webSettings\.xml|_rels\/\.rels|theme\/theme/i.test(
+      sample
+    )
   ) {
     return true;
   }
 
+  if (sample.startsWith('PK') || (sample.includes('PK') && sample.includes('.xml'))) {
+    return true;
+  }
+
   let controlChars = 0;
-  const sampleLen = Math.min(head.length, 500);
+  let replacementChars = 0;
+  const sampleLen = Math.min(sample.length, 800);
   for (let i = 0; i < sampleLen; i += 1) {
-    const code = head.charCodeAt(i);
+    const code = sample.charCodeAt(i);
+    if (code === 0xfffd) replacementChars += 1;
     if (code < 32 && code !== 9 && code !== 10 && code !== 13) controlChars += 1;
   }
-  if (controlChars > 10) return true;
+  if (controlChars > 8 || replacementChars > 4) return true;
 
-  const letters = (head.match(/[A-Za-z]/g) || []).length;
-  return letters < sampleLen * 0.12;
+  const letters = (sample.match(/[A-Za-z]/g) || []).length;
+  if (letters < sampleLen * 0.1) return true;
+
+  const words = sample.split(/\s+/).filter((w) => /[A-Za-z]{2,}/.test(w));
+  if (sample.length > 300 && words.length < 8) return true;
+
+  return false;
+}
+
+export function sanitizeResumeProfile(profile) {
+  if (!profile) return profile;
+  if (!isUnreadableResumeText(profile.resumeText || '')) return profile;
+  return {
+    ...profile,
+    resumeText: '',
+    resumeFileName: '',
+    extractedSkills: [],
+    resumeScore: 0,
+    resumeUnreadable: true,
+  };
+}
+
+export async function isZipDocxFile(file) {
+  const buf = await file.slice(0, 4).arrayBuffer();
+  const bytes = new Uint8Array(buf);
+  return bytes.length >= 2 && bytes[0] === 0x50 && bytes[1] === 0x4b;
+}
+
+export function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 export function formatResumeUploadError(error) {

@@ -1,5 +1,6 @@
 import { onBeforeUnmount, ref } from 'vue';
 import { useProfileStore } from '../stores/profile';
+import { isUnreadableResumeText } from '../utils/resumeText';
 
 export function useProfileAutosave({ delay = 900 } = {}) {
   const profileStore = useProfileStore();
@@ -7,12 +8,21 @@ export function useProfileAutosave({ delay = 900 } = {}) {
   let timer = null;
   let lastPayload = '';
 
+  function cleanPayload(payload) {
+    if (!payload || typeof payload !== 'object') return payload;
+    if (payload.resumeText && isUnreadableResumeText(payload.resumeText)) {
+      const { resumeText, ...rest } = payload;
+      return rest;
+    }
+    return payload;
+  }
+
   async function flush(getPayload) {
     if (timer) {
       clearTimeout(timer);
       timer = null;
     }
-    const payload = typeof getPayload === 'function' ? getPayload() : getPayload;
+    const payload = cleanPayload(typeof getPayload === 'function' ? getPayload() : getPayload);
     if (!payload || !Object.keys(payload).length) return;
     const key = JSON.stringify(payload);
     if (key === lastPayload && saveState.value === 'saved') return;

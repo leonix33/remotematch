@@ -219,25 +219,35 @@ function isUnreadableResumeText(text = '') {
   const trimmed = String(text).trim();
   if (trimmed.length < 20) return true;
 
-  const head = trimmed.slice(0, 1000);
+  const sample = trimmed.slice(0, 4000);
+
   if (
-    head.includes('[Content_Types].xml') ||
-    head.includes('word/_rels/document.xml.rels') ||
-    head.startsWith('PK')
+    /\[Content_Types\]|word\/document\.xml|word\/_rels|word\/fontTable\.xml|word\/webSettings\.xml|_rels\/\.rels|theme\/theme/i.test(
+      sample
+    )
   ) {
     return true;
   }
 
+  if (sample.startsWith('PK') || (sample.includes('PK') && sample.includes('.xml'))) {
+    return true;
+  }
+
   let controlChars = 0;
-  const sampleLen = Math.min(head.length, 500);
+  const sampleLen = Math.min(sample.length, 800);
   for (let i = 0; i < sampleLen; i += 1) {
-    const code = head.charCodeAt(i);
+    const code = sample.charCodeAt(i);
     if (code < 32 && code !== 9 && code !== 10 && code !== 13) controlChars += 1;
   }
-  if (controlChars > 10) return true;
+  if (controlChars > 8) return true;
 
-  const letters = (head.match(/[A-Za-z]/g) || []).length;
-  return letters < sampleLen * 0.12;
+  const letters = (sample.match(/[A-Za-z]/g) || []).length;
+  if (letters < sampleLen * 0.1) return true;
+
+  const words = sample.split(/\s+/).filter((w) => /[A-Za-z]{2,}/.test(w));
+  if (sample.length > 300 && words.length < 8) return true;
+
+  return false;
 }
 
 async function extractTextFromBuffer(buffer, filename = '') {
@@ -426,18 +436,20 @@ function parseResumeFromText(resumeText) {
 }
 
 function enrichProfileResponse(profile) {
-  const extractedSkills =
-    profile.extractedSkills?.length > 0
+  const unreadable = isUnreadableResumeText(profile.resumeText || '');
+  const resumeText = unreadable ? '' : profile.resumeText || '';
+  const extractedSkills = unreadable
+    ? []
+    : profile.extractedSkills?.length > 0
       ? profile.extractedSkills
-      : extractSkillsFromText(profile.resumeText || '').all;
+      : extractSkillsFromText(resumeText).all;
 
   const enriched = {
     ...profile,
+    resumeText,
     extractedSkills,
-    resumeScore: isUnreadableResumeText(profile.resumeText || '')
-      ? 0
-      : computeResumeScore({ ...profile, extractedSkills }),
-    resumeUnreadable: isUnreadableResumeText(profile.resumeText || ''),
+    resumeScore: unreadable ? 0 : computeResumeScore({ ...profile, resumeText, extractedSkills }),
+    resumeUnreadable: unreadable,
   };
   return enriched;
 }
