@@ -198,10 +198,10 @@ async function prepareApplyItems(userId, jobs, options = {}) {
   let missingKitCount = 0;
   let optedOutCount = 0;
 
-  const items = [];
-  for (const job of jobs) {
+  async function buildItem(job) {
     const jobId = job.jobId || job.id;
     let kit = await applicationKitStore.get(userId, jobId);
+    let generationFailed = false;
     if (!kit?.tailored) {
       try {
         kit = await generateForJob(userId, jobId, {
@@ -214,15 +214,11 @@ async function prepareApplyItems(userId, jobs, options = {}) {
         });
       } catch (err) {
         console.warn(`Kit generation failed for ${jobId}:`, err.message);
-        missingKitCount += 1;
+        generationFailed = true;
       }
     }
 
     const useThisKit = Boolean(kit?.tailored && kit.useForApply !== false);
-    if (kit?.tailored && kit.useForApply === false) optedOutCount += 1;
-    else if (useThisKit) tailoredCount += 1;
-    else if (!kit?.tailored) missingKitCount += 1;
-
     const applyBase = {
       id: jobId,
       title: job.title,
@@ -236,16 +232,54 @@ async function prepareApplyItems(userId, jobs, options = {}) {
       ats_type: job.atsType || job.ats_type,
       email_section: job.emailSection || job.email_section || 'strong_review',
     };
-    items.push(
-      await attachKitToApplyItem(userId, applyBase, {
-        useTailoredResume: useThisKit,
-        contact,
-        kit,
-      })
-    );
+    const item = await attachKitToApplyItem(userId, applyBase, {
+      useTailoredResume: useThisKit,
+      contact,
+      kit,
+    });
+    return { item, useThisKit, optedOut: Boolean(kit?.tailored && kit.useForApply === false), generationFailed };
+  }
+
+  const CONCURRENCY = 4;
+  const items = [];
+  for (let i = 0; i < jobs.length; i += CONCURRENCY) {
+    const chunkResults = await Promise.all(jobs.slice(i, i + CONCURRENCY).map((job) => buildItem(job)));
+    for (const result of chunkResults) {
+      items.push(result.item);
+      if (result.optedOut) optedOutCount += 1;
+      else if (result.useThisKit) tailoredCount += 1;
+      else if (result.generationFailed || !result.useThisKit) missingKitCount += 1;
+    }
   }
 
   return { items, tailoredCount, missingKitCount, optedOutCount };
+}
+
+const backgroundKitRuns = new Map();
+
+function schedulePrepareKits(userId, jobs, options = {}) {
+  if (!userId || !jobs?.length) return null;
+  const existing = backgroundKitRuns.get(userId);
+  if (existing) {
+    existing.catch(() => {});
+    return existing;
+  }
+  const run = prepareApplyItems(userId, jobs, options)
+    .then((result) => {
+      console.log(
+        `Background kits for ${userId}: ${result.tailoredCount} tailored, ${result.missingKitCount} missing`
+      );
+      return result;
+    })
+    .catch((err) => {
+      console.warn(`Background kit generation failed for ${userId}:`, err.message);
+      throw err;
+    })
+    .finally(() => {
+      backgroundKitRuns.delete(userId);
+    });
+  backgroundKitRuns.set(userId, run);
+  return run;
 }
 
 async function applicationMetaForJob(userId, jobId) {
@@ -358,6 +392,7 @@ module.exports = {
   generateOnApprove,
   attachKitToApplyItem,
   prepareApplyItems,
+  schedulePrepareKits,
   findJob,
   listKits,
   setKitPreference,

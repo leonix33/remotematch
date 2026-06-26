@@ -68,7 +68,7 @@ const applyPlanSummary = computed(() => {
     tailorMode.value === 'high_match'
       ? 'close match to job posting'
       : 'balanced tailoring';
-  return `Tailored · ${supplementPages.value} supplement page${supplementPages.value === 1 ? '' : 's'} · ${mode} · ${digestEmail.value || 'your email'}`;
+  return `Tailored · ${supplementPages.value} page${supplementPages.value === 1 ? '' : 's'} · ${mode} · ${digestEmail.value || 'your email'}`;
 });
 
 function syncFromProfile(p) {
@@ -151,7 +151,7 @@ async function startApplying() {
       count: jobCount.value,
       useTailoredResume: resumeMode.value === 'tailored',
       minMatch: profileStore.profile?.minMatchScore || 40,
-      runSearch: true,
+      runSearch: false,
     });
     if (result?.kits?.length) {
       tailoredSeedKits.value = result.kits;

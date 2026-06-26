@@ -2,6 +2,28 @@ import { ref } from 'vue';
 import http from '../api/http';
 
 const APPLY_TIMEOUT_MS = 10 * 60 * 1000;
+const KIT_POLL_INTERVAL_MS = 2500;
+const KIT_POLL_MAX_ATTEMPTS = 48;
+
+async function pollTailoredKits(jobIds, onProgress) {
+  const idSet = new Set(jobIds);
+  let best = [];
+  for (let attempt = 0; attempt < KIT_POLL_MAX_ATTEMPTS; attempt += 1) {
+    try {
+      const { data } = await http.get('/applications/kits');
+      const kits = (Array.isArray(data) ? data : []).filter((k) => k.jobId && idSet.has(k.jobId) && k.tailored);
+      if (kits.length > best.length) {
+        best = kits;
+        onProgress?.(best.length, jobIds.length);
+      }
+      if (best.length >= jobIds.length) return best;
+    } catch {
+      /* keep polling */
+    }
+    await new Promise((resolve) => setTimeout(resolve, KIT_POLL_INTERVAL_MS));
+  }
+  return best;
+}
 
 async function fetchPendingJobs(count, minMatch) {
   const thresholds = [minMatch || 40, 35, 30, 25, 20];
@@ -94,20 +116,29 @@ export function useQuickApply() {
         { timeout: APPLY_TIMEOUT_MS, validateStatus: (s) => s < 500 }
       );
 
-      if (status === 202) {
+      let kits = data.kits || [];
+      if (useTailoredResume && (data.kitsGenerating || kits.length < jobIds.length)) {
+        const polled = await pollTailoredKits(jobIds, (ready, total) => {
+          step.value = `Generating tailored resumes (${ready}/${total})…`;
+        });
+        if (polled.length) kits = polled;
+      }
+
+      const queued = Boolean(data.queued || data.recorded);
+      if (status === 202 || queued) {
         const hint = data.hint || data.message;
         message.value =
-          data.queued || data.recorded
-            ? `Queued ${data.count || jobs.length} application(s). ${hint || ''}`.trim()
+          queued
+            ? `Queued ${data.count || jobs.length} application(s)${kits.length ? ` · ${kits.length} tailored resume${kits.length === 1 ? '' : 's'} ready` : data.kitsGenerating ? ' · tailored resumes generating' : ''}. ${hint || ''}`.trim()
             : hint || data.message || 'Apply could not finish on the server.';
-        if (!data.queued && !data.recorded) {
+        if (!queued) {
           error.value = message.value;
           throw new Error(message.value);
         }
         return {
           count: data.count || jobs.length,
           jobs,
-          kits: data.kits || [],
+          kits,
           output: data.output,
           queued: true,
         };
@@ -117,13 +148,19 @@ export function useQuickApply() {
       return {
         count: data.count || jobs.length,
         jobs,
-        kits: data.kits || [],
+        kits,
         output: data.output,
         queued: Boolean(data.queued),
       };
     } catch (e) {
+      const status = e.response?.status;
       const d = e.response?.data;
-      error.value = d?.message || d?.hint || e.message || 'Apply failed';
+      if (status === 502 || status === 504) {
+        error.value =
+          'The server timed out while preparing applications. Try fewer jobs at once, or wait a minute and refresh tailored resumes.';
+      } else {
+        error.value = d?.message || d?.hint || e.message || 'Apply failed';
+      }
       throw e;
     } finally {
       applying.value = false;

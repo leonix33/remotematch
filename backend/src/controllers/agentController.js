@@ -76,6 +76,10 @@ async function applyApproved(req, res, next) {
         ? req.body.useTailoredResume
         : profile.defaultApplyResumeMode === 'tailored';
 
+    const agentAvailable = jobService.isAgentApplyAvailable();
+    const jobCount = scored.length;
+    const shouldDeferKits = useTailoredResume && (!agentAvailable || jobCount > 4);
+
     let run;
     if (env.mongoUri) {
       run = await AgentRun.create({
@@ -85,11 +89,28 @@ async function applyApproved(req, res, next) {
       });
     }
 
-    const { file: itemsFile, tailoredCount, missingKitCount } = await jobService.writeApprovedItemsFile(
-      scored,
-      req.user.sub,
-      { useTailoredResume, authEmail: req.user.email }
-    );
+    let itemsFile;
+    let tailoredCount = 0;
+    let missingKitCount = 0;
+
+    if (shouldDeferKits) {
+      ({ file: itemsFile } = await jobService.writeApprovedItemsFile(scored, req.user.sub, {
+        useTailoredResume: false,
+        authEmail: req.user.email,
+      }));
+      applicationKitService.schedulePrepareKits(req.user.sub, scored, {
+        useTailoredResume: true,
+        authEmail: req.user.email,
+      });
+      missingKitCount = jobCount;
+    } else {
+      ({ file: itemsFile, tailoredCount, missingKitCount } = await jobService.writeApprovedItemsFile(
+        scored,
+        req.user.sub,
+        { useTailoredResume, authEmail: req.user.email }
+      ));
+    }
+
     const applicantContactService = require('../services/applicantContactService');
     const contact = await applicantContactService.resolveApplicantContact(
       req.user.sub,
@@ -105,12 +126,12 @@ async function applyApproved(req, res, next) {
     if (contact.portfolio) applicantEnv.PORTFOLIO_URL = contact.portfolio;
 
     const jobIds = scored.map((j) => j.jobId);
-    const kits = await applicationKitService.getKitsForJobIds(req.user.sub, jobIds);
+    let kits = await applicationKitService.getKitsForJobIds(req.user.sub, jobIds);
+    kits = kits.map(applicationKitService.kitListItem);
 
     let output;
-    const agentAvailable = jobService.isAgentApplyAvailable();
     try {
-      if (agentAvailable) {
+      if (agentAvailable && !shouldDeferKits) {
         output = await jobService.runApprovedAutoApply(itemsFile, applicantEnv);
       } else {
         throw new Error(
@@ -144,6 +165,7 @@ async function applyApproved(req, res, next) {
         missingKitCount,
         kits,
         jobIds,
+        kitsGenerating: shouldDeferKits,
         output: output.slice(-2000),
       });
     } catch (applyErr) {
@@ -166,7 +188,7 @@ async function applyApproved(req, res, next) {
         }
         const modeLabel = useTailoredResume ? 'tailored kits' : 'base resume';
         return res.json({
-          message: `Queued ${scored.length} application(s) with ${modeLabel}. Open each job in Chrome and use the RemoteMatch extension to submit forms.`,
+          message: `Queued ${scored.length} application(s) with ${modeLabel}.${shouldDeferKits ? ' Tailored resumes are generating — refresh the preview in a moment.' : ''} Open each job in Chrome and use the RemoteMatch extension to submit forms.`,
           count: scored.length,
           useTailoredResume,
           tailoredCount,
@@ -175,6 +197,7 @@ async function applyApproved(req, res, next) {
           recorded: true,
           kits,
           jobIds,
+          kitsGenerating: shouldDeferKits,
           itemsFile,
           hint: 'Install the Chrome extension from Team access, open a job posting, and click Apply with RemoteMatch.',
         });
@@ -194,6 +217,7 @@ async function applyApproved(req, res, next) {
         missingKitCount,
         kits,
         jobIds,
+        kitsGenerating: shouldDeferKits,
         itemsFile,
         hint: 'On Mac: cd job-event-agent && bash apply_approved.sh ' + itemsFile,
       });
