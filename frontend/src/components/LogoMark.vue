@@ -9,7 +9,7 @@ defineProps({
   <svg
     :width="size"
     :height="size"
-    viewBox="0 0 64 64"
+    viewBox="0 0 512 512"
     fill="none"
     xmlns="http://www.w3.org/2000/svg"
     :class="className"
@@ -17,40 +17,27 @@ defineProps({
     aria-hidden="true"
   >
     <defs>
-      <linearGradient id="rm-logo-bg" x1="8" y1="6" x2="56" y2="58" gradientUnits="userSpaceOnUse">
+      <linearGradient id="rm-logo-bg" x1="64" y1="48" x2="448" y2="464" gradientUnits="userSpaceOnUse">
         <stop stop-color="#0f172a" />
-        <stop offset="1" stop-color="#1e293b" />
+        <stop offset="1" stop-color="#134e4a" />
       </linearGradient>
-      <linearGradient id="rm-logo-teal" x1="18" y1="16" x2="46" y2="48" gradientUnits="userSpaceOnUse">
-        <stop stop-color="#2dd4bf" />
-        <stop offset="1" stop-color="#14b8a6" />
+      <linearGradient id="rm-logo-glow" x1="160" y1="120" x2="360" y2="392" gradientUnits="userSpaceOnUse">
+        <stop stop-color="#14b8a6" />
+        <stop offset="1" stop-color="#2dd4bf" />
       </linearGradient>
-      <linearGradient id="rm-logo-gold" x1="34" y1="28" x2="50" y2="44" gradientUnits="userSpaceOnUse">
-        <stop stop-color="#fde68a" />
+      <linearGradient id="rm-logo-gold" x1="200" y1="180" x2="312" y2="340" gradientUnits="userSpaceOnUse">
+        <stop stop-color="#fbbf24" />
         <stop offset="1" stop-color="#f59e0b" />
       </linearGradient>
     </defs>
-    <rect width="64" height="64" rx="16" fill="url(#rm-logo-bg)" />
-    <path
-      d="M32 14c-9.9 0-18 8.1-18 18 0 4.2 1.4 8 3.8 11.1"
-      stroke="url(#rm-logo-teal)"
-      stroke-width="3"
-      stroke-linecap="round"
-    />
-    <path
-      d="M32 14c9.9 0 18 8.1 18 18 0 4.2-1.4 8-3.8 11.1"
-      stroke="url(#rm-logo-teal)"
-      stroke-width="3"
-      stroke-linecap="round"
-      opacity="0.9"
-    />
-    <ellipse cx="32" cy="32" rx="18" ry="7.5" stroke="url(#rm-logo-teal)" stroke-width="2.5" opacity="0.45" />
-    <path
-      d="M22 36c4.5 5.5 15.5 5.5 20 0"
-      stroke="url(#rm-logo-gold)"
-      stroke-width="3.5"
-      stroke-linecap="round"
-    />
-    <circle cx="32" cy="36" r="4.5" fill="url(#rm-logo-gold)" />
+    <rect width="512" height="512" rx="112" fill="url(#rm-logo-bg)" />
+    <circle cx="256" cy="256" r="168" stroke="url(#rm-logo-glow)" stroke-width="6" opacity="0.35" />
+    <circle cx="256" cy="256" r="120" stroke="url(#rm-logo-glow)" stroke-width="10" opacity="0.55" />
+    <path d="M256 136 L256 376 M136 256 L376 256" stroke="#14b8a6" stroke-width="4" opacity="0.25" />
+    <circle cx="176" cy="200" r="28" fill="#0f172a" stroke="url(#rm-logo-glow)" stroke-width="8" />
+    <circle cx="336" cy="200" r="28" fill="#0f172a" stroke="url(#rm-logo-glow)" stroke-width="8" />
+    <circle cx="256" cy="320" r="32" fill="#0f172a" stroke="url(#rm-logo-gold)" stroke-width="10" />
+    <path d="M200 210 C228 248 284 248 312 210" stroke="url(#rm-logo-gold)" stroke-width="10" stroke-linecap="round" />
+    <circle cx="256" cy="256" r="14" fill="url(#rm-logo-gold)" />
   </svg>
 </template>

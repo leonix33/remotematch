@@ -2,23 +2,24 @@
   <defs>
     <linearGradient id="rm-bg" x1="64" y1="48" x2="448" y2="464" gradientUnits="userSpaceOnUse">
       <stop stop-color="#0f172a"/>
-      <stop offset="1" stop-color="#1e293b"/>
+      <stop offset="1" stop-color="#134e4a"/>
     </linearGradient>
-    <linearGradient id="rm-teal" x1="140" y1="120" x2="372" y2="392" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#2dd4bf"/>
-      <stop offset="1" stop-color="#14b8a6"/>
+    <linearGradient id="rm-glow" x1="160" y1="120" x2="360" y2="392" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#14b8a6"/>
+      <stop offset="1" stop-color="#2dd4bf"/>
     </linearGradient>
-    <linearGradient id="rm-gold" x1="220" y1="260" x2="340" y2="380" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#fde68a"/>
+    <linearGradient id="rm-gold" x1="200" y1="180" x2="312" y2="340" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#fbbf24"/>
       <stop offset="1" stop-color="#f59e0b"/>
     </linearGradient>
   </defs>
   <rect width="512" height="512" rx="112" fill="url(#rm-bg)"/>
-  <path d="M256 112c-79.5 0-144 64.5-144 144 0 33.6 11.5 64.4 30.8 88.8" stroke="url(#rm-teal)" stroke-width="24" stroke-linecap="round"/>
-  <path d="M256 112c79.5 0 144 64.5 144 144 0 33.6-11.5 64.4-30.8 88.8" stroke="url(#rm-teal)" stroke-width="24" stroke-linecap="round" opacity="0.9"/>
-  <ellipse cx="256" cy="256" rx="144" ry="60" stroke="url(#rm-teal)" stroke-width="20" opacity="0.45"/>
-  <path d="M176 288c36 44 124 44 160 0" stroke="url(#rm-gold)" stroke-width="28" stroke-linecap="round"/>
-  <circle cx="256" cy="288" r="36" fill="url(#rm-gold)"/>
-  <path d="M192 180h41.6c19.2 0 32 11.2 32 27.2 0 10.4-5.6 19.2-14.4 24l20.8 36.8H256l-17.6-32h-14.4v32H192V180zm40 41.6c7.2 0 12-4 12-10.4 0-6.4-4.8-9.6-12-9.6H214.4v20H232zm49.6-41.6h44.8c27.2 0 44.8 16 44.8 39.2 0 16.8-8.8 29.6-23.2 36l25.6 40.8h-27.2l-22.4-35.2h-13.6v35.2h-21.6V180zm35.2 62.4c12 0 20-6.4 20-16.8 0-10.4-8-16-20-16h-11.2v32.8h11.2z" fill="#e2e8f0"/>
-  <path d="M281.6 180h35.2c19.2 0 32 11.2 32 27.2 0 10.4-5.6 19.2-14.4 24l20.8 36.8h-27.2l-17.6-32h-14.4v32h-21.6V180zm33.6 41.6c7.2 0 12-4 12-10.4 0-6.4-4.8-9.6-12-9.6h-8v20h8z" fill="#fbbf24"/>
+  <circle cx="256" cy="256" r="168" stroke="url(#rm-glow)" stroke-width="6" opacity="0.35"/>
+  <circle cx="256" cy="256" r="120" stroke="url(#rm-glow)" stroke-width="10" opacity="0.55"/>
+  <path d="M256 136 L256 376 M136 256 L376 256" stroke="#14b8a6" stroke-width="4" opacity="0.25"/>
+  <circle cx="176" cy="200" r="28" fill="#0f172a" stroke="url(#rm-glow)" stroke-width="8"/>
+  <circle cx="336" cy="200" r="28" fill="#0f172a" stroke="url(#rm-glow)" stroke-width="8"/>
+  <circle cx="256" cy="320" r="32" fill="#0f172a" stroke="url(#rm-gold)" stroke-width="10"/>
+  <path d="M200 210 C228 248 284 248 312 210" stroke="url(#rm-gold)" stroke-width="10" stroke-linecap="round"/>
+  <circle cx="256" cy="256" r="14" fill="url(#rm-gold)"/>
 </svg>
