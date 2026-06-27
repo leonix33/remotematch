@@ -13,3 +13,12 @@ describe('login password normalization', () => {
     assert.equal(await bcrypt.compare(trimmed, hashFromUntrimmed), false);
   });
 });
+
+describe('authService login order', () => {
+  it('exports password reset helpers', () => {
+    const auth = require('../services/authService');
+    assert.equal(typeof auth.requestPasswordReset, 'function');
+    assert.equal(typeof auth.completePasswordReset, 'function');
+    assert.equal(typeof auth.signPasswordResetToken, 'function');
+  });
+});

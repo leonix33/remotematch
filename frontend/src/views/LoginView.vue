@@ -1,21 +1,39 @@
 <script setup>
-import { ref } from 'vue';
-import { useRouter, RouterLink } from 'vue-router';
+import { onMounted, ref } from 'vue';
+import { useRouter, useRoute, RouterLink } from 'vue-router';
 import { useAuthStore } from '../stores/auth';
 import { useProfileStore } from '../stores/profile';
+import http from '../api/http';
 import AppLogo from '../components/AppLogo.vue';
 import { brand } from '../brand';
 
 const email = ref('');
 const password = ref('');
+const newPassword = ref('');
+const confirmPassword = ref('');
 const error = ref('');
+const info = ref('');
 const loading = ref(false);
+const mode = ref('login');
+const resetToken = ref('');
+
 const router = useRouter();
+const route = useRoute();
 const auth = useAuthStore();
 const profileStore = useProfileStore();
 
-async function submit() {
+onMounted(() => {
+  const token = typeof route.query.reset === 'string' ? route.query.reset : '';
+  if (token) {
+    resetToken.value = token;
+    mode.value = 'reset';
+    info.value = 'Choose a new password for your account.';
+  }
+});
+
+async function submitLogin() {
   error.value = '';
+  info.value = '';
   loading.value = true;
   try {
     await auth.login(email.value.trim(), password.value);
@@ -29,13 +47,50 @@ async function submit() {
     const msg = e.response?.data?.message || e.message || 'Login failed';
     if (status === 404) {
       error.value = 'API not reachable. Wait for deploy to finish, then hard-refresh.';
-    } else if (status === 403) {
-      error.value = msg;
-    } else if (status === 401 || status === 400) {
-      error.value = msg;
     } else {
       error.value = msg;
     }
+  } finally {
+    loading.value = false;
+  }
+}
+
+async function submitForgot() {
+  error.value = '';
+  info.value = '';
+  loading.value = true;
+  try {
+    const { data } = await http.post('/auth/forgot-password', { email: email.value.trim() });
+    info.value = data.message;
+    mode.value = 'login';
+  } catch (e) {
+    error.value = e.response?.data?.message || 'Could not send reset email';
+  } finally {
+    loading.value = false;
+  }
+}
+
+async function submitReset() {
+  error.value = '';
+  info.value = '';
+  if (newPassword.value.trim() !== confirmPassword.value.trim()) {
+    error.value = 'Passwords do not match';
+    return;
+  }
+  loading.value = true;
+  try {
+    const { data } = await http.post('/auth/reset-password', {
+      token: resetToken.value,
+      newPassword: newPassword.value.trim(),
+    });
+    info.value = data.message;
+    mode.value = 'login';
+    resetToken.value = '';
+    newPassword.value = '';
+    confirmPassword.value = '';
+    router.replace({ path: '/login', query: {} });
+  } catch (e) {
+    error.value = e.response?.data?.message || 'Could not reset password';
   } finally {
     loading.value = false;
   }
@@ -48,7 +103,8 @@ async function submit() {
       <AppLogo size="lg" />
       <p class="mt-4 text-sm text-slate-400">{{ brand.tagline }}</p>
 
-      <form class="mt-8 space-y-4" @submit.prevent="submit">
+      <!-- Login -->
+      <form v-if="mode === 'login'" class="mt-8 space-y-4" @submit.prevent="submitLogin">
         <div>
           <label class="mb-1 block text-sm text-slate-400">Email</label>
           <input
@@ -63,7 +119,12 @@ async function submit() {
           />
         </div>
         <div>
-          <label class="mb-1 block text-sm text-slate-400">Password</label>
+          <div class="mb-1 flex items-center justify-between">
+            <label class="text-sm text-slate-400">Password</label>
+            <button type="button" class="text-xs text-teal-400 hover:underline" @click="mode = 'forgot'; error = ''; info = ''">
+              Forgot password?
+            </button>
+          </div>
           <input
             v-model="password"
             type="password"
@@ -75,10 +136,41 @@ async function submit() {
           />
         </div>
         <p v-if="error" class="rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-300">{{ error }}</p>
+        <p v-if="info" class="rounded-lg bg-teal-500/10 px-3 py-2 text-sm text-teal-200">{{ info }}</p>
         <button type="submit" class="btn-primary w-full" :disabled="loading">
           {{ loading ? 'Signing in…' : 'Sign in' }}
         </button>
       </form>
+
+      <!-- Forgot password -->
+      <form v-else-if="mode === 'forgot'" class="mt-8 space-y-4" @submit.prevent="submitForgot">
+        <h2 class="text-lg font-semibold text-slate-100">Reset your password</h2>
+        <p class="text-sm text-slate-500">We'll email you a link to choose a new password.</p>
+        <div>
+          <label class="mb-1 block text-sm text-slate-400">Email</label>
+          <input v-model="email" type="email" required class="input" placeholder="you@example.com" autocomplete="username" />
+        </div>
+        <p v-if="error" class="rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-300">{{ error }}</p>
+        <button type="submit" class="btn-primary w-full" :disabled="loading">
+          {{ loading ? 'Sending…' : 'Email reset link' }}
+        </button>
+        <button type="button" class="btn-secondary w-full" @click="mode = 'login'; error = ''">Back to sign in</button>
+      </form>
+
+      <!-- New password from email link -->
+      <form v-else class="mt-8 space-y-4" @submit.prevent="submitReset">
+        <h2 class="text-lg font-semibold text-slate-100">Choose a new password</h2>
+        <p v-if="info" class="text-sm text-slate-500">{{ info }}</p>
+        <input v-model="newPassword" type="password" required minlength="8" class="input" placeholder="New password (8+ chars)" autocomplete="new-password" />
+        <input v-model="confirmPassword" type="password" required minlength="8" class="input" placeholder="Confirm new password" autocomplete="new-password" />
+        <p v-if="error" class="rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-300">{{ error }}</p>
+        <p v-if="info && !error" class="rounded-lg bg-teal-500/10 px-3 py-2 text-sm text-teal-200">{{ info }}</p>
+        <button type="submit" class="btn-primary w-full" :disabled="loading">
+          {{ loading ? 'Saving…' : 'Save new password' }}
+        </button>
+        <button type="button" class="btn-secondary w-full" @click="mode = 'login'; error = ''; info = ''">Back to sign in</button>
+      </form>
+
       <p class="mt-6 text-center text-xs text-slate-500">Invite-only access · Admin creates accounts</p>
       <p class="mt-3 text-center text-xs text-slate-600">
         Tap <strong class="text-teal-400">Install · Share URL</strong> on the right to add remotelymatch or copy the link.

@@ -1,6 +1,7 @@
 const { z } = require('zod');
 const authService = require('../services/authService');
 const userDataService = require('../services/userDataService');
+const emailService = require('../services/emailService');
 const env = require('../config/env');
 
 const loginSchema = z.object({
@@ -10,6 +11,15 @@ const loginSchema = z.object({
 
 const changePasswordSchema = z.object({
   currentPassword: z.string().min(8),
+  newPassword: z.string().min(8),
+});
+
+const forgotPasswordSchema = z.object({
+  email: z.string().email(),
+});
+
+const resetPasswordSchema = z.object({
+  token: z.string().min(10),
   newPassword: z.string().min(8),
 });
 
@@ -55,6 +65,46 @@ async function changePassword(req, res, next) {
   }
 }
 
+async function forgotPassword(req, res, next) {
+  try {
+    const { email } = forgotPasswordSchema.parse(req.body);
+    const result = await authService.requestPasswordReset(email);
+    if (result.user && result.resetUrl) {
+      try {
+        await emailService.notifyForgotPassword({
+          to: result.user.email,
+          name: result.user.name,
+          resetUrl: result.resetUrl,
+        });
+      } catch {
+        /* still return generic success */
+      }
+    }
+    res.json({
+      message: 'If that email has an account, we sent a reset link. Check your inbox.',
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function resetPasswordWithToken(req, res, next) {
+  try {
+    const body = resetPasswordSchema.parse(req.body);
+    const result = await authService.completePasswordReset(body.token, body.newPassword);
+    res.json({
+      message: 'Password updated. You can sign in now.',
+      email: result.email,
+    });
+  } catch (err) {
+    if (err.name === 'TokenExpiredError' || err.name === 'JsonWebTokenError') {
+      err.status = 400;
+      err.message = 'Reset link expired or invalid. Request a new one from the login page.';
+    }
+    next(err);
+  }
+}
+
 async function extensionToken(req, res, next) {
   try {
     const user = await authService.getMe(req.user.sub);
@@ -91,4 +141,13 @@ async function deleteAccount(req, res, next) {
   }
 }
 
-module.exports = { login, me, changePassword, extensionToken, exportData, deleteAccount };
+module.exports = {
+  login,
+  me,
+  changePassword,
+  forgotPassword,
+  resetPasswordWithToken,
+  extensionToken,
+  exportData,
+  deleteAccount,
+};

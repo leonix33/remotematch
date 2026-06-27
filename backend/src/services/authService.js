@@ -19,6 +19,60 @@ function signExtensionToken(user) {
   );
 }
 
+function signPasswordResetToken(email) {
+  return jwt.sign(
+    { email: email.trim().toLowerCase(), purpose: 'pwd-reset' },
+    env.jwtRefreshSecret,
+    { expiresIn: '1h' }
+  );
+}
+
+function verifyPasswordResetToken(token) {
+  const payload = jwt.verify(token, env.jwtRefreshSecret);
+  if (payload.purpose !== 'pwd-reset' || !payload.email) {
+    const err = new Error('Invalid or expired reset link');
+    err.status = 400;
+    throw err;
+  }
+  return payload.email;
+}
+
+function isEnvAdminLogin(email, password) {
+  return (
+    env.adminEmail &&
+    env.adminPassword &&
+    email === env.adminEmail.toLowerCase() &&
+    password === env.adminPassword
+  );
+}
+
+async function loginWithEnvAdmin(email) {
+  if (env.mongoUri) {
+    let user = await User.findOne({ email });
+    if (!user) {
+      const passwordHash = await bcrypt.hash(env.adminPassword, 10);
+      user = await User.create({
+        name: 'Admin',
+        email,
+        role: 'admin',
+        passwordHash,
+      });
+    } else {
+      user.role = 'admin';
+      user.active = true;
+      await user.save();
+    }
+    return { user, accessToken: signAccessToken(user) };
+  }
+  const devUser = {
+    _id: 'dev-admin',
+    name: 'Admin',
+    email: env.adminEmail,
+    role: 'admin',
+  };
+  return { user: devUser, accessToken: signAccessToken(devUser) };
+}
+
 async function login(email, password) {
   const normalizedEmail = email.trim().toLowerCase();
   const normalizedPassword = password.trim();
@@ -29,59 +83,38 @@ async function login(email, password) {
     throw err;
   }
 
-  // Break-glass admin login from Render env — never overwrites a user-changed MongoDB password.
-  if (
-    env.adminEmail &&
-    env.adminPassword &&
-    normalizedEmail === env.adminEmail.toLowerCase() &&
-    normalizedPassword === env.adminPassword
-  ) {
-    if (env.mongoUri) {
-      let user = await User.findOne({ email: normalizedEmail });
-      if (!user) {
-        const passwordHash = await bcrypt.hash(env.adminPassword, 10);
-        user = await User.create({
-          name: 'Admin',
-          email: normalizedEmail,
-          role: 'admin',
-          passwordHash,
-        });
-      } else {
-        user.role = 'admin';
-        user.active = true;
-        await user.save();
+  if (env.mongoUri) {
+    const user = await User.findOne({ email: normalizedEmail });
+    if (user) {
+      if (!user.active) {
+        const err = new Error('This account is disabled. Ask your admin to re-enable it under Team access.');
+        err.status = 403;
+        throw err;
       }
-      return { user, accessToken: signAccessToken(user) };
+      const ok = await bcrypt.compare(normalizedPassword, user.passwordHash);
+      if (ok) {
+        return { user, accessToken: signAccessToken(user) };
+      }
+      if (isEnvAdminLogin(normalizedEmail, normalizedPassword)) {
+        return loginWithEnvAdmin(normalizedEmail);
+      }
+      const err = new Error(
+        'Wrong email or password. Use Forgot password below, or your original invite password if you have not reset yet.'
+      );
+      err.status = 401;
+      throw err;
     }
-    const devUser = {
-      _id: 'dev-admin',
-      name: 'Admin',
-      email: env.adminEmail,
-      role: 'admin',
-    };
-    return { user: devUser, accessToken: signAccessToken(devUser) };
-  }
-
-  if (!env.mongoUri) {
+    if (isEnvAdminLogin(normalizedEmail, normalizedPassword)) {
+      return loginWithEnvAdmin(normalizedEmail);
+    }
     throw new Error('Invalid login');
   }
 
-  const user = await User.findOne({ email: normalizedEmail });
-  if (!user) throw new Error('Invalid login');
-  if (!user.active) {
-    const err = new Error('This account is disabled. Ask your admin to re-enable it under Team access.');
-    err.status = 403;
-    throw err;
+  if (isEnvAdminLogin(normalizedEmail, normalizedPassword)) {
+    return loginWithEnvAdmin(normalizedEmail);
   }
-  const ok = await bcrypt.compare(normalizedPassword, user.passwordHash);
-  if (!ok) {
-    const err = new Error(
-      'Invalid login. If you changed your password recently, type it manually — phone autofill may still have the old one.'
-    );
-    err.status = 401;
-    throw err;
-  }
-  return { user, accessToken: signAccessToken(user) };
+
+  throw new Error('Invalid login');
 }
 
 async function getMe(userId) {
@@ -113,7 +146,10 @@ async function changePassword(userId, currentPassword, newPassword) {
     err.status = 400;
     throw err;
   }
-  const ok = await bcrypt.compare(current, user.passwordHash);
+  let ok = await bcrypt.compare(current, user.passwordHash);
+  if (!ok && isEnvAdminLogin(user.email, current)) {
+    ok = true;
+  }
   if (!ok) throw new Error('Current password is incorrect');
   user.passwordHash = await bcrypt.hash(next, 10);
   await user.save();
@@ -135,4 +171,48 @@ async function resetPassword(targetUserId, newPassword) {
   return { id: user._id, email: user.email, name: user.name };
 }
 
-module.exports = { login, signAccessToken, signExtensionToken, getMe, changePassword, resetPassword };
+async function requestPasswordReset(email) {
+  if (!env.mongoUri) {
+    return { sent: false, reason: 'no_database' };
+  }
+  const normalizedEmail = email.trim().toLowerCase();
+  const user = await User.findOne({ email: normalizedEmail, active: true });
+  if (!user) {
+    return { sent: true, reason: 'unknown_email' };
+  }
+  const token = signPasswordResetToken(normalizedEmail);
+  const resetUrl = `${env.appUrl.replace(/\/$/, '')}/login?reset=${encodeURIComponent(token)}`;
+  return { sent: true, user, token, resetUrl };
+}
+
+async function completePasswordReset(token, newPassword) {
+  if (!env.mongoUri) throw new Error('MongoDB is required to reset password');
+  const email = verifyPasswordResetToken(token);
+  const clean = String(newPassword || '').trim();
+  if (clean.length < 8) {
+    const err = new Error('Password must be at least 8 characters');
+    err.status = 400;
+    throw err;
+  }
+  const user = await User.findOne({ email, active: true });
+  if (!user) {
+    const err = new Error('Account not found');
+    err.status = 404;
+    throw err;
+  }
+  user.passwordHash = await bcrypt.hash(clean, 10);
+  await user.save();
+  return { email: user.email, name: user.name };
+}
+
+module.exports = {
+  login,
+  signAccessToken,
+  signExtensionToken,
+  signPasswordResetToken,
+  getMe,
+  changePassword,
+  resetPassword,
+  requestPasswordReset,
+  completePasswordReset,
+};

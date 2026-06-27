@@ -286,6 +286,21 @@ async function sendPostApplyBatchEmail({ to, jobs = [], profile, useTailoredResu
   });
 }
 
+async function notifyForgotPassword({ to, name, resetUrl }) {
+  const login = loginUrl();
+  return sendEmail({
+    to,
+    subject: `Reset your ${env.appName} password`,
+    html: `<div style="font-family:sans-serif;max-width:560px;margin:0 auto;color:#e2e8f0;background:#0f172a;padding:24px;border-radius:12px">
+      <h2 style="color:#5eead4;margin:0 0 12px">Reset your password</h2>
+      <p style="color:#94a3b8;line-height:1.5">Hi ${escapeHtml(name || 'there')}, we received a request to reset your ${escapeHtml(env.appName)} password. This link expires in 1 hour.</p>
+      <p style="margin:20px 0 0"><a href="${escapeHtml(resetUrl)}" style="display:inline-block;background:#14b8a6;color:#0f172a;text-decoration:none;padding:12px 20px;border-radius:8px;font-weight:600">Choose a new password</a></p>
+      <p style="color:#64748b;font-size:13px;margin-top:16px">If you did not request this, you can ignore this email.</p>
+      <p style="color:#475569;font-size:12px;margin-top:24px">${escapeHtml(env.appName)} · ${escapeHtml(login)}</p>
+    </div>`,
+  });
+}
+
 module.exports = {
   sendEmail,
   sendToUser,
@@ -294,6 +309,7 @@ module.exports = {
   notifyInterviewReminder,
   notifyTeamInvite,
   notifyPasswordReset,
+  notifyForgotPassword,
   sendAppliedJobsDigest,
   sendFollowUpReminder,
   sendPostApplyBatchEmail,
