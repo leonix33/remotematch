@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, ref, watch } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import { useProfileStore } from '../stores/profile';
 import { useAuthStore } from '../stores/auth';
@@ -7,6 +7,7 @@ import ResumeUpload from '../components/ResumeUpload.vue';
 import ResumePreview from '../components/ResumePreview.vue';
 import TailorApplySettings from '../components/TailorApplySettings.vue';
 import { useProfileAutosave } from '../composables/useProfileAutosave';
+import { applyParseResultToForm } from '../utils/resumeProfileFill';
 import {
   clearOnboardingStep,
   readOnboardingStep,
@@ -19,15 +20,16 @@ const auth = useAuthStore();
 const { saveState, schedule, flush } = useProfileAutosave({ delay: 700 });
 
 const steps = [
-  { label: 'About you' },
-  { label: 'Resume' },
-  { label: 'Apply settings' },
+  { label: 'Resume', hint: 'Upload once — we fill in the rest' },
+  { label: 'Your profile', hint: 'Review what we found' },
+  { label: 'Apply', hint: 'Tailoring & email' },
 ];
 
 const step = ref(1);
 const saving = ref(false);
 const error = ref('');
 const autosaveEnabled = ref(false);
+const resumeParsed = ref(false);
 
 const resumeMode = ref('tailored');
 const supplementPages = ref(3);
@@ -35,36 +37,20 @@ const tailorMode = ref('balanced');
 const digestEmail = ref('');
 const contactPhone = ref('');
 
-function onResumeParsed(result) {
-  form.value.resumeText = result.resumeText;
-  const mustHave = result.extractedSkills?.mustHave || [];
-  const niceToHave = result.extractedSkills?.niceToHave || [];
-  const suggestedTitles = result.suggestedTitles || [];
-
-  if (mustHave.length) {
-    form.value.mustHaveSkills = mustHave.join('\n');
-  }
-  if (niceToHave.length) {
-    form.value.niceToHaveSkills = niceToHave.join('\n');
-  }
-  if (!form.value.headline?.trim() && result.suggestedHeadline) {
-    form.value.headline = result.suggestedHeadline;
-  }
-  if (suggestedTitles.length) {
-    form.value.targetTitles = suggestedTitles.join('\n');
-  }
-}
-
 const form = ref({
   displayName: auth.user?.name || '',
   applicantName: auth.user?.name || '',
   headline: '',
   linkedin: '',
+  github: '',
+  portfolio: '',
   targetTitles: '',
   mustHaveSkills: '',
   niceToHaveSkills: '',
   resumeText: '',
 });
+
+const hasResume = computed(() => form.value.resumeText.trim().length >= 50);
 
 function draftPayload() {
   return {
@@ -72,6 +58,8 @@ function draftPayload() {
     applicantName: form.value.applicantName,
     headline: form.value.headline,
     linkedin: form.value.linkedin,
+    github: form.value.github,
+    portfolio: form.value.portfolio,
     resumeText: form.value.resumeText,
     targetTitles: form.value.targetTitles.split('\n').filter(Boolean),
     mustHaveSkills: form.value.mustHaveSkills.split('\n').filter(Boolean),
@@ -91,6 +79,8 @@ function loadFromProfile(p) {
   form.value.applicantName = p.applicantName || p.displayName || form.value.applicantName || auth.user?.name || '';
   form.value.headline = p.headline || '';
   form.value.linkedin = p.linkedin || '';
+  form.value.github = p.github || '';
+  form.value.portfolio = p.portfolio || '';
   form.value.resumeText = p.resumeText || '';
   if (p.targetTitles?.length) form.value.targetTitles = p.targetTitles.join('\n');
   if (p.mustHaveSkills?.length) form.value.mustHaveSkills = p.mustHaveSkills.join('\n');
@@ -100,6 +90,21 @@ function loadFromProfile(p) {
   resumeMode.value = p.defaultApplyResumeMode === 'base' ? 'base' : 'tailored';
   supplementPages.value = p.defaultSupplementPages || 3;
   tailorMode.value = p.defaultTailorMode === 'high_match' ? 'high_match' : 'balanced';
+  if (hasResume.value) resumeParsed.value = true;
+}
+
+function onResumeParsed(result) {
+  const extras = applyParseResultToForm(form.value, result, {
+    authEmail: auth.user?.email || '',
+    onlyIfEmpty: true,
+  });
+  if (!digestEmail.value.trim() && extras.digestEmail) {
+    digestEmail.value = extras.digestEmail;
+  }
+  if (!contactPhone.value.trim() && extras.contactPhone) {
+    contactPhone.value = extras.contactPhone;
+  }
+  resumeParsed.value = true;
 }
 
 watch(
@@ -114,16 +119,19 @@ watch(
 
 async function finish() {
   error.value = '';
-  if (!form.value.resumeText.trim() || form.value.resumeText.trim().length < 50) {
-    error.value = 'Please upload or paste your resume (at least a few lines).';
+  if (!hasResume.value) {
+    error.value = 'Please upload or paste your resume first.';
+    step.value = 1;
     return;
   }
   if (!digestEmail.value.trim()) {
     error.value = 'Add your personal email — applications need your real address.';
+    step.value = 3;
     return;
   }
   if (!form.value.applicantName.trim()) {
     error.value = 'Add the name employers should see on your applications.';
+    step.value = 2;
     return;
   }
   saving.value = true;
@@ -142,12 +150,12 @@ async function finish() {
 }
 
 async function goNext() {
-  if (step.value === 1 && !form.value.applicantName.trim()) {
-    error.value = 'Enter the name employers should see on applications.';
+  if (step.value === 1 && !hasResume.value) {
+    error.value = 'Upload your resume (PDF or Word) — or paste the text below.';
     return;
   }
-  if (step.value === 2 && form.value.resumeText.trim().length < 50) {
-    error.value = 'Please upload or paste your resume first.';
+  if (step.value === 2 && !form.value.applicantName.trim()) {
+    error.value = 'Enter the name employers should see on applications.';
     return;
   }
   if (step.value === 3 && !digestEmail.value.trim()) {
@@ -161,15 +169,21 @@ async function goNext() {
 }
 
 onMounted(async () => {
-  step.value = readOnboardingStep(auth.user?.id);
+  const savedStep = readOnboardingStep(auth.user?.id);
+  step.value = savedStep >= 1 && savedStep <= 3 ? savedStep : 1;
   if (!profileStore.loaded) {
     profileStore.hydrateFromCache();
     await profileStore.fetch().catch(() => {});
   }
   loadFromProfile(profileStore.profile);
+  if (!digestEmail.value.trim()) {
+    digestEmail.value = auth.user?.email || '';
+  }
   autosaveEnabled.value = true;
   if (profileStore.profile?.onboardingComplete) {
     router.replace('/');
+  } else if (!hasResume.value) {
+    step.value = 1;
   }
 });
 </script>
@@ -177,13 +191,17 @@ onMounted(async () => {
 <template>
   <div class="min-h-screen safe-top px-4 pb-4 pt-4 lg:py-8">
     <div class="mx-auto max-w-2xl">
-      <h1 class="text-2xl font-bold text-slate-100">Set up your account</h1>
-      <p class="mt-1 text-slate-400">Three quick steps — your progress is saved automatically.</p>
+      <h1 class="text-2xl font-bold text-slate-100">Let's get you applying</h1>
+      <p class="mt-1 text-slate-400">
+        {{ steps[step - 1].hint }} — progress saves automatically.
+      </p>
       <p v-if="saveState === 'saving'" class="mt-1 text-xs text-slate-500">Saving…</p>
       <p v-else-if="saveState === 'saved'" class="mt-1 text-xs text-teal-400">Progress saved</p>
 
       <div class="mt-6">
-        <p class="text-sm font-medium text-slate-300">Step {{ step }} of {{ steps.length }}</p>
+        <p class="text-sm font-medium text-slate-300">
+          Step {{ step }} of {{ steps.length }} · {{ steps[step - 1].label }}
+        </p>
         <div class="mt-3 flex gap-2">
           <div
             v-for="(_, i) in steps"
@@ -195,49 +213,79 @@ onMounted(async () => {
       </div>
 
       <form class="card relative mt-6 space-y-4 p-6 pb-28 sm:pb-6" @submit.prevent="step < 3 ? goNext() : finish()">
+        <!-- Step 1: Resume first -->
         <template v-if="step === 1">
-          <h2 class="font-semibold text-slate-200">About you</h2>
+          <h2 class="font-semibold text-slate-200">Upload your resume</h2>
+          <p class="text-sm text-slate-500">
+            PDF or Word from your phone or computer. We'll extract your skills, titles, and contact info.
+          </p>
+          <ResumeUpload
+            v-model="form.resumeText"
+            variant="hero"
+            :apply-to-profile="true"
+            :merge-skills="true"
+            @parsed="onResumeParsed"
+          />
+          <details class="rounded-lg border border-slate-800 bg-slate-900/40 p-3">
+            <summary class="cursor-pointer text-sm text-slate-400">Or paste resume text</summary>
+            <textarea
+              v-model="form.resumeText"
+              rows="5"
+              class="input mt-3 text-sm"
+              placeholder="Paste your resume here…"
+              @blur="
+                form.resumeText.trim().length >= 50 &&
+                  profileStore.parseResume({ resumeText: form.resumeText, applyToProfile: true }).then(onResumeParsed)
+              "
+            />
+          </details>
+          <p v-if="resumeParsed && hasResume" class="text-sm text-teal-400">
+            ✓ Resume loaded — tap Continue to review your profile.
+          </p>
+        </template>
+
+        <!-- Step 2: Review auto-filled profile -->
+        <template v-else-if="step === 2">
+          <h2 class="font-semibold text-slate-200">Review your profile</h2>
+          <p class="text-sm text-slate-500">We pulled this from your resume. Edit anything that looks off.</p>
+
           <div>
             <label class="mb-1 block text-sm text-slate-400">Name on applications</label>
             <input
               v-model="form.applicantName"
               required
               class="input"
-              placeholder="Full name employers and recruiters will see"
+              placeholder="Full name employers will see"
             />
           </div>
           <input
             v-model="form.headline"
             class="input"
-            placeholder="e.g. Cloud Engineer | AWS | Kubernetes"
+            placeholder="Headline · e.g. Platform Engineer | AWS | Kubernetes"
           />
-          <input v-model="form.linkedin" class="input" placeholder="LinkedIn URL (optional)" />
-        </template>
+          <input v-model="form.linkedin" class="input" placeholder="LinkedIn URL" />
+          <input v-model="form.github" class="input" placeholder="GitHub URL (optional)" />
 
-        <template v-else-if="step === 2">
-          <h2 class="font-semibold text-slate-200">Upload your resume</h2>
-          <p class="text-sm text-slate-500">Preview it below to make sure it looks right before applying.</p>
-          <ResumeUpload v-model="form.resumeText" :apply-to-profile="false" @parsed="onResumeParsed" />
-          <textarea
-            v-model="form.resumeText"
-            rows="6"
-            class="input text-sm"
-            placeholder="Or paste your resume text here…"
-          />
+          <div>
+            <label class="mb-1 block text-sm text-slate-400">Target job titles (one per line)</label>
+            <textarea v-model="form.targetTitles" rows="3" class="input font-mono text-sm" />
+          </div>
+          <div>
+            <label class="mb-1 block text-sm text-slate-400">Core skills</label>
+            <textarea v-model="form.mustHaveSkills" rows="3" class="input font-mono text-sm" />
+          </div>
+
           <ResumePreview
             :resume-text="form.resumeText"
             :score="profileStore.resumeScore"
             :skills="profileStore.extractedSkills"
           />
-          <div>
-            <label class="mb-1 block text-sm text-slate-400">Target job titles (one per line)</label>
-            <textarea v-model="form.targetTitles" rows="4" class="input font-mono text-sm" required />
-          </div>
         </template>
 
+        <!-- Step 3: Apply settings -->
         <template v-else>
           <h2 class="font-semibold text-slate-200">How you'll apply</h2>
-          <p class="text-sm text-slate-400">Set your email, resume mode, pages, and JD matching.</p>
+          <p class="text-sm text-slate-400">Tailored resumes, email for applications, and matching strength.</p>
 
           <TailorApplySettings
             v-model:resume-mode="resumeMode"
@@ -246,14 +294,8 @@ onMounted(async () => {
             v-model:digest-email="digestEmail"
             v-model:contact-phone="contactPhone"
             v-model:applicant-name="form.applicantName"
-            :show-job-count="false"
-          />
-
-          <ResumePreview
             :resume-text="form.resumeText"
-            :score="profileStore.resumeScore"
-            :skills="profileStore.extractedSkills"
-            empty-message="No resume loaded — go back and upload one."
+            :show-job-count="false"
           />
         </template>
 

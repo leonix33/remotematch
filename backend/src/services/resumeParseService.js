@@ -423,14 +423,62 @@ function buildParseResult(resumeText) {
   const extractedSkills = extractSkillsFromText(resumeText);
   const suggestedTitles = suggestTitles(resumeText);
   const suggestedHeadline = suggestHeadline(resumeText, extractedSkills);
+  const extractedContact = extractContactFromResume(resumeText);
 
   return {
     resumeText,
     extractedSkills,
     suggestedTitles,
     suggestedHeadline,
+    extractedContact,
     wordCount: resumeText.split(/\s+/).filter(Boolean).length,
     charCount: resumeText.length,
+  };
+}
+
+/** Pull name, email, phone, and links from resume header for profile auto-fill */
+function extractContactFromResume(resumeText = '') {
+  const text = String(resumeText || '');
+  const lines = text
+    .replace(/\r\n/g, '\n')
+    .split('\n')
+    .map((l) => l.trim())
+    .filter(Boolean);
+
+  const emailMatch = text.match(/[\w.+-]+@[\w.-]+\.[a-z]{2,}/i);
+  const phoneMatch = text.match(
+    /(?:\+?1[-.\s]?)?(?:\(?\d{3}\)?[-.\s]?)?\d{3}[-.\s]?\d{4}(?:\s*(?:ext|x)\.?\s*\d+)?/i
+  );
+  const linkedinMatch = text.match(/(?:https?:\/\/)?(?:www\.)?linkedin\.com\/in\/[\w%-]+/i);
+  const githubMatch = text.match(/(?:https?:\/\/)?(?:www\.)?github\.com\/[\w-]+/i);
+  const portfolioMatch = text.match(
+    /https?:\/\/(?!(?:www\.)?linkedin\.com|(?:www\.)?github\.com)[\w.-]+\.[a-z]{2,}(?:\/[^\s)]*)?/i
+  );
+
+  let applicantName = '';
+  for (const line of lines.slice(0, 6)) {
+    if (line.length > 70 || line.length < 3) continue;
+    if (/@|https?:\/\/|linkedin\.com|github\.com|\(\d{3}\)|\d{3}[-.\s]\d{3}/i.test(line)) continue;
+    if (/^(resume|curriculum vitae|cv)$/i.test(line)) continue;
+    if (/^[A-Z][a-zA-Z'.-]+(?:\s+[A-Z][a-zA-Z'.-]+){0,4}$/.test(line)) {
+      applicantName = line;
+      break;
+    }
+  }
+
+  const normalizeUrl = (url) => {
+    if (!url) return '';
+    return /^https?:\/\//i.test(url) ? url : `https://${url}`;
+  };
+
+  return {
+    applicantName,
+    displayName: applicantName,
+    digestEmail: emailMatch?.[0]?.toLowerCase() || '',
+    contactPhone: phoneMatch?.[0] || '',
+    linkedin: normalizeUrl(linkedinMatch?.[0] || ''),
+    github: normalizeUrl(githubMatch?.[0] || ''),
+    portfolio: portfolioMatch?.[0] || '',
   };
 }
 
@@ -470,4 +518,5 @@ module.exports = {
   shouldReplaceCriteriaFromResume,
   isDefaultOnboardingCriteria,
   isUnreadableResumeText,
+  extractContactFromResume,
 };

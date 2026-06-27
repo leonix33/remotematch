@@ -151,7 +151,7 @@ async function saveResumeText() {
 }
 
 function onResumeParsed() {
-  resumeText.value = profileStore.profile?.resumeText || resumeText.value;
+  syncFromProfile(profileStore.profile);
 }
 
 function mergeBatchIntoActivity(result) {
@@ -291,6 +291,7 @@ onMounted(async () => {
       <div class="mt-5">
         <ResumeUpload
           v-model="resumeText"
+          :variant="hasResume ? 'default' : 'hero'"
           :apply-to-profile="true"
           :merge-skills="false"
           :show-preview="false"

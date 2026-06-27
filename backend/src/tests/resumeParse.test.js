@@ -7,6 +7,7 @@ const {
   profileResumeAlignment,
   isDefaultOnboardingCriteria,
   isUnreadableResumeText,
+  extractContactFromResume,
 } = require('../services/resumeParseService');
 
 describe('resumeParseService', () => {
@@ -20,6 +21,23 @@ describe('resumeParseService', () => {
     assert.ok(mustHave.includes('terraform'));
     assert.ok(niceToHave.includes('databricks'));
     assert.ok(niceToHave.includes('prometheus'));
+  });
+
+  it('extracts contact fields from resume header', () => {
+    const text = `
+Leonix Example
+leonix23@gmail.com · (555) 123-4567
+https://linkedin.com/in/leonix · https://github.com/leonix33
+
+SUMMARY
+Platform engineer with AWS and Kubernetes.
+`;
+    const contact = extractContactFromResume(text);
+    assert.equal(contact.applicantName, 'Leonix Example');
+    assert.equal(contact.digestEmail, 'leonix23@gmail.com');
+    assert.ok(contact.contactPhone.includes('555'));
+    assert.ok(contact.linkedin.includes('linkedin.com'));
+    assert.ok(contact.github.includes('github.com'));
   });
 
   it('scores richer resumes higher', () => {

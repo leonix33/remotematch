@@ -16,6 +16,7 @@ const props = defineProps({
   showPreview: { type: Boolean, default: true },
   applyToProfile: { type: Boolean, default: false },
   mergeSkills: { type: Boolean, default: false },
+  variant: { type: String, default: 'default' },
 });
 
 const emit = defineEmits(['update:modelValue', 'parsed', 'error', 'cleared']);
@@ -97,9 +98,8 @@ async function clearCorruptResume() {
   }
 }
 
-async function saveDocxResume(file, resumeText) {
-  applyLocalResume(resumeText);
-  saveWarning.value = '';
+async function saveParsedResume(file, resumeText) {
+  emit('update:modelValue', resumeText);
 
   if (!props.applyToProfile) {
     emit('parsed', { resumeText, extractedSkills: { all: profileStore.extractedSkills } });
@@ -107,16 +107,17 @@ async function saveDocxResume(file, resumeText) {
   }
 
   try {
-    const profile = await profileStore.saveResumeText(resumeText, { resumeFileName: file.name });
-    parseSummary.value = buildParseSummary({ resumeScore: profile.resumeScore }, resumeText);
-    emit('parsed', {
+    const result = await profileStore.parseResume({
       resumeText,
-      extractedSkills: { all: profile.extractedSkills || [] },
-      resumeScore: profile.resumeScore,
+      filename: file?.name || 'resume.txt',
+      applyToProfile: true,
+      mergeSkills: props.mergeSkills,
     });
+    parseSummary.value = buildParseSummary(result, resumeText);
+    emit('parsed', result);
   } catch {
     saveWarning.value =
-      'Resume text loaded here but the server could not save yet. Wait 30 seconds and click Save resume, or paste the text below.';
+      'Resume text loaded but skills could not be parsed yet. Continue setup — we will retry when you save.';
     emit('parsed', { resumeText, extractedSkills: { all: [] } });
   }
 }
@@ -166,7 +167,7 @@ async function handleFile(event) {
         throw new Error('Could not read this Word file. Try PDF or paste your resume text below.');
       }
       try {
-        await saveDocxResume(file, resumeText);
+        await saveParsedResume(file, resumeText);
       } catch (e) {
         localError.value = formatResumeUploadError(e);
         emit('error', localError.value);
@@ -179,7 +180,7 @@ async function handleFile(event) {
       if (isUnreadableResumeText(resumeText)) {
         throw new Error('Could not read this file. Paste your resume text instead.');
       }
-      await saveDocxResume(file, resumeText);
+      await saveParsedResume(file, resumeText);
       return;
     }
 
@@ -221,14 +222,19 @@ const previewText = computed(() => {
 <template>
   <div class="space-y-3">
     <label
-      class="flex cursor-pointer flex-col items-center rounded-xl border-2 border-dashed border-slate-700 bg-slate-800/40 px-4 py-6 transition hover:border-teal-600/50 hover:bg-slate-800/60"
-      :class="parsing ? 'pointer-events-none opacity-70' : ''"
+      class="resume-upload-dropzone flex cursor-pointer flex-col items-center rounded-xl border-2 border-dashed border-slate-700 bg-slate-800/40 px-4 py-6 transition hover:border-teal-600/50 hover:bg-slate-800/60"
+      :class="[
+        parsing ? 'pointer-events-none opacity-70' : '',
+        variant === 'hero' ? 'resume-upload-hero' : '',
+      ]"
     >
       <span class="text-2xl">{{ parsing ? '⏳' : '📄' }}</span>
-      <span class="mt-2 text-sm font-medium text-slate-300">
-        {{ parsing ? 'Reading resume…' : fileName || 'Upload resume (PDF, .docx, .txt, .md)' }}
+      <span class="mt-2 text-center text-sm font-medium text-slate-300">
+        {{ parsing ? 'Reading your resume…' : fileName || (variant === 'hero' ? 'Tap to upload resume' : 'Upload resume (PDF, .docx, .txt, .md)') }}
       </span>
-      <span class="mt-1 text-xs text-slate-500">PDF, Word (.docx), .txt, or .md · max 8 MB</span>
+      <span class="mt-1 text-center text-xs text-slate-500">
+        {{ variant === 'hero' ? 'PDF or Word · from Files, iCloud, or Google Drive' : 'PDF, Word (.docx), .txt, or .md · max 8 MB' }}
+      </span>
       <input
         type="file"
         accept=".pdf,.docx,.txt,.md,.text,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"

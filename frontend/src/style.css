@@ -1953,3 +1953,21 @@ body {
     font-size: 0.75rem;
   }
 }
+
+.resume-upload-hero {
+  min-height: 11rem;
+  padding-top: 2rem;
+  padding-bottom: 2rem;
+}
+
+.resume-upload-hero .text-2xl {
+  font-size: 2.5rem;
+}
+
+@media (max-width: 640px) {
+  .resume-upload-hero {
+    min-height: 12rem;
+    padding-top: 2.25rem;
+    padding-bottom: 2.25rem;
+  }
+}

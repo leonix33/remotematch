@@ -2,6 +2,7 @@
 import { ref } from 'vue';
 import { useRouter, RouterLink } from 'vue-router';
 import { useAuthStore } from '../stores/auth';
+import { useProfileStore } from '../stores/profile';
 import AppLogo from '../components/AppLogo.vue';
 import { brand } from '../brand';
 
@@ -11,13 +12,18 @@ const error = ref('');
 const loading = ref(false);
 const router = useRouter();
 const auth = useAuthStore();
+const profileStore = useProfileStore();
 
 async function submit() {
   error.value = '';
   loading.value = true;
   try {
     await auth.login(email.value.trim(), password.value);
-    router.push('/');
+    if (!profileStore.profile?.onboardingComplete) {
+      router.push('/onboarding');
+    } else {
+      router.push('/');
+    }
   } catch (e) {
     const status = e.response?.status;
     const msg = e.response?.data?.message || e.message || 'Login failed';

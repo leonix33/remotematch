@@ -42,7 +42,7 @@ const router = createRouter({
     { path: '/privacy', component: LegalView, meta: { guest: true } },
     { path: '/terms', component: LegalView, meta: { guest: true } },
     { path: '/onboarding', component: OnboardingView, meta: { requiresAuth: true, skipOnboarding: true } },
-    { path: '/', component: DashboardView, meta: { requiresAuth: true, skipOnboarding: true } },
+    { path: '/', component: DashboardView, meta: { requiresAuth: true } },
     { path: '/concierge', component: ConciergeView, meta: { requiresAuth: true, skipOnboarding: true } },
     {
       path: '/monitor',

@@ -188,6 +188,29 @@ async function parseResume(req, res, next) {
         patch.targetTitles = parsed.suggestedTitles;
       }
 
+      const contact = parsed.extractedContact || {};
+      if (!profile.applicantName?.trim() && contact.applicantName) {
+        patch.applicantName = contact.applicantName;
+      }
+      if (!profile.displayName?.trim() && (contact.displayName || contact.applicantName)) {
+        patch.displayName = contact.displayName || contact.applicantName;
+      }
+      if (!profile.digestEmail?.trim() && contact.digestEmail) {
+        patch.digestEmail = contact.digestEmail;
+      }
+      if (!profile.contactPhone?.trim() && contact.contactPhone) {
+        patch.contactPhone = contact.contactPhone;
+      }
+      if (!profile.linkedin?.trim() && contact.linkedin) {
+        patch.linkedin = contact.linkedin;
+      }
+      if (!profile.github?.trim() && contact.github) {
+        patch.github = contact.github;
+      }
+      if (!profile.portfolio?.trim() && contact.portfolio) {
+        patch.portfolio = contact.portfolio;
+      }
+
       profile = await profileService.update(req.user.sub, patch);
     }
 
