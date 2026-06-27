@@ -635,6 +635,142 @@ body {
   @apply min-h-10 shrink-0 px-4 py-2 text-sm;
 }
 
+/* ── Resume document preview (Word-like) ── */
+.resume-doc-shell {
+  @apply rounded-xl border border-slate-700/60 bg-slate-800/40 p-4 sm:p-6;
+}
+
+.resume-doc-shell-full .resume-page {
+  max-width: none;
+}
+
+.resume-page {
+  @apply mx-auto max-w-[8.5in] bg-white text-slate-900 shadow-2xl shadow-black/40;
+  min-height: 11in;
+  padding: 0.65in 0.7in 0.75in;
+  font-family: Calibri, 'Segoe UI', Candara, Arial, sans-serif;
+  font-size: 11pt;
+  line-height: 1.35;
+  color: #1e293b;
+}
+
+.resume-header-block {
+  @apply border-b border-slate-300 pb-4 text-center;
+}
+
+.resume-name {
+  margin: 0;
+  font-size: 22pt;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: #0f172a;
+  line-height: 1.15;
+}
+
+.resume-headline {
+  margin: 0.35rem 0 0;
+  font-size: 11pt;
+  font-weight: 600;
+  color: #334155;
+}
+
+.resume-contact-row {
+  @apply mt-2 flex flex-wrap items-center justify-center gap-x-3 gap-y-1;
+  font-size: 9.5pt;
+  color: #475569;
+}
+
+.resume-contact-item + .resume-contact-item::before {
+  content: '·';
+  margin: 0 0.5rem;
+  color: #94a3b8;
+}
+
+.resume-section {
+  @apply mt-4;
+}
+
+.resume-section-title,
+.resume-section-title-caps {
+  margin: 0 0 0.35rem;
+  padding-bottom: 0.15rem;
+  border-bottom: 1.5px solid #0f172a;
+  font-size: 10.5pt;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #0f172a;
+}
+
+.resume-section-title-caps {
+  letter-spacing: 0.1em;
+}
+
+.resume-section-credentials .resume-body-line,
+.resume-section-credentials .resume-bullet-item {
+  font-weight: 500;
+}
+
+.resume-job-header {
+  @apply mt-2.5 mb-0.5 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0;
+}
+
+.resume-job-title {
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.resume-job-meta {
+  font-size: 10pt;
+  font-weight: 600;
+  color: #475569;
+  white-space: nowrap;
+}
+
+.resume-date-line {
+  margin: 0 0 0.15rem;
+  font-size: 10pt;
+  font-style: italic;
+  color: #64748b;
+}
+
+.resume-body-line {
+  margin: 0.15rem 0;
+  text-align: justify;
+}
+
+.resume-bullet-list {
+  margin: 0.1rem 0 0.25rem;
+  padding-left: 1.15rem;
+  list-style-type: disc;
+}
+
+.resume-bullet-nested {
+  margin-left: 0.75rem;
+  list-style-type: circle;
+}
+
+.resume-bullet-item {
+  margin: 0.1rem 0;
+  padding-left: 0.15rem;
+  text-align: justify;
+}
+
+.resume-spacer {
+  height: 0.35rem;
+}
+
+.resume-fallback {
+  white-space: pre-wrap;
+  font-size: 11pt;
+  line-height: 1.45;
+}
+
+.resume-cover-letter {
+  @apply max-h-48 overflow-y-auto rounded-lg border border-slate-300 bg-white p-5 shadow-inner;
+  font-family: Calibri, 'Segoe UI', Candara, Arial, sans-serif;
+}
+
 /* ── Mobile PWA / iPhone ── */
 .mobile-app-shell {
   width: 100%;
@@ -709,6 +845,16 @@ body {
 }
 
 @media (max-width: 640px) {
+  .resume-page {
+    min-height: auto;
+    padding: 1rem 1.1rem 1.25rem;
+    font-size: 10pt;
+  }
+
+  .resume-name {
+    font-size: 18pt;
+  }
+
   html {
     font-size: clamp(16px, 4.2vw, 17px);
   }
