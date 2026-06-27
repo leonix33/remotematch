@@ -3,6 +3,18 @@
  */
 
 const FALSE_MID_SENTENCE_HEADERS = new Set(['EXPERIENCE', 'CERTIFICATION', 'SKILLS', 'TOOLS', 'EDUCATION']);
+const SECTION_HEADER_WORDS = new Set([
+  'EXPERIENCE',
+  'EDUCATION',
+  'CERTIFICATIONS',
+  'CERTIFICATION',
+  'TOOLS',
+  'SKILLS',
+  'SUMMARY',
+  'PROFILE',
+  'PROJECTS',
+  'AWARDS',
+]);
 
 function endsIncomplete(line) {
   const t = String(line || '').trim();
@@ -35,8 +47,19 @@ export function repairFalseSectionBreaks(lines) {
         i += 1;
         continue;
       }
+      if (upper === 'TOOLS' && (startsContinuation(next) || /\b(scanning|integrating|security)$/i.test(prev))) {
+        out[out.length - 1] = `${prev} ${next}`.trim();
+        i += 1;
+        continue;
+      }
       if (endsIncomplete(prev) && startsContinuation(next)) {
         out[out.length - 1] = `${prev} ${next}`;
+        i += 1;
+        continue;
+      }
+      if (upper === 'TOOLS' && next && /\b(as measured by|Cloud Engineer|DevOps Engineer)\b/i.test(next)) {
+        if (prev) out[out.length - 1] = `${prev} ${next}`.trim();
+        else out.push(next);
         i += 1;
         continue;
       }
@@ -52,6 +75,11 @@ export function repairSplitNameLines(lines) {
   for (let i = 0; i < lines.length; i += 1) {
     const t = (lines[i] || '').trim();
     const next = (lines[i + 1] || '').trim();
+
+    if (SECTION_HEADER_WORDS.has(t.toUpperCase())) {
+      out.push(lines[i]);
+      continue;
+    }
 
     if (/^[A-Z]{2,20}$/.test(t) && /^[A-Z][A-Za-z'-]+\s+/.test(next)) {
       const parts = next.split(/\s+/);

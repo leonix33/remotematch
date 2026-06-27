@@ -3,8 +3,11 @@ import { repairResumeText } from './resumeRepair';
 import {
   parseExperienceSectionLines,
   parseSkillsSectionLines,
+  parseToolsSectionLines,
   parseEducationSectionLines,
   parseCertificationsSectionLines,
+  isSpuriousToolsContent,
+  isFalseToolsHeader,
 } from './resumeSectionParsers';
 import { splitParagraphToBullets } from './resumeExperienceParser';
 
@@ -29,7 +32,8 @@ const SECTION_DEFS = [
     key: 'certifications',
     labels: /^certifications?$|^credentials$|^licenses?$|^licences?$|^professional\s+development$|^training$/i,
   },
-  { key: 'skills', labels: /^(technical\s+)?skills$|^core\s+competencies$|^technologies$|^tools$/i },
+  { key: 'skills', labels: /^(technical\s+)?skills$|^core\s+competencies$|^technologies$/i },
+  { key: 'tools', labels: /^tools$/i },
   { key: 'projects', labels: /^projects$|^selected\s+projects$|^key\s+projects$/i },
   { key: 'awards', labels: /^awards$|^honors$|^achievements$/i },
 ];
@@ -46,7 +50,7 @@ function classifySectionHeading(line) {
   return 'other';
 }
 
-function isLikelySectionHeader(line) {
+function isLikelySectionHeader(line, lines = null, lineIndex = -1) {
   const t = stripHeader(line);
   if (!t || t.length > 90) return false;
   if (/^[-•*●▪]\s/.test(t)) return false;
@@ -54,9 +58,32 @@ function isLikelySectionHeader(line) {
   if (t.includes('@') || /\(\d{3}\)/.test(t)) return false;
   if (/\b(19|20)\d{2}\b/.test(t) && (t.includes('–') || t.includes('-') || t.includes('to'))) return false;
 
-  // Bare EXPERIENCE alone is almost always a false break inside summary text
-  if (t.toUpperCase() === 'EXPERIENCE' && t.length < 20) return false;
-  if (t.toUpperCase() === 'CERTIFICATION' && t.length < 25) return false;
+  // Mid-sentence false breaks — only when the next line continues lowercase prose
+  if (t.toUpperCase() === 'EXPERIENCE' && t.length < 20 && lines && lineIndex >= 0) {
+    let next = '';
+    for (let j = lineIndex + 1; j < lines.length; j += 1) {
+      next = String(lines[j] || '').trim();
+      if (next) break;
+    }
+    if (/^[a-z(]/.test(next)) return false;
+  }
+  if (t.toUpperCase() === 'CERTIFICATION' && t.length < 25 && lines && lineIndex >= 0) {
+    let next = '';
+    for (let j = lineIndex + 1; j < lines.length; j += 1) {
+      next = String(lines[j] || '').trim();
+      if (next) break;
+    }
+    if (/^portfolio/i.test(next)) return false;
+  }
+  if (
+    t.toUpperCase() === 'TOOLS' &&
+    t.length < 20 &&
+    lines &&
+    lineIndex >= 0 &&
+    isFalseToolsHeader(lines, lineIndex)
+  ) {
+    return false;
+  }
 
   const key = classifySectionHeading(t);
   if (key !== 'other') return true;
@@ -73,6 +100,7 @@ function isLikelySectionHeader(line) {
 function classifySectionLines(contentLines, sectionKey) {
   if (sectionKey === 'experience') return parseExperienceSectionLines(contentLines);
   if (sectionKey === 'skills') return parseSkillsSectionLines(contentLines);
+  if (sectionKey === 'tools') return parseToolsSectionLines(contentLines);
   if (sectionKey === 'education') return parseEducationSectionLines(contentLines);
   if (sectionKey === 'certifications' || sectionKey === 'credentials') {
     return parseCertificationsSectionLines(contentLines);
@@ -94,16 +122,56 @@ function classifySectionLines(contentLines, sectionKey) {
   return rows;
 }
 
+function reconcileSpuriousToolsSections(sections) {
+  const out = [];
+
+  for (const section of sections) {
+    if (section.key !== 'tools') {
+      out.push(section);
+      continue;
+    }
+
+    const content = section.contentLines.join('\n').trim();
+    if (!isSpuriousToolsContent(content)) {
+      out.push(section);
+      continue;
+    }
+
+    let experience = null;
+    for (let i = out.length - 1; i >= 0; i -= 1) {
+      if (out[i].key === 'experience') {
+        experience = out[i];
+        break;
+      }
+    }
+
+    if (experience) {
+      const merged = section.contentLines.filter((l) => String(l).trim());
+      if (merged.length) experience.contentLines.push(...merged);
+    } else {
+      out.push({
+        key: 'experience',
+        heading: 'Professional Experience',
+        contentLines: section.contentLines.filter((l) => String(l).trim()),
+        immutable: false,
+      });
+    }
+  }
+
+  return out;
+}
+
 export function parseResumeForDisplay(resumeText = '') {
-  const repaired = repairResumeText(resumeText);
-  const normalized = normalizeResumeLayout(repaired);
-  const lines = normalized.split('\n');
+  const normalized = normalizeResumeLayout(repairResumeText(resumeText));
+  const repaired = repairResumeText(normalized);
+  const lines = repaired.split('\n');
   const sections = [];
   let headerLines = [];
   let current = null;
   let seenSection = false;
 
-  for (const line of lines) {
+  for (let lineIdx = 0; lineIdx < lines.length; lineIdx += 1) {
+    const line = lines[lineIdx];
     const trimmed = line.trim();
 
     if (!trimmed) {
@@ -112,7 +180,7 @@ export function parseResumeForDisplay(resumeText = '') {
       continue;
     }
 
-    if (!seenSection && isLikelySectionHeader(trimmed)) {
+    if (!seenSection && isLikelySectionHeader(trimmed, lines, lineIdx)) {
       seenSection = true;
       const key = classifySectionHeading(trimmed);
       current = { key, heading: stripHeader(trimmed), contentLines: [], immutable: IMMUTABLE_SECTION_KEYS.has(key) };
@@ -120,7 +188,7 @@ export function parseResumeForDisplay(resumeText = '') {
       continue;
     }
 
-    if (seenSection && isLikelySectionHeader(trimmed)) {
+    if (seenSection && isLikelySectionHeader(trimmed, lines, lineIdx)) {
       const key = classifySectionHeading(trimmed);
       current = { key, heading: stripHeader(trimmed), contentLines: [], immutable: IMMUTABLE_SECTION_KEYS.has(key) };
       sections.push(current);
@@ -132,6 +200,10 @@ export function parseResumeForDisplay(resumeText = '') {
       continue;
     }
 
+    if (trimmed.toUpperCase() === 'TOOLS' && isFalseToolsHeader(lines, lineIdx)) {
+      continue;
+    }
+
     if (current) current.contentLines.push(line);
   }
 
@@ -140,15 +212,20 @@ export function parseResumeForDisplay(resumeText = '') {
     headerLines = inferHeaderFromBody(lines);
   }
 
-  const headingStyle = sections.find((s) => s.heading)?.heading
-    ? /^[A-Z][A-Z0-9\s/&\-:()'.]+$/.test(sections.find((s) => s.heading).heading.trim())
+  const reconciled = reconcileSpuriousToolsSections(sections).filter((s) => {
+    if (s.key !== 'tools') return true;
+    return s.contentLines.join('\n').trim().length > 0 && !isSpuriousToolsContent(s.contentLines.join('\n'));
+  });
+
+  const headingStyle = reconciled.find((s) => s.heading)?.heading
+    ? /^[A-Z][A-Z0-9\s/&\-:()'.]+$/.test(reconciled.find((s) => s.heading).heading.trim())
       ? 'ALL_CAPS'
       : 'TITLE_CASE'
     : 'PLAIN';
 
   return {
     headerLines: headerLines.map((l) => l.trimEnd()),
-    sections: sections.map((s) => ({
+    sections: reconciled.map((s) => ({
       ...s,
       content: s.contentLines.join('\n').trim(),
       lines: classifySectionLines(s.contentLines, s.key),

@@ -1,6 +1,7 @@
 <script setup>
 import { computed } from 'vue';
 import { parseResumeForDisplay, parseResumeHeader, splitContactParts, isSkillsTagline } from '../utils/resumeDocument';
+import ResumeDocumentRow from './ResumeDocumentRow.vue';
 
 const props = defineProps({
   text: { type: String, default: '' },
@@ -17,6 +18,30 @@ const contactParts = computed(() => {
   }
   return parts;
 });
+
+function groupExperienceRows(lines) {
+  const groups = [];
+  let jobEntry = null;
+
+  for (const row of lines) {
+    if (row.type === 'job-block' || row.type === 'job-header') {
+      if (jobEntry) groups.push(jobEntry);
+      jobEntry = { kind: 'job-entry', rows: [row] };
+    } else if (jobEntry) {
+      jobEntry.rows.push(row);
+    } else {
+      groups.push({ kind: 'flat', rows: [row] });
+    }
+  }
+
+  if (jobEntry) groups.push(jobEntry);
+  return groups;
+}
+
+function getSectionRowGroups(section) {
+  if (section.key === 'experience') return groupExperienceRows(section.lines);
+  return [{ kind: 'flat', rows: section.lines }];
+}
 
 function taglineClass(line, index) {
   if (index > 0 || isSkillsTagline(line)) return 'resume-tagline resume-tagline-skills';
@@ -66,55 +91,22 @@ function sectionHeadingClass(heading, style) {
           {{ section.heading }}
         </h2>
 
-        <div class="resume-section-body">
-          <template v-for="(row, ridx) in section.lines" :key="ridx">
-            <div v-if="row.type === 'spacer'" class="resume-spacer" />
-
-            <article v-else-if="row.type === 'job-block'" class="resume-job-block">
-              <div class="resume-job-block-top">
-                <h3 class="resume-job-block-title">{{ row.title }}</h3>
-                <span v-if="row.dates" class="resume-job-block-dates">{{ row.dates }}</span>
-              </div>
-              <p v-if="row.company" class="resume-job-block-company">{{ row.company }}</p>
-              <div v-if="row.tags?.length" class="resume-job-block-tags">
-                <span v-for="(tag, tidx) in row.tags" :key="tidx" class="resume-job-tag">{{ tag }}</span>
-              </div>
-            </article>
-
-            <p v-else-if="row.type === 'job-header'" class="resume-job-header">
-              <span class="resume-job-title">{{ row.text }}</span>
-            </p>
-
-            <p v-else-if="row.type === 'date'" class="resume-date-line">{{ row.text }}</p>
-
-            <p v-else-if="row.type === 'pipe-line'" class="resume-pipe-line">{{ row.text }}</p>
-
-            <div v-else-if="row.type === 'skill-category'" class="resume-skill-category">
-              <span class="resume-skill-category-label">{{ row.label }}:</span>
-              <span class="resume-skill-category-items">{{ row.items }}</span>
+        <div
+          class="resume-section-body"
+          :class="{
+            'resume-section-body-skills': section.key === 'skills',
+            'resume-section-body-tools': section.key === 'tools',
+            'resume-section-body-education': section.key === 'education',
+            'resume-section-body-certs': section.key === 'certifications' || section.key === 'credentials',
+          }"
+        >
+          <template v-for="(group, gidx) in getSectionRowGroups(section)" :key="gidx">
+            <div v-if="group.kind === 'job-entry'" class="resume-job-entry">
+              <ResumeDocumentRow v-for="(row, ridx) in group.rows" :key="ridx" :row="row" />
             </div>
-
-            <div v-else-if="row.type === 'education-block'" class="resume-education-block">
-              <p class="resume-education-degree">{{ row.degree }}</p>
-              <p class="resume-education-school">{{ row.school }}</p>
-            </div>
-
-            <div v-else-if="row.type === 'cert-group'" class="resume-cert-group">
-              <p class="resume-cert-group-label">{{ row.label }}</p>
-              <ul class="resume-bullet-list">
-                <li v-for="(item, cidx) in row.items" :key="cidx" class="resume-bullet-item">{{ item }}</li>
-              </ul>
-            </div>
-
-            <ul
-              v-else-if="row.type === 'bullet'"
-              class="resume-bullet-list"
-              :class="{ 'resume-bullet-nested': row.indent > 2 }"
-            >
-              <li class="resume-bullet-item">{{ row.text }}</li>
-            </ul>
-
-            <p v-else class="resume-body-line">{{ row.text }}</p>
+            <template v-else>
+              <ResumeDocumentRow v-for="(row, ridx) in group.rows" :key="ridx" :row="row" />
+            </template>
           </template>
         </div>
       </section>

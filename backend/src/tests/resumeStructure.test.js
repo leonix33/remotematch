@@ -61,4 +61,28 @@ Databricks Certified Data Engineer`;
     assert.match(guide, /COPY VERBATIM/);
     assert.match(guide, /EXPERIENCE/);
   });
+
+  it('merges false TOOLS breaks back into experience for tailoring', () => {
+    const { prepareResumeTextForParsing } = require('../services/resumeRepairService');
+    const broken = `PROFESSIONAL EXPERIENCE
+DevOps Engineer Aug 2020 Jan 2022 Wimora Technology
+Implemented DevSecOps pipelines with SAST, DAST, dependency scanning, and container image scanning, as measured by security control coverage established across all deployment workflows, by integrating security scanning
+TOOLS
+into CI/CD pipelines as mandatory gates, ensuring vulnerabilities were caught before production deployment.
+Cloud Engineer / DevOps Dec 2016 Jul 2020 PRIMUS Global Services
+Built and operated multi-account AWS environments using EC2, VPC, IAM, S3, RDS, Lambda, and CloudFormation.`;
+
+    const prepared = prepareResumeTextForParsing(broken);
+    assert.ok(!/\nTOOLS\n/i.test(prepared), 'false TOOLS header should be removed');
+    assert.ok(prepared.includes('integrating security scanning into CI/CD pipelines'));
+    assert.ok(prepared.includes('PRIMUS Global Services'));
+
+    const structure = parseResumeStructure(broken);
+    const keys = structure.sections.map((s) => s.key);
+    assert.ok(!keys.includes('tools'), `unexpected tools section: ${keys.join(', ')}`);
+    const experience = structure.sections.find((s) => s.key === 'experience');
+    assert.ok(experience, 'expected experience section');
+    assert.ok(experience.content.includes('into CI/CD pipelines'));
+    assert.ok(experience.content.includes('PRIMUS Global Services'));
+  });
 });

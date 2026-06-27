@@ -95,6 +95,15 @@ function isStructuredResume(text) {
   return sectionHits >= 2 || (lines.length >= 12 && avgLen < 90);
 }
 
+function buildSectionBreakRegex(header) {
+  const escaped = escapeRegex(header);
+  // Avoid splitting when the "header" continues a sentence (e.g. "scanning TOOLS into CI/CD").
+  if (header === 'TOOLS' || header === 'EXPERIENCE' || header === 'CERTIFICATION') {
+    return new RegExp(`\\s+${escaped}(?=\\s+(?![a-z(]))`, 'gi');
+  }
+  return new RegExp(`\\s+${escaped}(?=\\s)`, 'gi');
+}
+
 function insertSectionBreaks(flat) {
   let text = flat;
   const sorted = [...SECTION_HEADERS].sort((a, b) => b.length - a.length);
@@ -104,7 +113,7 @@ function insertSectionBreaks(flat) {
     const header = sorted[i];
     const token = `@@SEC${i}@@`;
     tokens.push({ token, header });
-    const re = new RegExp(`\\s+${escapeRegex(header)}(?=\\s)`, 'gi');
+    const re = buildSectionBreakRegex(header);
     text = text.replace(re, () => `\n\n${token}\n`);
   }
 
@@ -149,6 +158,12 @@ function insertContentBreaks(text) {
     /\s+((?:B\.?S\.?|B\.?A\.?|M\.?S\.?|M\.?A\.?|Ph\.?D\.?|MBA)[^.\n]{0,80}(?:University|College|Institute|School)[^.\n]{0,40})/gi,
     '\n$1'
   );
+
+  t = t.replace(
+    /\b(PROFESSIONAL EXPERIENCE|RELEVANT EXPERIENCE|WORK EXPERIENCE)\s+(?=(?:Senior|Lead|Staff|Principal|Junior|DevOps|Cloud|[A-Z][a-z]))/gi,
+    '$1\n'
+  );
+  t = t.replace(/\bEXPERIENCE\s+(?=(?:Senior|Lead|Staff|Principal|Junior|DevOps|Cloud|[A-Z][a-z]))/gi, 'EXPERIENCE\n');
 
   return t;
 }
