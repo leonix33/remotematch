@@ -1,6 +1,7 @@
 const pdf = require('pdf-parse');
 const mammoth = require('mammoth');
 const { normalizeResumeLayout, preserveLineBreaksFromExtracted } = require('./resumeLayoutService');
+const { repairResumeText } = require('./resumeRepairService');
 
 const MUST_HAVE_CATALOG = [
   'kubernetes',
@@ -434,13 +435,13 @@ function buildParseResult(resumeText) {
 }
 
 function parseResumeFromText(resumeText) {
-  const cleaned = normalizeResumeLayout(resumeText);
+  const cleaned = normalizeResumeLayout(repairResumeText(resumeText));
   return buildParseResult(cleaned);
 }
 
 function enrichProfileResponse(profile) {
   const unreadable = isUnreadableResumeText(profile.resumeText || '');
-  const resumeText = unreadable ? '' : normalizeResumeLayout(profile.resumeText || '');
+  const resumeText = unreadable ? '' : normalizeResumeLayout(repairResumeText(profile.resumeText || ''));
   const extractedSkills = unreadable
     ? []
     : profile.extractedSkills?.length > 0

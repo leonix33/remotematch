@@ -3,6 +3,7 @@
  */
 
 const { normalizeResumeLayout } = require('./resumeLayoutService');
+const { repairResumeText } = require('./resumeRepairService');
 
 const IMMUTABLE_SECTION_KEYS = new Set([
   'education',
@@ -72,7 +73,7 @@ function detectHeadingStyle(line) {
 }
 
 function parseResumeStructure(resumeText = '') {
-  const normalized = normalizeResumeLayout(resumeText);
+  const normalized = normalizeResumeLayout(repairResumeText(resumeText));
   const lines = normalized.replace(/\r\n/g, '\n').split('\n');
   const sections = [];
   let headerLines = [];

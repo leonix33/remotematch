@@ -89,6 +89,23 @@ function sectionHeadingClass(heading, style) {
 
             <p v-else-if="row.type === 'pipe-line'" class="resume-pipe-line">{{ row.text }}</p>
 
+            <div v-else-if="row.type === 'skill-category'" class="resume-skill-category">
+              <span class="resume-skill-category-label">{{ row.label }}:</span>
+              <span class="resume-skill-category-items">{{ row.items }}</span>
+            </div>
+
+            <div v-else-if="row.type === 'education-block'" class="resume-education-block">
+              <p class="resume-education-degree">{{ row.degree }}</p>
+              <p class="resume-education-school">{{ row.school }}</p>
+            </div>
+
+            <div v-else-if="row.type === 'cert-group'" class="resume-cert-group">
+              <p class="resume-cert-group-label">{{ row.label }}</p>
+              <ul class="resume-bullet-list">
+                <li v-for="(item, cidx) in row.items" :key="cidx" class="resume-bullet-item">{{ item }}</li>
+              </ul>
+            </div>
+
             <ul
               v-else-if="row.type === 'bullet'"
               class="resume-bullet-list"

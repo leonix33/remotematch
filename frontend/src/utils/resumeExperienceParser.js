@@ -25,6 +25,8 @@ export function mergeOrphanPrefixLines(lines) {
   return out;
 }
 
+const ACTION_START_RE = /\s+(Architected|Led|Built|Designed|Implemented|Improved|Supported|Managed|Integrated|Established|Deployed|Developed|DevOps Engineer|Cloud Engineer\/)/;
+
 export function tryParseJobBlock(text) {
   const t = String(text || '').trim();
   if (!t || t.length < 12) return null;
@@ -37,6 +39,13 @@ export function tryParseJobBlock(text) {
   let remainder = t.slice(dateMatch.index + dateMatch[0].length).trim().replace(/^[|,\-–—]\s*/, '');
 
   if (!title || title.length > 120) return null;
+
+  let bodyText = '';
+  const actionSplit = remainder.search(ACTION_START_RE);
+  if (actionSplit > 0) {
+    bodyText = remainder.slice(actionSplit).trim();
+    remainder = remainder.slice(0, actionSplit).trim().replace(/\|\s*$/, '');
+  }
 
   let company = remainder;
   let tags = [];
@@ -51,13 +60,19 @@ export function tryParseJobBlock(text) {
     if (rest) tags = [rest];
   }
 
-  return {
+  const block = {
     type: 'job-block',
     title,
     dates,
     company,
     tags,
   };
+
+  if (bodyText.length > 60) {
+    block.bodyText = bodyText;
+  }
+
+  return block;
 }
 
 export function splitParagraphToBullets(text) {

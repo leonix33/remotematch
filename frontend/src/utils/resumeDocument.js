@@ -1,10 +1,12 @@
 import { normalizeResumeLayout } from './resumeLayout';
+import { repairResumeText } from './resumeRepair';
 import {
-  mergeOrphanPrefixLines,
-  tryParseJobBlock,
-  splitParagraphToBullets,
-  parseJobHeaderLine,
-} from './resumeExperienceParser';
+  parseExperienceSectionLines,
+  parseSkillsSectionLines,
+  parseEducationSectionLines,
+  parseCertificationsSectionLines,
+} from './resumeSectionParsers';
+import { splitParagraphToBullets } from './resumeExperienceParser';
 
 const IMMUTABLE_SECTION_KEYS = new Set([
   'education',
@@ -52,6 +54,10 @@ function isLikelySectionHeader(line) {
   if (t.includes('@') || /\(\d{3}\)/.test(t)) return false;
   if (/\b(19|20)\d{2}\b/.test(t) && (t.includes('–') || t.includes('-') || t.includes('to'))) return false;
 
+  // Bare EXPERIENCE alone is almost always a false break inside summary text
+  if (t.toUpperCase() === 'EXPERIENCE' && t.length < 20) return false;
+  if (t.toUpperCase() === 'CERTIFICATION' && t.length < 25) return false;
+
   const key = classifySectionHeading(t);
   if (key !== 'other') return true;
 
@@ -65,9 +71,22 @@ function isLikelySectionHeader(line) {
 }
 
 function classifySectionLines(contentLines, sectionKey) {
-  if (sectionKey === 'experience') {
-    return parseExperienceSectionLines(contentLines);
+  if (sectionKey === 'experience') return parseExperienceSectionLines(contentLines);
+  if (sectionKey === 'skills') return parseSkillsSectionLines(contentLines);
+  if (sectionKey === 'education') return parseEducationSectionLines(contentLines);
+  if (sectionKey === 'certifications' || sectionKey === 'credentials') {
+    return parseCertificationsSectionLines(contentLines);
   }
+  if (sectionKey === 'summary') {
+    const text = contentLines.map((l) => String(l).trim()).filter(Boolean).join(' ');
+    if (text.length > 200) {
+      const parts = text.split(/(?<=[.!?])\s+(?=[A-Z])/);
+      if (parts.length >= 2) {
+        return parts.map((p) => ({ type: 'text', text: p.trim() })).filter((r) => r.text.length > 20);
+      }
+    }
+  }
+
   const rows = [];
   for (const line of contentLines) {
     rows.push(...classifyContentLine(line, sectionKey));
@@ -75,62 +94,9 @@ function classifySectionLines(contentLines, sectionKey) {
   return rows;
 }
 
-function parseExperienceSectionLines(contentLines) {
-  const merged = mergeOrphanPrefixLines(contentLines);
-  const rows = [];
-
-  for (const line of merged) {
-    const t = String(line || '').trim();
-    if (!t) {
-      rows.push({ type: 'spacer' });
-      continue;
-    }
-
-    if (/^[-•*●▪◦]\s/.test(t)) {
-      rows.push({ type: 'bullet', text: t.replace(/^[-•*●▪◦]\s+/, '') });
-      continue;
-    }
-
-    if (/^\d+[\).]\s/.test(t)) {
-      rows.push({ type: 'bullet', text: t.replace(/^\d+[\).]\s+/, ''), ordered: true });
-      continue;
-    }
-
-    const jobBlock = tryParseJobBlock(t);
-    if (jobBlock) {
-      rows.push(jobBlock);
-      continue;
-    }
-
-    if (t.length < 160 && (/\|/.test(t) || /\s—\s/.test(t)) && !/^https?:\/\//i.test(t)) {
-      rows.push(parseJobHeaderLine(t));
-      continue;
-    }
-
-    if (t.length > 100) {
-      const bullets = splitParagraphToBullets(t);
-      if (bullets) {
-        rows.push(...bullets);
-        continue;
-      }
-    }
-
-    if (
-      /\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\.?\s+\d{4}\b/i.test(t) &&
-      t.length < 90
-    ) {
-      rows.push({ type: 'date', text: t });
-      continue;
-    }
-
-    rows.push({ type: 'text', text: t });
-  }
-
-  return rows;
-}
-
 export function parseResumeForDisplay(resumeText = '') {
-  const normalized = normalizeResumeLayout(resumeText);
+  const repaired = repairResumeText(resumeText);
+  const normalized = normalizeResumeLayout(repaired);
   const lines = normalized.split('\n');
   const sections = [];
   let headerLines = [];
@@ -225,14 +191,34 @@ export function parseResumeHeader(headerLines = []) {
 
   for (let i = 1; i < lines.length; i += 1) {
     const line = lines[i];
-    if (isContactLine(line)) {
-      contact.push(line);
-    } else if (!isLikelySectionHeader(line) && (isTaglineLine(line) || taglines.length < 2)) {
+    if (isLikelySectionHeader(line)) break;
+
+    const email = line.match(/[\w.+-]+@[\w.-]+\.\w+/)?.[0];
+    const phone = line.match(/\b\d{3}[-.\s]?\d{3}[-.\s]?\d{4}\b/)?.[0];
+    const urls = line.match(/(?:https?:\/\/\S+|linkedin\.com\/\S+|github\.com\/\S+|leonix\.\S+)/gi) || [];
+    const location = line.match(/\b[A-Z][a-z]+,\s*[A-Z]{2}\b/)?.[0];
+
+    if (email || phone || urls.length || location) {
+      if (email) contact.push(email);
+      if (phone) contact.push(phone);
+      contact.push(...urls);
+      if (location) contact.push(location);
+      const leftover = line
+        .replace(email || '', '')
+        .replace(phone || '', '')
+        .replace(location || '', '')
+        .replace(/(?:https?:\/\/\S+|linkedin\.com\/\S+|github\.com\/\S+|leonix\.\S+)/gi, '')
+        .trim();
+      if (leftover && /^CKA$/i.test(leftover) && !taglines.join(' ').includes('CKA')) {
+        taglines.push('CKA');
+      }
+      continue;
+    }
+
+    if (line.includes('|') && taglines.length < 4) {
+      taglines.push(line.replace(/\|\s*$/, '').trim());
+    } else if (line.length < 100 && taglines.length < 4) {
       taglines.push(line);
-    } else if (!isLikelySectionHeader(line) && line.length < 140) {
-      taglines.push(line);
-    } else {
-      contact.push(line);
     }
   }
 
