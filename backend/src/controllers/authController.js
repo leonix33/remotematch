@@ -70,18 +70,27 @@ async function forgotPassword(req, res, next) {
     const { email } = forgotPasswordSchema.parse(req.body);
     const result = await authService.requestPasswordReset(email);
     if (result.user && result.resetUrl) {
-      try {
-        await emailService.notifyForgotPassword({
-          to: result.user.email,
-          name: result.user.name,
-          resetUrl: result.resetUrl,
+      const emailResult = await emailService.notifyForgotPassword({
+        to: result.user.email,
+        name: result.user.name,
+        resetUrl: result.resetUrl,
+      });
+      if (!emailResult.sent) {
+        console.error('Forgot-password email failed:', emailResult.reason);
+        return res.status(503).json({
+          message:
+            'We found your account but could not send the reset email. Try again in a minute, or sign in with your Render admin password if you have access.',
+          emailSent: false,
         });
-      } catch {
-        /* still return generic success */
       }
+      return res.json({
+        message: 'Reset link sent! Check your inbox and spam folder for an email from remotelymatch.',
+        emailSent: true,
+      });
     }
     res.json({
-      message: 'If that email has an account, we sent a reset link. Check your inbox.',
+      message: 'If that email has an account, we sent a reset link. Check your inbox and spam folder.',
+      emailSent: null,
     });
   } catch (err) {
     next(err);

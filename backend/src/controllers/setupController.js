@@ -1,12 +1,14 @@
 const env = require('../config/env');
 const profileService = require('../services/profileService');
 const platformSettingsService = require('../services/platformSettingsService');
+const emailService = require('../services/emailService');
 
 async function buildHealthBase() {
   const mongoose = require('mongoose');
   const email = env.adminEmail || '';
   const mongoConnected = mongoose.connection.readyState === 1;
   const adzunaConfigured = await platformSettingsService.isAdzunaConfigured();
+  const emailDiagnostics = await emailService.getEmailDiagnostics();
 
   return {
     ok: true,
@@ -16,9 +18,14 @@ async function buildHealthBase() {
     deployTag: env.deployTag,
     adminConfigured: Boolean(email && env.adminPassword),
     adminEmailHint: email.includes('@') ? `${email.split('@')[0].slice(0, 3)}***@${email.split('@')[1]}` : 'unset',
-    emailConfigured: Boolean(env.resendApiKey),
-    emailFrom: env.emailFrom || null,
-    emailProduction: Boolean(env.resendApiKey && env.emailFrom && !env.emailFrom.includes('resend.dev')),
+    emailConfigured: emailDiagnostics.emailConfigured,
+    emailFrom: emailDiagnostics.emailFrom,
+    emailProduction: emailDiagnostics.emailProduction,
+    emailSandbox: emailDiagnostics.emailSandbox,
+    emailDomain: emailDiagnostics.emailDomain,
+    emailDomainStatus: emailDiagnostics.emailDomainStatus,
+    emailDeliveryReady: emailDiagnostics.emailDeliveryReady,
+    emailDomainError: emailDiagnostics.emailDomainError,
     adzunaConfigured,
     mongoConfigured: Boolean(env.mongoUri),
     mongoConnected,
@@ -64,4 +71,23 @@ async function saveAdzuna(req, res, next) {
   }
 }
 
-module.exports = { status, saveAdzuna, buildHealthBase };
+async function testEmail(req, res, next) {
+  try {
+    const to = String(req.body?.to || env.adminEmail || '').trim();
+    const result = await emailService.sendTestEmail(to);
+    if (!result.sent) {
+      return res.status(result.diagnostics?.emailConfigured ? 503 : 400).json({
+        message: result.reason || 'Test email failed',
+        ...result,
+      });
+    }
+    res.json({
+      message: `Test email sent to ${result.to}`,
+      ...result,
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { status, saveAdzuna, testEmail, buildHealthBase };

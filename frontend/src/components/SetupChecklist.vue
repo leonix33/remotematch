@@ -25,28 +25,37 @@ const adzunaWhat = ref('platform engineer remote');
 const adzunaSaving = ref(false);
 const adzunaMsg = ref('');
 const adzunaError = ref('');
+const testEmailSending = ref(false);
+const testEmailMsg = ref('');
+const testEmailError = ref('');
 
 const items = computed(() => {
   const h = health.value || {};
-  const usingSandbox = !(h.emailProduction ?? !(h.emailFrom || '').includes('resend.dev'));
+  const deliveryReady = Boolean(h.emailDeliveryReady);
+  const usingSandbox = Boolean(h.emailSandbox);
+  const domainIssue = Boolean(h.emailConfigured && !deliveryReady && !usingSandbox);
   return [
     {
       id: 'resend',
       label: 'Email delivery (Resend)',
-      ok: Boolean(h.emailConfigured),
-      hint: h.emailConfigured
-        ? usingSandbox
-          ? 'Sandbox sender — only delivers to your Resend signup email. Verify domain for production.'
-          : `Sending from ${h.emailFrom || 'configured sender'}`
-        : 'Add RESEND_API_KEY on Render',
+      ok: deliveryReady,
+      hint: !h.emailConfigured
+        ? 'Add RESEND_API_KEY on Render'
+        : deliveryReady
+          ? usingSandbox
+            ? `Sandbox sender — only delivers to your Resend signup email (${h.emailFrom || 'onboarding@resend.dev'})`
+            : `Sending from ${h.emailFrom || 'configured sender'}`
+          : h.emailDomainError || `Domain ${h.emailDomain || 'remotelymatch.app'} not verified in Resend`,
     },
     {
       id: 'domain',
       label: 'Company email domain',
-      ok: Boolean(h.emailConfigured && !usingSandbox),
+      ok: deliveryReady && !usingSandbox,
       hint: usingSandbox
         ? 'Verify remotelymatch.app in Resend → use noreply@remotelymatch.app'
-        : h.emailFrom || 'Domain sender configured',
+        : domainIssue
+          ? `Status: ${h.emailDomainStatus || 'unknown'} — finish DNS in Resend`
+          : h.emailFrom || 'Domain sender configured',
     },
     {
       id: 'adzuna',
@@ -76,7 +85,7 @@ const items = computed(() => {
 
 const allCoreReady = computed(() => {
   const h = health.value || {};
-  return Boolean(h.emailConfigured && h.mongoConnected && h.openaiConfigured);
+  return Boolean(h.emailDeliveryReady && h.mongoConnected && h.openaiConfigured);
 });
 
 const needsOpenAi = computed(() => !health.value?.openaiConfigured);
@@ -149,6 +158,22 @@ async function saveAdzuna() {
   }
 }
 
+async function sendTestEmail() {
+  testEmailSending.value = true;
+  testEmailMsg.value = '';
+  testEmailError.value = '';
+  try {
+    const { data } = await http.post('/setup/test-email', {});
+    testEmailMsg.value = data.message || 'Test email sent — check your inbox and spam folder.';
+    await load();
+  } catch (e) {
+    testEmailError.value = e.response?.data?.message || e.response?.data?.reason || e.message || 'Test email failed';
+    await load();
+  } finally {
+    testEmailSending.value = false;
+  }
+}
+
 onMounted(load);
 defineExpose({ refresh: load });
 </script>
@@ -191,6 +216,22 @@ defineExpose({ refresh: load });
     </ul>
 
     <p v-if="allCoreReady" class="mt-3 text-xs text-teal-400">Core services ready — apply batches will email follow-up digests automatically.</p>
+    <p v-else-if="health?.emailConfigured && !health?.emailDeliveryReady" class="mt-3 text-xs text-amber-300">
+      Email is configured but not delivering — verify <strong>remotelymatch.app</strong> in Resend (DNS records below).
+    </p>
+
+    <div v-if="auth.isAdmin && health?.emailConfigured" class="mt-4 rounded-lg border border-slate-800 bg-slate-950/50 p-4">
+      <p class="text-sm font-medium text-slate-200">Test email delivery</p>
+      <p class="mt-1 text-xs text-slate-500">
+        Sends a test to your admin email from {{ health.emailFrom || 'configured sender' }}.
+        If this fails, Resend will return the exact error (domain not verified, invalid API key, etc.).
+      </p>
+      <button type="button" class="btn-secondary mt-3 text-sm" :disabled="testEmailSending" @click="sendTestEmail">
+        {{ testEmailSending ? 'Sending…' : 'Send test email' }}
+      </button>
+      <p v-if="testEmailMsg" class="mt-2 text-xs text-teal-300">{{ testEmailMsg }}</p>
+      <p v-if="testEmailError" class="mt-2 text-xs text-red-300">{{ testEmailError }}</p>
+    </div>
 
     <div v-if="needsOpenAi" class="mt-4 rounded-lg border border-violet-900/40 bg-violet-950/10 p-4">
       <p class="text-sm font-medium text-slate-200">Connect OpenAI</p>
@@ -239,7 +280,7 @@ defineExpose({ refresh: load });
         <a href="https://resend.com/domains" target="_blank" rel="noopener" class="text-teal-400 hover:underline">Resend → Domains</a>
         → Add <code class="text-violet-300">remotelymatch.app</code>
       </p>
-      <p><strong>Step 2.</strong> Resend shows 3 DNS records (SPF, DKIM, optional DMARC). Add them at your registrar:</p>
+      <p><strong>Step 2.</strong> Resend shows DNS records (SPF on <code>send</code>, DKIM CNAMEs, optional DMARC). Add them at your registrar:</p>
 
       <div class="flex flex-wrap gap-2">
         <button
@@ -258,7 +299,7 @@ defineExpose({ refresh: load });
         <p>Cloudflare → <strong>remotelymatch.app</strong> → DNS → Records → Add record for each Resend row:</p>
         <ul class="list-inside list-disc space-y-1">
           <li><strong>TXT</strong> (SPF) — name/host from Resend, paste value exactly</li>
-          <li><strong>CNAME</strong> (DKIM) — usually <code>resend._domainkey</code> → target from Resend</li>
+          <li><strong>CNAME</strong> (DKIM) — one or more records like <code>xxxx._domainkey</code> → target from Resend</li>
           <li>Turn proxy <strong>off</strong> (DNS only / grey cloud) for mail records</li>
         </ul>
       </div>

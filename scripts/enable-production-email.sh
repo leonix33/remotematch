@@ -44,10 +44,34 @@ if [[ "$DOMAIN_STATUS" != "verified" ]]; then
   echo ""
   echo "Domain $DOMAIN is not verified yet (status: ${DOMAIN_STATUS:-not added})."
   echo ""
-  echo "1. https://resend.com/domains → Add $DOMAIN"
-  echo "2. Cloudflare → $DOMAIN → DNS → add TXT + CNAME from Resend"
-  echo "3. Click Verify in Resend (green checkmark)"
-  echo "4. Re-run this script"
+  if [[ "${DOMAIN_STATUS:-}" == "missing" ]]; then
+    echo "Add the domain in Resend first:"
+    echo "  curl -X POST https://api.resend.com/domains -H \"Authorization: Bearer \$RESEND_API_KEY\" -H \"Content-Type: application/json\" -d '{\"name\":\"$DOMAIN\"}'"
+    echo "  Or use https://resend.com/domains → Add domain"
+  fi
+  echo ""
+  echo "DNS records Resend expects (copy from dashboard — names vary per account):"
+  node -e "
+const data = JSON.parse(process.argv[1]);
+const list = data.data || data || [];
+const row = list.find((d) => (d.name || d.domain || '').toLowerCase() === process.argv[2].toLowerCase());
+if (!row) {
+  console.log('  (domain not found in Resend — add it first)');
+  process.exit(0);
+}
+for (const rec of row.records || []) {
+  const name = rec.name || rec.host || '?';
+  const type = rec.type || rec.record || '?';
+  const value = rec.value || rec.content || '?';
+  console.log('  ' + type + '  ' + name + '  →  ' + value);
+}
+" "$DOMAIN_JSON" "$DOMAIN" 2>/dev/null || true
+  echo ""
+  echo "1. https://resend.com/domains → Add or open $DOMAIN"
+  echo "2. Registrar DNS (Cloudflare etc.) → add every record Resend shows"
+  echo "3. Turn off Cloudflare proxy (grey cloud) on mail records"
+  echo "4. Click Verify in Resend until status is verified"
+  echo "5. Re-run: RESEND_API_KEY='re_...' ./scripts/enable-production-email.sh"
   exit 1
 fi
 

@@ -1,6 +1,9 @@
 const env = require('../config/env');
 const User = require('../models/User');
 
+const DOMAIN_STATUS_TTL_MS = 5 * 60 * 1000;
+let domainStatusCache = { at: 0, value: null };
+
 function escapeHtml(value) {
   return String(value)
     .replace(/&/g, '&amp;')
@@ -12,6 +15,146 @@ function escapeHtml(value) {
 function loginUrl() {
   const base = env.appUrl.replace(/\/$/, '');
   return `${base}/login`;
+}
+
+function parseFromAddress(from = env.emailFrom) {
+  const raw = String(from || '').trim();
+  const match = raw.match(/<([^>]+)>/);
+  const email = (match ? match[1] : raw).trim().toLowerCase();
+  const domain = email.includes('@') ? email.split('@')[1] : '';
+  return { raw, email, domain };
+}
+
+function isSandboxFrom(from = env.emailFrom) {
+  return parseFromAddress(from).domain === 'resend.dev';
+}
+
+function parseResendError(bodyText) {
+  let reason = bodyText;
+  try {
+    const parsed = JSON.parse(bodyText);
+    reason = parsed.message || parsed.error || bodyText;
+  } catch {
+    // keep raw text
+  }
+  if (/only send testing emails to your own email address/i.test(reason)) {
+    return 'Resend sandbox: verify remotelymatch.app in Resend Domains, or use onboarding@resend.dev only for your Resend signup email.';
+  }
+  if (/domain.*not verified|verify a domain/i.test(reason)) {
+    return 'Resend domain not verified — add DNS records at your registrar and verify remotelymatch.app in Resend.';
+  }
+  return reason;
+}
+
+async function resendFetch(path, options = {}) {
+  if (!env.resendApiKey) return { ok: false, status: 0, body: 'Resend API key not configured' };
+  const res = await fetch(`https://api.resend.com${path}`, {
+    ...options,
+    headers: {
+      Authorization: `Bearer ${env.resendApiKey}`,
+      'Content-Type': 'application/json',
+      ...(options.headers || {}),
+    },
+  });
+  const body = await res.text();
+  return { ok: res.ok, status: res.status, body };
+}
+
+async function getResendDomainStatus(domain = env.customDomain) {
+  if (!env.resendApiKey) {
+    return { configured: false, domain, status: 'not_configured', deliveryReady: false };
+  }
+
+  const target = String(domain || '').trim().toLowerCase();
+  if (!target) {
+    return { configured: true, domain: null, status: 'missing_domain', deliveryReady: false };
+  }
+
+  if (isSandboxFrom()) {
+    return {
+      configured: true,
+      domain: target,
+      status: 'sandbox',
+      deliveryReady: true,
+      note: 'Sandbox sender only delivers to your Resend signup email.',
+    };
+  }
+
+  const now = Date.now();
+  if (domainStatusCache.value && now - domainStatusCache.at < DOMAIN_STATUS_TTL_MS) {
+    return domainStatusCache.value;
+  }
+
+  const { ok, body } = await resendFetch('/domains');
+  if (!ok) {
+    const value = {
+      configured: true,
+      domain: target,
+      status: 'api_error',
+      deliveryReady: false,
+      error: parseResendError(body),
+    };
+    domainStatusCache = { at: now, value };
+    return value;
+  }
+
+  let list = [];
+  try {
+    const parsed = JSON.parse(body);
+    list = parsed.data || parsed || [];
+  } catch {
+    list = [];
+  }
+
+  const row = list.find((d) => String(d.name || d.domain || '').toLowerCase() === target);
+  if (!row) {
+    const value = {
+      configured: true,
+      domain: target,
+      status: 'not_added',
+      deliveryReady: false,
+      error: `Domain ${target} is not added in Resend — open resend.com/domains and add it.`,
+    };
+    domainStatusCache = { at: now, value };
+    return value;
+  }
+
+  const status = String(row.status || row.verification?.status || 'unknown').toLowerCase();
+  const value = {
+    configured: true,
+    domain: target,
+    status,
+    deliveryReady: status === 'verified',
+    error: status === 'verified' ? null : `Domain ${target} is ${status} in Resend — finish DNS verification.`,
+  };
+  domainStatusCache = { at: now, value };
+  return value;
+}
+
+async function getEmailDiagnostics() {
+  const from = parseFromAddress();
+  const sandbox = isSandboxFrom();
+  const domainStatus = sandbox
+    ? {
+        configured: Boolean(env.resendApiKey),
+        domain: env.customDomain,
+        status: 'sandbox',
+        deliveryReady: Boolean(env.resendApiKey),
+        note: 'Sandbox sender only delivers to your Resend signup email.',
+      }
+    : await getResendDomainStatus(from.domain || env.customDomain);
+
+  return {
+    emailConfigured: Boolean(env.resendApiKey),
+    emailFrom: env.emailFrom || null,
+    emailProduction: Boolean(env.resendApiKey && !sandbox),
+    emailSandbox: sandbox,
+    emailDomain: from.domain || env.customDomain || null,
+    emailDomainStatus: domainStatus.status,
+    emailDeliveryReady: Boolean(env.resendApiKey && domainStatus.deliveryReady),
+    emailDomainError: domainStatus.error || null,
+    emailDomainNote: domainStatus.note || null,
+  };
 }
 
 async function sendEmail({ to, subject, html }) {
@@ -33,16 +176,47 @@ async function sendEmail({ to, subject, html }) {
 
   if (!res.ok) {
     const err = await res.text();
-    let reason = err;
-    try {
-      const parsed = JSON.parse(err);
-      reason = parsed.message || parsed.error || err;
-    } catch {
-      // keep raw text
-    }
+    const reason = parseResendError(err);
+    console.error('Resend send failed:', reason);
     return { sent: false, reason };
   }
-  return { sent: true };
+
+  let id = null;
+  try {
+    const parsed = await res.json();
+    id = parsed.id || null;
+  } catch {
+    // body already consumed in some edge cases — ignore
+  }
+  return { sent: true, id };
+}
+
+async function sendTestEmail(to) {
+  const recipient = String(to || env.adminEmail || '').trim();
+  if (!recipient) {
+    return { sent: false, reason: 'No recipient email provided' };
+  }
+
+  const diagnostics = await getEmailDiagnostics();
+  if (!diagnostics.emailConfigured) {
+    return {
+      sent: false,
+      reason: 'Resend API key not configured (add RESEND_API_KEY on Render)',
+      diagnostics,
+    };
+  }
+
+  const result = await sendEmail({
+    to: recipient,
+    subject: `${env.appName} — email delivery test`,
+    html: wrapHtml(
+      'Email delivery works',
+      `This is a test from <strong>${escapeHtml(env.emailFrom)}</strong>. Password resets, invites, and digests will use this sender.`,
+      '/login'
+    ),
+  });
+
+  return { ...result, diagnostics, to: recipient };
 }
 
 async function sendToUser(userId, subject, html) {
@@ -303,7 +477,10 @@ async function notifyForgotPassword({ to, name, resetUrl }) {
 
 module.exports = {
   sendEmail,
+  sendTestEmail,
   sendToUser,
+  getEmailDiagnostics,
+  getResendDomainStatus,
   notifyHighMatch,
   notifyChatInvite,
   notifyInterviewReminder,

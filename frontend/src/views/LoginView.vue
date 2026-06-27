@@ -102,6 +102,10 @@ async function submitForgot() {
   try {
     const { data } = await http.post('/auth/forgot-password', { email: email.value.trim() });
     info.value = data.message;
+    if (data.emailSent === false) {
+      error.value = data.message;
+      info.value = '';
+    }
     mode.value = 'login';
   } catch (e) {
     error.value = e.response?.data?.message || 'Could not send reset email';
@@ -198,7 +202,10 @@ async function submitReset() {
       <!-- Forgot password -->
       <form v-else-if="mode === 'forgot'" class="mt-8 space-y-4" @submit.prevent="submitForgot">
         <h2 class="text-lg font-semibold text-slate-100">Reset your password</h2>
-        <p class="text-sm text-slate-500">We'll email you a link to choose a new password.</p>
+        <p class="text-sm text-slate-500">
+          We'll email you a link to choose a new password. Check <strong class="text-slate-300">Spam</strong> and
+          <strong class="text-slate-300">Promotions</strong> if it does not arrive within a couple of minutes.
+        </p>
         <div>
           <label class="mb-1 block text-sm text-slate-400">Email</label>
           <input v-model="email" type="email" required class="input" placeholder="you@example.com" autocomplete="username" />
