@@ -1,6 +1,6 @@
 <script setup>
 import { useAppShare } from '../composables/useAppShare';
-import { appName } from '../brand';
+import { DISPLAY_NAME } from '../constants/domain';
 
 const { openPanel } = useAppShare();
 </script>
@@ -9,8 +9,8 @@ const { openPanel } = useAppShare();
   <button
     type="button"
     class="share-install-tab safe-top"
-    :aria-label="`Install ${appName} or share URL`"
-    :title="`Install ${appName} · Share URL`"
+    :aria-label="`Install ${DISPLAY_NAME} or share URL`"
+    :title="`Install ${DISPLAY_NAME} · Share URL`"
     @click="openPanel"
   >
     <span class="share-install-tab-icon" aria-hidden="true">📲</span>

@@ -1,18 +1,12 @@
 import { computed, ref } from 'vue';
 import { brand } from '../brand';
-import { canonicalDomain, isProduction } from '../config';
+import { CANONICAL_APP_URL, DISPLAY_NAME, resolveShareUrl } from '../constants/domain';
 
 const showPanel = ref(false);
 const copyMessage = ref('');
 
 export function useAppShare() {
-  const shareUrl = computed(() => {
-    if (typeof window === 'undefined') {
-      return isProduction ? `https://${canonicalDomain}` : '';
-    }
-    if (isProduction) return `https://${canonicalDomain}`;
-    return window.location.origin;
-  });
+  const shareUrl = computed(() => resolveShareUrl());
 
   const canNativeShare = computed(
     () => typeof navigator !== 'undefined' && typeof navigator.share === 'function'
@@ -28,7 +22,7 @@ export function useAppShare() {
   }
 
   async function copyLink() {
-    const url = shareUrl.value;
+    const url = shareUrl.value || CANONICAL_APP_URL;
     try {
       await navigator.clipboard.writeText(url);
       copyMessage.value = 'Link copied!';
@@ -54,12 +48,12 @@ export function useAppShare() {
   }
 
   async function shareLink() {
-    const url = shareUrl.value;
+    const url = shareUrl.value || CANONICAL_APP_URL;
     if (canNativeShare.value) {
       try {
         await navigator.share({
-          title: brand.name,
-          text: `${brand.name} — ${brand.tagline}`,
+          title: DISPLAY_NAME,
+          text: `${DISPLAY_NAME} — ${brand.tagline}`,
           url,
         });
         copyMessage.value = '';

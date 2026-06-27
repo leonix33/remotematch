@@ -3,7 +3,9 @@ import { computed, onMounted, ref } from 'vue';
 import { useRegisterSW } from 'virtual:pwa-register/vue';
 import { usePushNotifications } from '../composables/usePushNotifications';
 import { usePwaInstall } from '../composables/usePwaInstall';
-import { brand, appName } from '../brand';
+import { brand } from '../brand';
+import AppLogo from './AppLogo.vue';
+import { DISPLAY_NAME } from '../constants/domain';
 import { isIOS, isStandalonePwa, supportsHomeScreenInstall } from '../utils/device';
 
 const { needRefresh, updateServiceWorker } = useRegisterSW({ immediate: true });
@@ -19,7 +21,7 @@ const {
 } = usePwaInstall();
 
 const showPush = ref(false);
-const displayName = computed(() => appName || brand.name || 'remotelymatch');
+const displayName = computed(() => DISPLAY_NAME);
 
 function refresh() {
   updateServiceWorker(true);
@@ -82,7 +84,7 @@ onMounted(() => {
         <button type="button" class="pwa-install-close" aria-label="Not now" @click="dismissSheet">×</button>
 
         <div class="pwa-install-hero">
-          <img src="/icons/icon-192.png" alt="" class="pwa-install-icon" width="72" height="72" />
+          <AppLogo size="sm" variant="compact" />
           <div class="min-w-0 flex-1">
             <h2 id="pwa-install-title" class="pwa-install-title">Get the {{ displayName }} app</h2>
             <p class="pwa-install-subtitle">One tap on your home screen — faster apply, queue, and follow-ups.</p>

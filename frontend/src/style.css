@@ -1834,11 +1834,39 @@ body {
   color: #94a3b8;
 }
 
+.share-install-hero {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 0.75rem;
+}
+
+.share-install-section-first {
+  margin-top: 1rem;
+  padding-top: 0;
+  border-top: none;
+}
+
+.share-install-hint {
+  margin-top: 0.65rem;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: #94a3b8;
+}
+
+.pwa-install-cta {
+  width: 100%;
+  padding-top: 0.85rem;
+  padding-bottom: 0.85rem;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
 .share-install-title {
   padding-right: 2.5rem;
   font-size: 1.2rem;
   font-weight: 700;
   color: #f1f5f9;
+  text-align: center;
 }
 
 .share-install-subtitle {

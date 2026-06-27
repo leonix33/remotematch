@@ -1,8 +1,8 @@
 FROM node:20-alpine AS frontend-build
 WORKDIR /app
-ARG VITE_APP_URL=https://remotematch.app
-ARG VITE_APP_NAME=RemoteMatch
-ARG VITE_CUSTOM_DOMAIN=remotematch.app
+ARG VITE_APP_URL=https://remotelymatch.app
+ARG VITE_APP_NAME=remotelymatch
+ARG VITE_CUSTOM_DOMAIN=remotelymatch.app
 ENV VITE_APP_URL=$VITE_APP_URL
 ENV VITE_APP_NAME=$VITE_APP_NAME
 ENV VITE_CUSTOM_DOMAIN=$VITE_CUSTOM_DOMAIN
