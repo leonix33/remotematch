@@ -11,7 +11,7 @@ async function trace(req, res, next) {
 
 async function previewDigest(req, res, next) {
   try {
-    res.json(await tractionService.previewDigest(req.user.sub));
+    res.json(await tractionService.previewDigest(req.user.sub, req.user.email));
   } catch (err) {
     next(err);
   }
@@ -19,7 +19,7 @@ async function previewDigest(req, res, next) {
 
 async function sendDigest(req, res, next) {
   try {
-    const result = await tractionService.sendAppliedDigestEmail(req.user.sub);
+    const result = await tractionService.sendAppliedDigestEmail(req.user.sub, req.user.email);
     res.json(result);
   } catch (err) {
     next(err);

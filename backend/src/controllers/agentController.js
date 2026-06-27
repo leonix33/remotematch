@@ -132,6 +132,23 @@ async function applyApproved(req, res, next) {
     let kits = await applicationKitService.getKitsForJobIds(req.user.sub, jobIds);
     kits = kits.map(applicationKitService.kitListItem);
 
+    async function sendApplyEmailNotification(queued, { preparedOnly = false } = {}) {
+      try {
+        const result = await tractionService.sendPostApplyFeedback(req.user.sub, scored, {
+          useTailoredResume,
+          queued,
+          preparedOnly,
+          authEmail: req.user.email,
+        });
+        if (result.sent) console.log(`Post-apply email sent to ${result.to}`);
+        else console.warn(`Post-apply email skipped: ${result.reason}`);
+        return result;
+      } catch (err) {
+        console.warn('Post-apply email failed:', err.message);
+        return { sent: false, reason: err.message };
+      }
+    }
+
     if (!autoApply) {
       if (run) {
         run.status = 'completed';
@@ -139,6 +156,7 @@ async function applyApproved(req, res, next) {
         run.finishedAt = new Date();
         await run.save();
       }
+      const emailNotification = await sendApplyEmailNotification(false, { preparedOnly: true });
       return res.json({
         message: `Prepared ${scored.length} job(s)${useTailoredResume ? ' with tailored resumes' : ''}. Review below, then turn on Auto apply or submit from the queue.`,
         count: scored.length,
@@ -150,22 +168,8 @@ async function applyApproved(req, res, next) {
         kits,
         jobIds,
         kitsGenerating: shouldDeferKits,
+        emailNotification,
       });
-    }
-
-    async function sendApplyEmailNotification(queued) {
-      try {
-        const result = await tractionService.sendPostApplyFeedback(req.user.sub, scored, {
-          useTailoredResume,
-          queued,
-        });
-        if (result.sent) console.log(`Post-apply email sent to ${result.to}`);
-        else console.warn(`Post-apply email skipped: ${result.reason}`);
-        return result;
-      } catch (err) {
-        console.warn('Post-apply email failed:', err.message);
-        return { sent: false, reason: err.message };
-      }
     }
 
     let output;

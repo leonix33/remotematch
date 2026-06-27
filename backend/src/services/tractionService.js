@@ -6,6 +6,7 @@ const localOutcomeStore = require('./localOutcomeStore');
 const localFollowUpStore = require('./localFollowUpStore');
 const localNotificationStore = require('./localNotificationStore');
 const emailService = require('./emailService');
+const applicantContactService = require('./applicantContactService');
 const { scoreJobsForProfile } = require('./jobScoringService');
 const env = require('../config/env');
 
@@ -18,13 +19,13 @@ function daysSince(dateStr) {
   return Math.floor((Date.now() - d.getTime()) / (1000 * 60 * 60 * 24));
 }
 
-function resolveDigestEmail(profile) {
-  return (
-    profile?.digestEmail?.trim() ||
-    profile?.notificationEmail?.trim() ||
-    env.adminEmail ||
-    ''
-  );
+function resolveDigestEmail(profile, authEmail = '') {
+  return applicantContactService.resolveContactEmail(profile, authEmail);
+}
+
+async function resolveDigestEmailForUser(userId, profile, authEmail = '') {
+  const accountEmail = await applicantContactService.resolveAuthEmail(userId, authEmail);
+  return resolveDigestEmail(profile, accountEmail);
 }
 
 function followUpUrgency(days) {
@@ -197,27 +198,36 @@ async function buildAppliedJobsDigest(userId, profile) {
   return submitted.slice(0, 25);
 }
 
-async function sendAppliedDigestEmail(userId) {
+async function sendAppliedDigestEmail(userId, authEmail = '') {
   const profile = await profileService.getOrCreate(userId);
   if (profile.emailDigestEnabled === false) {
     return { sent: false, reason: 'Email digest disabled in Profile' };
   }
-  const to = resolveDigestEmail(profile);
-  if (!to) return { sent: false, reason: 'No digest email configured' };
+  const to = await resolveDigestEmailForUser(userId, profile, authEmail);
+  if (!to) {
+    return { sent: false, reason: 'No personal email — add one in Profile → Email & follow-ups' };
+  }
+  if (!env.resendApiKey) {
+    return { sent: false, reason: 'Resend not configured (add RESEND_API_KEY on Render)' };
+  }
 
   const applied = await buildAppliedJobsDigest(userId, profile);
   const { trace, summary } = await buildTractionTrace(userId);
   const followUps = trace.filter((t) => t.type === 'follow_up').slice(0, 8);
   const approveNow = trace.filter((t) => t.type === 'approve_now').slice(0, 5);
 
-  return emailService.sendAppliedJobsDigest({
+  const emailResult = await emailService.sendAppliedJobsDigest({
     to,
     applied,
     followUps,
     approveNow,
     summary,
     profile,
-  }).then((result) => ({ sent: true, to, result }));
+  });
+  if (!emailResult.sent) {
+    return { sent: false, reason: emailResult.reason || 'Email provider rejected the send', to };
+  }
+  return { sent: true, to, result: emailResult };
 }
 
 async function scanAndNotifyTraction(userId) {
@@ -252,7 +262,7 @@ async function scanAndNotifyTraction(userId) {
 
     if (profile.emailDigestEnabled !== false && item.type === 'follow_up' && item.urgency === 'high') {
       try {
-        const to = resolveDigestEmail(profile);
+        const to = await resolveDigestEmailForUser(userId, profile);
         if (to && env.resendApiKey) {
           await emailService.sendFollowUpReminder({ to, item });
         }
@@ -275,9 +285,13 @@ async function sendPostApplyFeedback(userId, jobs = [], options = {}) {
   if (profile.emailDigestEnabled === false) {
     return { sent: false, reason: 'Email digest disabled in Profile' };
   }
-  const to = resolveDigestEmail(profile);
-  if (!to) return { sent: false, reason: 'No digest email configured in Profile' };
-  if (!env.resendApiKey) return { sent: false, reason: 'Resend not configured (add RESEND_API_KEY on Render)' };
+  const to = await resolveDigestEmailForUser(userId, profile, options.authEmail);
+  if (!to) {
+    return { sent: false, reason: 'No personal email — add one in Profile → Email & follow-ups' };
+  }
+  if (!env.resendApiKey) {
+    return { sent: false, reason: 'Resend not configured (add RESEND_API_KEY on Render)' };
+  }
 
   const list = (jobs || []).map((j) => ({
     title: j.title,
@@ -286,23 +300,46 @@ async function sendPostApplyFeedback(userId, jobs = [], options = {}) {
     matchPct: j.personalMatchPct ?? j.matchPct ?? null,
   }));
 
-  const result = await emailService.sendPostApplyBatchEmail({
+  const emailResult = await emailService.sendPostApplyBatchEmail({
     to,
     jobs: list,
     profile,
     useTailoredResume: Boolean(options.useTailoredResume),
     queued: Boolean(options.queued),
+    preparedOnly: Boolean(options.preparedOnly),
   });
-  return { ...result, to };
+  if (!emailResult.sent) {
+    return { sent: false, reason: emailResult.reason || 'Email provider rejected the send', to };
+  }
+  return { sent: true, to, ...emailResult };
 }
 
-async function previewDigest(userId) {
+async function previewDigest(userId, authEmail = '') {
   const profile = await profileService.getOrCreate(userId);
-  const applied = await buildAppliedJobsDigest(userId, profile);
-  const { trace, summary } = await buildTractionTrace(userId);
+  const digestEmail = await resolveDigestEmailForUser(userId, profile, authEmail);
+
+  let applied = [];
+  let trace = [];
+  let summary = { total: 0, high: 0, followUpsDue: 0, approveNow: 0 };
+
+  try {
+    applied = await buildAppliedJobsDigest(userId, profile);
+  } catch (err) {
+    console.warn('digest preview applied list failed:', err.message);
+  }
+
+  try {
+    const data = await buildTractionTrace(userId);
+    trace = data.trace || [];
+    summary = data.summary || summary;
+  } catch (err) {
+    console.warn('digest preview trace failed:', err.message);
+  }
+
   return {
-    digestEmail: resolveDigestEmail(profile),
+    digestEmail,
     emailDigestEnabled: profile.emailDigestEnabled !== false,
+    resendConfigured: Boolean(env.resendApiKey),
     applied,
     followUps: trace.filter((t) => t.type === 'follow_up'),
     approveNow: trace.filter((t) => t.type === 'approve_now'),
@@ -319,5 +356,6 @@ module.exports = {
   markFollowUpDone,
   previewDigest,
   resolveDigestEmail,
+  resolveDigestEmailForUser,
   followUpUrgency,
 };

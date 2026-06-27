@@ -154,13 +154,17 @@ export function useQuickApply() {
       }
 
       if (preparedOnly) {
-        message.value = data.message || `Prepared ${data.count || jobs.length} application(s) for review`;
+        const emailNote = formatApplyEmailNotice(data.emailNotification);
+        message.value = [data.message || `Prepared ${data.count || jobs.length} application(s) for review`, emailNote]
+          .filter(Boolean)
+          .join(' ');
         return {
           count: data.count || jobs.length,
           jobs,
           kits,
           preparedOnly: true,
           autoApply: false,
+          emailNotification: data.emailNotification,
         };
       }
 

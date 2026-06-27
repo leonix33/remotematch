@@ -24,4 +24,8 @@ describe('resolveDigestEmail', () => {
       'a@b.com'
     );
   });
+
+  it('falls back to account login email when profile email is empty', () => {
+    assert.equal(resolveDigestEmail({}, 'user@gmail.com'), 'user@gmail.com');
+  });
 });

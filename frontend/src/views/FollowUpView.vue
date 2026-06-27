@@ -115,7 +115,7 @@ onMounted(async () => {
       Best jobs to follow up, approve, or finish — ranked by interview likelihood and urgency
     </p>
 
-    <div v-if="!loading" class="mt-6 grid gap-4 sm:grid-cols-4">
+    <div v-if="!loading" class="mobile-queue-stats mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
       <div class="card p-4">
         <p class="text-sm text-slate-500">Actions</p>
         <p class="text-2xl font-bold text-slate-200">{{ summary.total }}</p>
@@ -134,9 +134,9 @@ onMounted(async () => {
       </div>
     </div>
 
-    <div class="card mt-8 p-6">
-      <div class="flex flex-wrap items-start justify-between gap-4">
-        <div>
+    <div class="card mt-8 p-4 sm:p-6">
+      <div class="mobile-stack-filters flex flex-wrap items-start justify-between gap-4">
+        <div class="min-w-0 flex-1">
           <h3 class="font-semibold text-slate-200">Email digest</h3>
           <p class="mt-1 text-sm text-slate-500">
             Preview what goes to your personal email — best-fit jobs you have applied to, plus follow-ups.
@@ -147,8 +147,11 @@ onMounted(async () => {
           <p v-else class="mt-2 text-sm text-amber-300">
             Add your email in Profile → Email & follow-ups
           </p>
+          <p v-if="digest && digest.resendConfigured === false" class="mt-2 text-sm text-amber-300">
+            Email delivery is not configured on the server — ask your admin to add RESEND_API_KEY on Render.
+          </p>
         </div>
-        <div class="flex flex-wrap gap-2">
+        <div class="mobile-job-actions flex w-full flex-wrap gap-2 sm:w-auto sm:flex-nowrap">
           <button type="button" class="btn-secondary text-sm" :disabled="digestLoading" @click="loadDigestPreview">
             {{ digestLoading ? 'Refreshing…' : 'Refresh preview' }}
           </button>
@@ -171,7 +174,18 @@ onMounted(async () => {
         <div>
           <h4 class="text-sm font-medium text-slate-300">Applied — best fit first</h4>
           <div v-if="!digest.applied?.length" class="mt-2 text-sm text-slate-500">No submitted applications yet.</div>
-          <div v-else class="mt-2 overflow-x-auto">
+          <div v-else class="mt-2">
+            <div class="mobile-applied-cards md:hidden">
+              <div v-for="j in digest.applied.slice(0, 10)" :key="`card-${j.jobId}`" class="mobile-applied-card">
+                <p class="font-medium text-slate-200">{{ j.title }}</p>
+                <p class="mt-0.5 text-sm text-slate-400">{{ j.company }}</p>
+                <div class="mt-2">
+                  <JobScoreBadges :job="j" />
+                </div>
+                <p class="mt-2 text-xs text-slate-500">{{ j.source }}</p>
+              </div>
+            </div>
+            <div class="mobile-table-wrap hidden overflow-x-auto md:block">
             <table class="w-full text-left text-sm">
               <thead class="text-slate-500">
                 <tr>
@@ -192,6 +206,7 @@ onMounted(async () => {
                 </tr>
               </tbody>
             </table>
+            </div>
           </div>
         </div>
         <div v-if="digest.followUps?.length">
@@ -203,9 +218,9 @@ onMounted(async () => {
       </div>
     </div>
 
-    <div class="mt-8 flex items-center justify-between gap-4">
+    <div class="mt-8 flex flex-wrap items-center justify-between gap-4">
       <h3 class="font-semibold text-slate-200">Action queue</h3>
-      <button type="button" class="btn-secondary text-sm" :disabled="scanning" @click="scanNotifications">
+      <button type="button" class="btn-secondary w-full text-sm sm:w-auto" :disabled="scanning" @click="scanNotifications">
         {{ scanning ? 'Scanning…' : 'Refresh notifications' }}
       </button>
     </div>
@@ -220,7 +235,7 @@ onMounted(async () => {
         :key="item.id"
         class="card p-4"
       >
-        <div class="flex flex-wrap items-start justify-between gap-3">
+        <div class="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
           <div class="min-w-0 flex-1">
             <div class="flex flex-wrap items-center gap-2">
               <span
@@ -242,7 +257,7 @@ onMounted(async () => {
               {{ item.daysSinceApply }} day(s) since apply
             </p>
           </div>
-          <div class="flex shrink-0 flex-col gap-2">
+          <div class="mobile-job-actions mt-3 flex w-full shrink-0 flex-col gap-2 sm:mt-0 sm:w-auto">
             <button type="button" class="btn-primary text-sm" @click="openLink(item)">
               {{ item.url ? 'Open job' : 'Go to queue' }}
             </button>

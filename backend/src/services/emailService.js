@@ -210,12 +210,14 @@ function followUpSnippet(company, title) {
   return `Hi — I applied for ${role} at ${co} recently and wanted to confirm my application was received. I'm very interested in the role and happy to share more on my background. Thank you for your time.`;
 }
 
-async function sendPostApplyBatchEmail({ to, jobs = [], profile, useTailoredResume, queued = false }) {
+async function sendPostApplyBatchEmail({ to, jobs = [], profile, useTailoredResume, queued = false, preparedOnly = false }) {
   const name = profile?.applicantName || profile?.displayName || 'there';
   const count = jobs.length;
-  const headline = queued
-    ? `${count} application${count === 1 ? '' : 's'} queued — finish forms, then follow up`
-    : `${count} application${count === 1 ? '' : 's'} submitted — here's your follow-up plan`;
+  const headline = preparedOnly
+    ? `${count} application${count === 1 ? '' : 's'} prepared — review and submit`
+    : queued
+      ? `${count} application${count === 1 ? '' : 's'} queued — finish forms, then follow up`
+      : `${count} application${count === 1 ? '' : 's'} submitted — here's your follow-up plan`;
 
   const rows =
     jobs.length > 0
@@ -248,7 +250,7 @@ async function sendPostApplyBatchEmail({ to, jobs = [], profile, useTailoredResu
     <p style="color:#94a3b8;line-height:1.6;margin:0">
       Hi ${escapeHtml(name)}, your RemoteMatch batch is complete.
       ${useTailoredResume ? ' Tailored resumes were prepared for each role.' : ''}
-      ${queued ? ' Open each posting in Chrome and submit with the RemoteMatch extension, then use the follow-up notes below.' : ' Consider a short follow-up in 3–5 business days if you have not heard back.'}
+      ${preparedOnly ? ' Review each role below, submit applications, then use the follow-up notes when you reach out.' : queued ? ' Open each posting in Chrome and submit with the RemoteMatch extension, then use the follow-up notes below.' : ' Consider a short follow-up in 3–5 business days if you have not heard back.'}
     </p>
     <h3 style="color:#5eead4;margin:28px 0 12px;font-size:16px">Companies to follow up with</h3>
     <table style="width:100%;border-collapse:collapse;font-size:14px">
