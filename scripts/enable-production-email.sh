@@ -9,7 +9,7 @@
 set -euo pipefail
 
 DOMAIN="${CUSTOM_DOMAIN:-remotelymatch.app}"
-APP_NAME="${APP_NAME:-RemotelyMatch}"
+APP_NAME="${APP_NAME:-remotelymatch}"
 EMAIL_FROM="${EMAIL_FROM:-$APP_NAME <noreply@$DOMAIN>}"
 TEST_TO="${TEST_TO:-leonix23@gmail.com}"
 RENDER_SERVICE_NAME="${RENDER_SERVICE_NAME:-remotematch}"
@@ -117,7 +117,7 @@ console.log(svc.service.id);
   fi
 else
   echo ""
-  echo "Render dashboard → remotematch → Environment:"
+  echo "Render dashboard → remotelymatch → Environment:"
   echo "  EMAIL_FROM = $EMAIL_FROM"
   echo "Then redeploy (or push to main — auto-deploy picks up env.js default)."
 fi

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Custom domain setup for RemoteMatch on Render
+# Custom domain setup for remotelymatch on Render
 # Target domain: remotelymatch.app (canonical — not remotematch.app)
 set -e
 
@@ -8,7 +8,7 @@ WWW="www.${DOMAIN}"
 RENDER_CNAME="remotematch.onrender.com"
 
 echo "=============================================="
-echo " RemoteMatch custom domain: ${DOMAIN}"
+echo " remotelymatch custom domain: ${DOMAIN}"
 echo "=============================================="
 echo ""
 echo "STEP 1 — Buy the domain"
@@ -18,7 +18,7 @@ echo "  Search: ${DOMAIN}"
 echo "  (remotematch.com is already taken — use .app or .io)"
 echo ""
 echo "STEP 2 — Add domain in Render"
-echo "  1. https://dashboard.render.com → remotematch service"
+echo "  1. https://dashboard.render.com → remotelymatch service"
 echo "  2. Settings → Custom Domains → Add Custom Domain"
 echo "  3. Enter: ${DOMAIN}"
 echo "  4. Also add: ${WWW} (optional)"

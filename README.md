@@ -1,6 +1,19 @@
-# RemoteMatch
+# remotelymatch
 
 A full-stack remote job dashboard built with the **Vue → Express → MongoDB** pattern from the Business Dashboard Master Guide — wired to your existing Python job agent.
+
+## Product naming
+
+| What | Value |
+|------|--------|
+| **Product name** | `remotelymatch` |
+| **Domain** | `remotelymatch.app` |
+| **GitHub repo** | `remotelymatch` |
+| **npm packages** | `remotelymatch`, `remotelymatch-frontend`, `remotelymatch-backend` |
+| **Legacy Render URL** | `remotematch.onrender.com` (infra slug — still works, redirects not required) |
+| **Legacy typo domain** | `remotematch.app` → 301 to `remotelymatch.app` |
+
+Canonical constants live in `frontend/src/constants/domain.js` and `backend/src/constants/brand.js`.
 
 ## What it does
 
@@ -54,7 +67,7 @@ This copies your latest `seen_jobs.db` and `application_tracker.db`, commits the
 ## Quick start (local)
 
 ```bash
-cd remotematch
+cd remotelymatch
 npm install
 cd frontend && npm install && cd ..
 cd backend && npm install && cd ..
@@ -85,10 +98,10 @@ Default login (from `.env`):
 
 ## Deploy to Render (get the real URL)
 
-1. Push this folder to GitHub (repo name: `remotematch`)
+1. Push this folder to GitHub (repo name: `remotelymatch`)
 2. Go to [render.com](https://render.com) → **New** → **Blueprint** or **Web Service**
 3. Connect the GitHub repo
-4. Render reads `render.yaml` — service name `remotematch` → URL `https://remotematch.onrender.com`
+4. Render reads `render.yaml` — service slug `remotematch` (legacy) → `https://remotematch.onrender.com`; canonical domain is **remotelymatch.app**
 5. Add secrets in Render **Environment**:
    - `MONGODB_URI` (MongoDB Atlas)
    - `JWT_ACCESS_SECRET` / `JWT_REFRESH_SECRET` (long random strings)
@@ -97,7 +110,7 @@ Default login (from `.env`):
 6. Deploy — first build takes ~5 minutes
 7. Open **https://remotematch.onrender.com** and log in
 
-To use a custom domain later: Render → Settings → Custom Domains → e.g. `remotematch.app`
+To use a custom domain later: Render → Settings → Custom Domains → e.g. `remotelymatch.app`
 
 ## Production
 
@@ -109,8 +122,8 @@ npm start
 ### Docker
 
 ```bash
-docker build -t remotematch .
-docker run --env-file backend/.env -p 5100:5100 remotematch
+docker build -t remotelymatch .
+docker run --env-file backend/.env -p 5100:5100 remotelymatch
 ```
 
 ## Environment variables
@@ -133,13 +146,13 @@ docker run --env-file backend/.env -p 5100:5100 remotematch
 
 ## Install on mobile (PWA)
 
-RemoteMatch is a **Progressive Web App** — you can install it on your phone like a native app.
+remotelymatch is a **Progressive Web App** — you can install it on your phone like a native app.
 
 ### iPhone (Safari)
 1. Deploy to HTTPS (Render) or use local network testing
 2. Open the site in **Safari**
 3. Tap **Share** → **Add to Home Screen**
-4. Name it **RemoteMatch** and tap **Add**
+4. Name it **remotelymatch** and tap **Add**
 
 ### Android (Chrome)
 1. Open the deployed HTTPS URL in **Chrome**

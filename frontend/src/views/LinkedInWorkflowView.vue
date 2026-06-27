@@ -22,7 +22,7 @@ const profile = computed(() => profileStore.profile || {});
 const linkedinProfileUrl = computed(() => profile.value.linkedin || '');
 const searches = computed(() => mergeLinkedInSearches(profile.value));
 
-const extensionPath = 'remotematch/chrome-extension';
+const extensionPath = 'remotelymatch/chrome-extension';
 const profileSetupUrl = computed(() => `${appUrl.replace(/\/$/, '')}/profile`);
 
 async function saveSearches(next) {
@@ -71,7 +71,7 @@ function openSearch(item) {
   <div>
     <h2 class="text-2xl font-bold text-slate-100">LinkedIn workflow</h2>
     <p class="mt-1 max-w-2xl text-slate-400">
-      Discover roles on LinkedIn yourself, queue them in RemoteMatch, then let the agent apply on ATS boards.
+      Discover roles on LinkedIn yourself, queue them in remotelymatch, then let the agent apply on ATS boards.
       No bots — your account stays safe.
     </p>
 
@@ -196,7 +196,7 @@ function openSearch(item) {
       <div class="card p-5">
         <h3 class="font-semibold text-slate-200">Chrome extension</h3>
         <p class="mt-2 text-sm text-slate-400">
-          Queue LinkedIn (or any) job page into RemoteMatch while you browse.
+          Queue LinkedIn (or any) job page into remotelymatch while you browse.
         </p>
         <ol class="mt-4 list-decimal space-y-2 pl-5 text-sm text-slate-400">
           <li>Chrome → <code class="text-xs text-slate-300">chrome://extensions</code> → Developer mode → Load unpacked</li>
@@ -213,7 +213,7 @@ function openSearch(item) {
       <div class="card p-5">
         <h3 class="font-semibold text-slate-200">On your phone</h3>
         <p class="mt-2 text-sm text-slate-400">
-          Install RemoteMatch as a PWA, then use LinkedIn’s app for discovery.
+          Install remotelymatch as a PWA, then use LinkedIn’s app for discovery.
         </p>
         <ul class="mt-4 space-y-2 text-sm text-slate-400">
           <li>• Tap a saved search above — opens LinkedIn in browser</li>

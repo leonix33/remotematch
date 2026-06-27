@@ -54,12 +54,13 @@ async function sendToUser(userId, subject, html) {
 
 function wrapHtml(title, body, link) {
   const appUrl = env.appUrl;
-  const cta = link ? `<p><a href="${appUrl}${link}" style="color:#2dd4bf">Open in RemoteMatch →</a></p>` : '';
+  const name = env.appName;
+  const cta = link ? `<p><a href="${appUrl}${link}" style="color:#2dd4bf">Open in ${name} →</a></p>` : '';
   return `<div style="font-family:sans-serif;max-width:560px;margin:0 auto;color:#e2e8f0;background:#0f172a;padding:24px;border-radius:12px">
     <h2 style="color:#5eead4;margin:0 0 12px">${title}</h2>
     <p style="color:#94a3b8;line-height:1.5">${body}</p>
     ${cta}
-    <p style="color:#475569;font-size:12px;margin-top:24px">RemoteMatch · ${appUrl}</p>
+    <p style="color:#475569;font-size:12px;margin-top:24px">${name} · ${appUrl}</p>
   </div>`;
 }
 
@@ -74,7 +75,7 @@ async function notifyHighMatch(userId, { title, company, matchPct }) {
 async function notifyChatInvite(userId, { fromName, intro }) {
   return sendToUser(
     userId,
-    `${fromName} wants to chat on RemoteMatch`,
+    `${fromName} wants to chat on ${env.appName}`,
     wrapHtml('New chat invite', `${fromName} sent you a message request.${intro ? `<br><br><em>"${intro}"</em>` : ''}`, '/chat')
   );
 }
@@ -168,7 +169,7 @@ async function sendAppliedJobsDigest({ to, applied, followUps, approveNow, summa
       : '';
 
   const html = `<div style="font-family:sans-serif;max-width:640px;margin:0 auto;color:#e2e8f0;background:#0f172a;padding:24px;border-radius:12px">
-    <h2 style="color:#5eead4;margin:0 0 8px">Your RemoteMatch application digest</h2>
+    <h2 style="color:#5eead4;margin:0 0 8px">Your ${escapeHtml(env.appName)} application digest</h2>
     <p style="color:#94a3b8">Hi ${escapeHtml(name)}, here are your best-fit submitted applications and what to do next.</p>
     <h3 style="color:#5eead4;margin:24px 0 8px">Applications submitted</h3>
     <table style="width:100%;border-collapse:collapse;font-size:14px">
@@ -248,9 +249,9 @@ async function sendPostApplyBatchEmail({ to, jobs = [], profile, useTailoredResu
   const html = `<div style="font-family:system-ui,-apple-system,sans-serif;max-width:720px;margin:0 auto;color:#e2e8f0;background:#0f172a;padding:28px;border-radius:12px">
     <h2 style="color:#5eead4;margin:0 0 8px;font-size:22px">${escapeHtml(headline)}</h2>
     <p style="color:#94a3b8;line-height:1.6;margin:0">
-      Hi ${escapeHtml(name)}, your RemoteMatch batch is complete.
+      Hi ${escapeHtml(name)}, your ${escapeHtml(env.appName)} batch is complete.
       ${useTailoredResume ? ' Tailored resumes were prepared for each role.' : ''}
-      ${preparedOnly ? ' Review each role below, submit applications, then use the follow-up notes when you reach out.' : queued ? ' Open each posting in Chrome and submit with the RemoteMatch extension, then use the follow-up notes below.' : ' Consider a short follow-up in 3–5 business days if you have not heard back.'}
+      ${preparedOnly ? ' Review each role below, submit applications, then use the follow-up notes when you reach out.' : queued ? ` Open each posting in Chrome and submit with the ${escapeHtml(env.appName)} extension, then use the follow-up notes below.` : ' Consider a short follow-up in 3–5 business days if you have not heard back.'}
     </p>
     <h3 style="color:#5eead4;margin:28px 0 12px;font-size:16px">Companies to follow up with</h3>
     <table style="width:100%;border-collapse:collapse;font-size:14px">

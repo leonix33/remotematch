@@ -10,7 +10,7 @@ self.addEventListener('push', (event) => {
       body: data.body || '',
       icon: '/icon.svg',
       badge: '/icon.svg',
-      tag: data.tag || data.url || 'remotematch',
+      tag: data.tag || data.url || 'remotelymatch',
       data: { url: data.url || '/' },
     })
   );

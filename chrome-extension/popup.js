@@ -64,7 +64,7 @@ document.getElementById('send').addEventListener('click', async () => {
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) throw new Error(data.message || res.statusText);
-    setStatus('Queued! Open Apply Queue in RemoteMatch.', true);
+    setStatus('Queued! Open Apply Queue in remotelymatch.', true);
   } catch (e) {
     setStatus(e.message || 'Failed to queue job', false);
   }

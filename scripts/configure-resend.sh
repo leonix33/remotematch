@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Configure Resend for RemoteMatch (local .env + optional Render production).
+# Configure Resend for remotelymatch (local .env + optional Render production).
 #
 # Usage:
 #   RESEND_API_KEY='re_...' ./scripts/configure-resend.sh
@@ -16,7 +16,7 @@ ENV_FILE="$ROOT/backend/.env"
 RENDER_SERVICE_NAME="remotematch"
 
 # Sandbox sender — only delivers to your Resend account email until a domain is verified.
-EMAIL_FROM="${EMAIL_FROM:-RemotelyMatch <noreply@remotelymatch.app>}"
+EMAIL_FROM="${EMAIL_FROM:-remotelymatch <noreply@remotelymatch.app>}"
 
 if [[ -z "${RESEND_API_KEY:-}" ]]; then
   echo "Paste your Resend API key (starts with re_):"
@@ -41,8 +41,8 @@ fetch('https://api.resend.com/emails', {
   body: JSON.stringify({
     from: process.argv[2],
     to: [process.argv[3]],
-    subject: 'RemoteMatch — Resend connected',
-    html: '<p>Resend is configured for RemoteMatch. Team invites and password resets will work.</p>',
+    subject: 'remotelymatch — Resend connected',
+    html: '<p>Resend is configured for remotelymatch. Team invites and password resets will work.</p>',
   }),
 })
   .then(async (res) => {
@@ -63,8 +63,8 @@ if [[ "$TEST_RESULT" != OK ]]; then
   echo "$TEST_RESULT"
   echo ""
   echo "Tip: onboarding@resend.dev only sends to the email you signed up to Resend with."
-  echo "To email anyone, verify remotematch.app under Resend → Domains, then set:"
-  echo "  EMAIL_FROM='RemoteMatch <noreply@remotematch.app>'"
+  echo "To email anyone, verify remotelymatch.app under Resend → Domains, then set:"
+  echo "  EMAIL_FROM='remotelymatch <noreply@remotelymatch.app>'"
   exit 1
 fi
 
@@ -118,7 +118,7 @@ console.log(svc.service.id);
 else
   echo ""
   echo "Render (production) — add manually:"
-  echo "  dashboard.render.com → remotematch → Environment"
+  echo "  dashboard.render.com → remotelymatch → Environment"
   echo "  RESEND_API_KEY = $RESEND_API_KEY"
   echo "  EMAIL_FROM     = $EMAIL_FROM"
 fi

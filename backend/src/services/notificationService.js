@@ -54,7 +54,7 @@ async function create(userId, payload) {
 
   try {
     await pushService.sendToUser(userId, {
-      title: payload.title || 'RemoteMatch',
+      title: payload.title || env.appName,
       body: payload.body || '',
       url: payload.link || '/',
     });

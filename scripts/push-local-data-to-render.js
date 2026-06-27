@@ -8,7 +8,9 @@ process.env.AGENT_HOME = process.env.AGENT_HOME || '/Users/user/job-event-agent'
 
 const jobService = require('../backend/src/services/jobService');
 
-const RENDER_URL = (process.env.RENDER_URL || 'https://remotematch.onrender.com').replace(/\/$/, '');
+const { LEGACY_RENDER_URL } = require('../backend/src/constants/brand');
+
+const RENDER_URL = (process.env.RENDER_URL || LEGACY_RENDER_URL).replace(/\/$/, '');
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL;
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
 const BATCH_SIZE = Number(process.env.IMPORT_BATCH_SIZE || 100);

@@ -163,7 +163,7 @@ async function scanLinkedInSearch() {
   chrome.runtime.sendMessage({ type: 'INGEST_LINKEDIN_JOBS', jobs: newJobs }, (response) => {
     if (chrome.runtime.lastError) return;
     if (response?.ok && response.data?.ingested > 0) {
-      showToast(`${response.data.ingested} new job(s) queued — check RemoteMatch on your phone`);
+      showToast(`${response.data.ingested} new job(s) queued — check remotelymatch on your phone`);
     }
   });
 }
@@ -174,7 +174,7 @@ function scheduleScan() {
 }
 
 function showToast(text) {
-  const id = 'remotematch-toast';
+  const id = 'remotelymatch-toast';
   let el = document.getElementById(id);
   if (!el) {
     el = document.createElement('div');

@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-# Opens Render + MongoDB setup pages. Paste secrets in Render → remotematch → Environment.
+# Opens Render + MongoDB setup pages. Paste secrets in Render → remotelymatch → Environment.
 set -e
 echo "Opening setup pages in your browser..."
 open "https://dashboard.render.com" 2>/dev/null || xdg-open "https://dashboard.render.com" 2>/dev/null || true
 open "https://cloud.mongodb.com" 2>/dev/null || true
 echo ""
-echo "=== Render → remotematch → Environment ==="
+echo "=== Render → remotelymatch → Environment ==="
 echo "Required for full features:"
-echo "  MONGODB_URI     = mongodb+srv://USER:PASS@cluster.../remotematch"
+echo "  MONGODB_URI     = mongodb+srv://USER:PASS@cluster.../remotelymatch"
 echo "  ADMIN_EMAIL     = leonix23@gmail.com"
 echo "  ADMIN_PASSWORD  = (your login password)"
 echo ""

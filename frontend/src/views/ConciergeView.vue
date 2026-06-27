@@ -84,7 +84,7 @@ function startVoice() {
 onMounted(async () => {
   messages.value.push({
     role: 'assistant',
-    content: 'Welcome to RemoteMatch Concierge. I know your queue, jobs, and applications — ask me where to go or what to do next.',
+    content: 'Welcome to remotelymatch Concierge. I know your queue, jobs, and applications — ask me where to go or what to do next.',
   });
   try {
     const { data } = await http.get('/concierge/snapshot');

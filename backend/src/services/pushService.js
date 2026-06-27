@@ -55,7 +55,7 @@ async function sendToUser(userId, { title, body, url, tag }) {
   }
 
   const payload = JSON.stringify({
-    title: title || 'RemoteMatch',
+    title: title || env.appName,
     body: body || '',
     url: url || '/',
     tag: tag || url,

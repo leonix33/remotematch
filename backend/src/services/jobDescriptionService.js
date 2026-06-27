@@ -1,4 +1,5 @@
 const jobSourcesConfig = require('../config/jobSources');
+const { USER_AGENT } = require('../constants/brand');
 
 async function fetchJson(url, options = {}) {
   const controller = new AbortController();
@@ -8,7 +9,7 @@ async function fetchJson(url, options = {}) {
       ...options,
       signal: controller.signal,
       headers: {
-        'User-Agent': 'RemoteMatch/1.0 (+https://remotelymatch.app)',
+        'User-Agent': USER_AGENT,
         Accept: 'application/json',
         ...(options.headers || {}),
       },

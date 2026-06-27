@@ -99,7 +99,7 @@ async function exportData() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'remotematch-data-export.json';
+    a.download = 'remotelymatch-data-export.json';
     a.click();
     URL.revokeObjectURL(url);
   } catch (e) {
@@ -137,7 +137,7 @@ async function connectExtension() {
   extApiUrl.value = apiBase;
   window.postMessage(
     {
-      type: 'REMOTEMATCH_EXT_CONFIG',
+      type: 'REMOTELYMATCH_EXT_CONFIG',
       apiBase,
       accessToken: extToken.value,
     },
@@ -160,9 +160,9 @@ onMounted(async () => {
   autosaveEnabled.value = true;
   await loadAiStatus();
   window.addEventListener('message', (e) => {
-    if (e.data?.type === 'REMOTEMATCH_EXT_CONFIGURED') {
+    if (e.data?.type === 'REMOTELYMATCH_EXT_CONFIGURED' || e.data?.type === 'REMOTEMATCH_EXT_CONFIGURED') {
       extConnected.value = true;
-      extConnectMsg.value = 'Extension connected! Open any job page and click the RemoteMatch icon.';
+      extConnectMsg.value = 'Extension connected! Open any job page and click the remotelymatch icon.';
     }
   });
 });
@@ -287,7 +287,7 @@ async function testOpenAiKey() {
 }
 
 async function removeOpenAiKey() {
-  if (!confirm('Remove your OpenAI API key from RemoteMatch?')) return;
+  if (!confirm('Remove your OpenAI API key from remotelymatch?')) return;
   openaiError.value = '';
   openaiMsg.value = '';
   try {

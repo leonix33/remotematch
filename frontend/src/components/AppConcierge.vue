@@ -30,7 +30,7 @@ function toggle() {
   if (open.value && !messages.value.length) {
     messages.value.push({
       role: 'assistant',
-      content: 'Hi — I’m your RemoteMatch concierge. Ask me anything about your jobs, queue, or where to go in the app. Type or tap the mic.',
+      content: 'Hi — I’m your remotelymatch concierge. Ask me anything about your jobs, queue, or where to go in the app. Type or tap the mic.',
     });
   }
 }
@@ -123,7 +123,7 @@ onUnmounted(() => {
       <div v-if="open" class="concierge-panel">
         <header class="concierge-header">
           <div>
-            <p class="concierge-eyebrow">RemoteMatch</p>
+            <p class="concierge-eyebrow">remotelymatch</p>
             <h2 class="concierge-title">Concierge</h2>
             <p class="concierge-sub">Ask about your jobs, queue, or where to go — voice or text</p>
           </div>

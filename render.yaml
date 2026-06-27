@@ -1,5 +1,6 @@
 services:
   - type: web
+    # Render slug (legacy URL: remotematch.onrender.com). Product / domain: remotelymatch.app
     name: remotematch
     runtime: docker
     dockerfilePath: ./Dockerfile
@@ -57,7 +58,7 @@ services:
         sync: false
       # Uses noreply@remotelymatch.app automatically when CUSTOM_DOMAIN is set (see env.js)
       - key: EMAIL_FROM
-        value: RemotelyMatch <noreply@remotelymatch.app>
+        value: "remotelymatch <noreply@remotelymatch.app>"
       - key: VAPID_PUBLIC_KEY
         sync: false
       - key: VAPID_PRIVATE_KEY

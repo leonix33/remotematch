@@ -1,7 +1,7 @@
-# Local MongoDB for RemoteMatch development.
+# Local MongoDB for remotelymatch development.
 # Usage:
 #   docker compose up -d
-#   Set in backend/.env: MONGODB_URI=mongodb://127.0.0.1:27017/remotematch
+#   Set in backend/.env: MONGODB_URI=mongodb://127.0.0.1:27017/remotelymatch
 #   npm run dev
 #
 # Production on Render: use MongoDB Atlas (free M0), not this container.
@@ -10,14 +10,14 @@
 services:
   mongo:
     image: mongo:7
-    container_name: remotematch-mongo
+    container_name: remotelymatch-mongo
     restart: unless-stopped
     ports:
       - '27018:27017'
     volumes:
-      - remotematch_mongo_data:/data/db
+      - remotelymatch_mongo_data:/data/db
     environment:
-      MONGO_INITDB_DATABASE: remotematch
+      MONGO_INITDB_DATABASE: remotelymatch
     healthcheck:
       test: ['CMD', 'mongosh', '--eval', "db.adminCommand('ping')"]
       interval: 10s
@@ -25,4 +25,4 @@ services:
       retries: 5
 
 volumes:
-  remotematch_mongo_data:
+  remotelymatch_mongo_data:

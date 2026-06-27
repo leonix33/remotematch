@@ -1,4 +1,5 @@
 const dotenv = require('dotenv');
+const { DISPLAY_NAME, LEGACY_RENDER_URL } = require('../constants/brand');
 const path = require('path');
 
 dotenv.config({ path: path.join(__dirname, '../../.env') });
@@ -8,7 +9,7 @@ const trim = (v) => (typeof v === 'string' ? v.trim() : v);
 function resolveEmailFrom() {
   const explicit = trim(process.env.EMAIL_FROM) || '';
   const domain = trim(process.env.CUSTOM_DOMAIN) || '';
-  const appName = trim(process.env.APP_NAME) || 'RemotelyMatch';
+  const appName = trim(process.env.APP_NAME) || DISPLAY_NAME;
   const sandbox = `${appName} <onboarding@resend.dev>`;
 
   if (explicit && !explicit.includes('resend.dev')) {
@@ -33,7 +34,7 @@ function parseOrigins() {
   }
   if (appUrl) origins.add(appUrl);
   origins.add('http://localhost:5173');
-  origins.add('https://remotematch.onrender.com');
+  origins.add(LEGACY_RENDER_URL);
   origins.add('https://remotelymatch.app');
   origins.add('https://www.remotelymatch.app');
   return [...origins];
@@ -54,7 +55,7 @@ module.exports = {
   appUrl: trim(process.env.APP_URL) || trim(process.env.CLIENT_ORIGIN) || 'https://remotelymatch.app',
   customDomain: trim(process.env.CUSTOM_DOMAIN) || 'remotelymatch.app',
   agentHome: process.env.AGENT_HOME || require('path').resolve(__dirname, '../../../..'),
-  appName: trim(process.env.APP_NAME) || 'RemotelyMatch',
+  appName: trim(process.env.APP_NAME) || DISPLAY_NAME,
   deployTag: 'sync-v6',
   resendApiKey: trim(process.env.RESEND_API_KEY) || '',
   emailFrom: resolveEmailFrom(),

@@ -9,7 +9,7 @@ set -euo pipefail
 
 ATLAS_USER="db_admin"
 ATLAS_HOST="cluster0.73bhdry.mongodb.net"
-ATLAS_DB="remotematch"
+ATLAS_DB="remotelymatch"
 RENDER_SERVICE_NAME="remotematch"
 
 if [[ -z "${MONGODB_PASSWORD:-}" ]]; then
@@ -89,6 +89,6 @@ if command -v pbcopy >/dev/null; then
   echo "Copied MONGODB_URI to clipboard."
 fi
 
-echo "Paste into Render → remotematch → Environment → MONGODB_URI"
+echo "Paste into Render → remotelymatch → Environment → MONGODB_URI"
 echo "Then click Save, rebuild, and deploy."
 open "https://dashboard.render.com" 2>/dev/null || true

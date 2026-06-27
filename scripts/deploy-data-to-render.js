@@ -20,4 +20,5 @@ if (!status) {
 console.log('\nPushing to GitHub (Render auto-deploys)...');
 execSync('git push origin main', { cwd: root, stdio: 'inherit' });
 
-console.log('\nDone. Wait ~5 minutes for Render deploy, then refresh remotematch.onrender.com');
+const { LEGACY_RENDER_URL } = require('../backend/src/constants/brand');
+console.log(`\nDone. Wait ~5 minutes for Render deploy, then refresh ${LEGACY_RENDER_URL}`);

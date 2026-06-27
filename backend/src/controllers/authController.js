@@ -74,7 +74,7 @@ async function exportData(req, res, next) {
   try {
     const data = await userDataService.exportUserData(req.user.sub);
     res.setHeader('Content-Type', 'application/json');
-    res.setHeader('Content-Disposition', 'attachment; filename="remotematch-data-export.json"');
+    res.setHeader('Content-Disposition', 'attachment; filename="remotelymatch-data-export.json"');
     res.json(data);
   } catch (err) {
     next(err);

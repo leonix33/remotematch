@@ -23,7 +23,7 @@ async function sendWeeklyPulse() {
     try {
       await emailService.sendEmail({
         to: user.email,
-        subject: `RemoteMatch weekly pulse — ${pulse.totalJobs} jobs tracked`,
+        subject: `remotelymatch weekly pulse — ${pulse.totalJobs} jobs tracked`,
         html: emailService.wrapHtml(
           'Weekly market pulse',
           `<strong>${pulse.totalJobs}</strong> jobs in feed · <strong>${pulse.remotePercent}%</strong> remote · Avg match <strong>${pulse.avgMatchPct}%</strong><br><br>

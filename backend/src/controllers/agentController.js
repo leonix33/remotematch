@@ -234,7 +234,7 @@ async function applyApproved(req, res, next) {
         const modeLabel = useTailoredResume ? 'tailored kits' : 'base resume';
         const emailNotification = await sendApplyEmailNotification(true);
         return res.json({
-          message: `Queued ${scored.length} application(s) with ${modeLabel}.${shouldDeferKits ? ' Tailored resumes are generating — refresh the preview in a moment.' : ''} Open each job in Chrome and use the RemoteMatch extension to submit forms.`,
+          message: `Queued ${scored.length} application(s) with ${modeLabel}.${shouldDeferKits ? ' Tailored resumes are generating — refresh the preview in a moment.' : ''} Open each job in Chrome and use the remotelymatch extension to submit forms.`,
           count: scored.length,
           useTailoredResume,
           tailoredCount,
@@ -245,7 +245,7 @@ async function applyApproved(req, res, next) {
           jobIds,
           kitsGenerating: shouldDeferKits,
           itemsFile,
-          hint: 'Install the Chrome extension from Team access, open a job posting, and click Apply with RemoteMatch.',
+          hint: 'Install the Chrome extension from Team access, open a job posting, and click Apply with remotelymatch.',
           emailNotification,
         });
       }

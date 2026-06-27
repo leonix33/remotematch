@@ -99,7 +99,7 @@ async function copyText(value, label) {
 }
 
 function inviteMessage(inv) {
-  return `You're invited to RemoteMatch!\n\nLog in: ${inv.loginUrl}\nEmail: ${inv.email}\nTemporary password: ${inv.password}\n\nChange your password after first login.`;
+  return `You're invited to remotelymatch!\n\nLog in: ${inv.loginUrl}\nEmail: ${inv.email}\nTemporary password: ${inv.password}\n\nChange your password after first login.`;
 }
 
 async function toggleActive(user) {

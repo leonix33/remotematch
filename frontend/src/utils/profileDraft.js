@@ -1,5 +1,19 @@
-const CACHE_PREFIX = 'remotematch_profile_';
-const ONBOARDING_PREFIX = 'remotematch_onboarding_step_';
+const CACHE_PREFIX = 'remotelymatch_profile_';
+const ONBOARDING_PREFIX = 'remotelymatch_onboarding_step_';
+const LEGACY_CACHE_PREFIX = 'remotematch_profile_';
+const LEGACY_ONBOARDING_PREFIX = 'remotematch_onboarding_step_';
+
+function migrateLegacyKey(legacyKey, newKey) {
+  try {
+    const value = localStorage.getItem(legacyKey);
+    if (value != null && localStorage.getItem(newKey) == null) {
+      localStorage.setItem(newKey, value);
+      localStorage.removeItem(legacyKey);
+    }
+  } catch {
+    /* ignore */
+  }
+}
 
 export function profileCacheKey(userId) {
   return userId ? `${CACHE_PREFIX}${userId}` : null;
@@ -8,6 +22,7 @@ export function profileCacheKey(userId) {
 export function readProfileCache(userId) {
   const key = profileCacheKey(userId);
   if (!key) return null;
+  migrateLegacyKey(`${LEGACY_CACHE_PREFIX}${userId}`, key);
   try {
     const raw = localStorage.getItem(key);
     if (!raw) return null;
@@ -32,12 +47,15 @@ export function writeProfileCache(userId, profile) {
 export function clearProfileCache(userId) {
   const key = profileCacheKey(userId);
   if (key) localStorage.removeItem(key);
+  localStorage.removeItem(`${LEGACY_CACHE_PREFIX}${userId}`);
 }
 
 export function readOnboardingStep(userId) {
   if (!userId) return 1;
+  const key = `${ONBOARDING_PREFIX}${userId}`;
+  migrateLegacyKey(`${LEGACY_ONBOARDING_PREFIX}${userId}`, key);
   try {
-    const n = Number(localStorage.getItem(`${ONBOARDING_PREFIX}${userId}`));
+    const n = Number(localStorage.getItem(key));
     return n >= 1 && n <= 3 ? n : 1;
   } catch {
     return 1;
@@ -56,4 +74,5 @@ export function writeOnboardingStep(userId, step) {
 export function clearOnboardingStep(userId) {
   if (!userId) return;
   localStorage.removeItem(`${ONBOARDING_PREFIX}${userId}`);
+  localStorage.removeItem(`${LEGACY_ONBOARDING_PREFIX}${userId}`);
 }

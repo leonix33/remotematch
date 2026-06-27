@@ -283,12 +283,12 @@ defineExpose({ refresh: load });
 
       <p class="text-slate-300">
         <strong>Step 3.</strong> Render → Environment →
-        <code class="text-violet-300">EMAIL_FROM=RemotelyMatch &lt;noreply@remotelymatch.app&gt;</code>
+        <code class="text-violet-300">EMAIL_FROM=remotelymatch &lt;noreply@remotelymatch.app&gt;</code>
         → redeploy
       </p>
       <p>
         <strong>Personal email stays separate:</strong> keep your Gmail in Profile for job forms.
-        <code>noreply@remotelymatch.app</code> is only the sender for RemotelyMatch digests.
+        <code>noreply@remotelymatch.app</code> is only the sender for remotelymatch digests.
       </p>
       <RouterLink to="/profile" class="inline-block text-teal-400 hover:underline">Profile → email & digest settings</RouterLink>
     </div>

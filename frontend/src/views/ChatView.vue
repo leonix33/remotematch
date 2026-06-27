@@ -283,7 +283,7 @@ watch(tab, () => { error.value = ''; });
     <div v-else-if="tab === 'ai'" class="card mt-6 flex h-[min(70vh,600px)] flex-col overflow-hidden">
       <div class="flex items-center justify-between border-b border-slate-800 px-4 py-3">
         <div>
-          <p class="font-medium text-teal-200">RemoteMatch AI Coach</p>
+          <p class="font-medium text-teal-200">remotelymatch AI Coach</p>
           <p class="text-xs text-slate-500">Resume, interviews, negotiation, strategy</p>
         </div>
         <button class="btn-secondary px-3 py-1 text-xs" @click="clearAi">Clear</button>
