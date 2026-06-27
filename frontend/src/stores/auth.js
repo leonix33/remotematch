@@ -12,18 +12,29 @@ export const useAuthStore = defineStore('auth', {
     isAdmin: (s) => s.user?.role === 'admin',
   },
   actions: {
+    applySession(data) {
+      this.user = data.user;
+      this.accessToken = data.accessToken;
+      localStorage.setItem('user', JSON.stringify(data.user));
+      localStorage.setItem('accessToken', data.accessToken);
+    },
     async login(email, password) {
       const { data } = await http.post('/auth/login', {
         email: String(email || '').trim(),
         password: String(password || ''),
       });
-      this.user = data.user;
-      this.accessToken = data.accessToken;
-      localStorage.setItem('user', JSON.stringify(data.user));
-      localStorage.setItem('accessToken', data.accessToken);
+      this.applySession(data);
       const profileStore = useProfileStore();
       profileStore.hydrateFromCache();
       await profileStore.fetch().catch(() => {});
+      return data;
+    },
+    async loginWithPasskey(data) {
+      this.applySession(data);
+      const profileStore = useProfileStore();
+      profileStore.hydrateFromCache();
+      await profileStore.fetch().catch(() => {});
+      return data;
     },
     logout() {
       const userId = this.user?.id;

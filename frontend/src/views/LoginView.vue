@@ -1,11 +1,18 @@
 <script setup>
-import { onMounted, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import { useRouter, useRoute, RouterLink } from 'vue-router';
 import { useAuthStore } from '../stores/auth';
 import { useProfileStore } from '../stores/profile';
 import http from '../api/http';
 import AppLogo from '../components/AppLogo.vue';
 import { brand } from '../brand';
+import {
+  biometricLabel,
+  loginWithPasskey,
+  rememberLoginEmail,
+  recalledLoginEmail,
+  supportsBiometricLogin,
+} from '../composables/usePasskey';
 
 const email = ref('');
 const password = ref('');
@@ -14,21 +21,34 @@ const confirmPassword = ref('');
 const error = ref('');
 const info = ref('');
 const loading = ref(false);
+const bioLoading = ref(false);
 const mode = ref('login');
 const resetToken = ref('');
+const showBiometric = ref(false);
+const bioLabel = computed(() => biometricLabel());
 
 const router = useRouter();
 const route = useRoute();
 const auth = useAuthStore();
 const profileStore = useProfileStore();
 
-onMounted(() => {
+async function afterAuth() {
+  if (!profileStore.profile?.onboardingComplete) {
+    await router.push('/onboarding');
+  } else {
+    await router.push('/');
+  }
+}
+
+onMounted(async () => {
   const token = typeof route.query.reset === 'string' ? route.query.reset : '';
   if (token) {
     resetToken.value = token;
     mode.value = 'reset';
     info.value = 'Choose a new password for your account.';
   }
+  email.value = recalledLoginEmail();
+  showBiometric.value = await supportsBiometricLogin();
 });
 
 async function submitLogin() {
@@ -37,11 +57,8 @@ async function submitLogin() {
   loading.value = true;
   try {
     await auth.login(email.value.trim(), password.value);
-    if (!profileStore.profile?.onboardingComplete) {
-      router.push('/onboarding');
-    } else {
-      router.push('/');
-    }
+    rememberLoginEmail(email.value);
+    await afterAuth();
   } catch (e) {
     const status = e.response?.status;
     const msg = e.response?.data?.message || e.message || 'Login failed';
@@ -52,6 +69,29 @@ async function submitLogin() {
     }
   } finally {
     loading.value = false;
+  }
+}
+
+async function submitBiometric() {
+  error.value = '';
+  info.value = '';
+  if (!email.value.trim()) {
+    error.value = 'Enter your email above, then use Face ID.';
+    return;
+  }
+  bioLoading.value = true;
+  try {
+    const data = await loginWithPasskey(email.value);
+    await auth.loginWithPasskey(data);
+    await afterAuth();
+  } catch (e) {
+    if (e.name === 'NotAllowedError') {
+      error.value = `${bioLabel.value} was cancelled. Try again or use your password.`;
+    } else {
+      error.value = e.response?.data?.message || e.message || `${bioLabel.value} sign-in failed`;
+    }
+  } finally {
+    bioLoading.value = false;
   }
 }
 
@@ -137,9 +177,22 @@ async function submitReset() {
         </div>
         <p v-if="error" class="rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-300">{{ error }}</p>
         <p v-if="info" class="rounded-lg bg-teal-500/10 px-3 py-2 text-sm text-teal-200">{{ info }}</p>
-        <button type="submit" class="btn-primary w-full" :disabled="loading">
+        <button type="submit" class="btn-primary w-full" :disabled="loading || bioLoading">
           {{ loading ? 'Signing in…' : 'Sign in' }}
         </button>
+        <button
+          v-if="showBiometric"
+          type="button"
+          class="btn-secondary w-full flex items-center justify-center gap-2"
+          :disabled="loading || bioLoading"
+          @click="submitBiometric"
+        >
+          <span aria-hidden="true">{{ bioLabel === 'Face ID' ? '🔐' : '👆' }}</span>
+          {{ bioLoading ? `Checking ${bioLabel}…` : `Sign in with ${bioLabel}` }}
+        </button>
+        <p v-if="showBiometric" class="text-center text-xs text-slate-500">
+          Set up {{ bioLabel }} in Profile after your first password sign-in.
+        </p>
       </form>
 
       <!-- Forgot password -->

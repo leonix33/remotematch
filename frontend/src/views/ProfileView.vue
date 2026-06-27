@@ -9,6 +9,13 @@ import ResumeUpload from '../components/ResumeUpload.vue';
 import ResumePreview from '../components/ResumePreview.vue';
 import TailorApplySettings from '../components/TailorApplySettings.vue';
 import { useProfileAutosave } from '../composables/useProfileAutosave';
+import {
+  biometricLabel,
+  fetchPasskeyStatus,
+  registerPasskey,
+  removePasskeys,
+  supportsBiometricLogin,
+} from '../composables/usePasskey';
 
 const router = useRouter();
 const profileStore = useProfileStore();
@@ -38,6 +45,12 @@ const openaiError = ref('');
 const aiStatus = ref(null);
 const { saveState, schedule } = useProfileAutosave();
 const autosaveEnabled = ref(false);
+const passkeyEnabled = ref(false);
+const passkeyLoading = ref(false);
+const passkeyMsg = ref('');
+const passkeyError = ref('');
+const canUsePasskey = ref(false);
+const bioLabel = biometricLabel();
 
 const form = ref({
   displayName: '',
@@ -159,6 +172,7 @@ onMounted(async () => {
   loadForm(p);
   autosaveEnabled.value = true;
   await loadAiStatus();
+  await loadPasskeyStatus();
   window.addEventListener('message', (e) => {
     if (e.data?.type === 'REMOTELYMATCH_EXT_CONFIGURED' || e.data?.type === 'REMOTEMATCH_EXT_CONFIGURED') {
       extConnected.value = true;
@@ -194,6 +208,51 @@ async function save() {
     error.value = e.response?.data?.message || 'Save failed';
   } finally {
     saving.value = false;
+  }
+}
+
+async function loadPasskeyStatus() {
+  canUsePasskey.value = await supportsBiometricLogin();
+  if (!canUsePasskey.value) return;
+  try {
+    const status = await fetchPasskeyStatus();
+    passkeyEnabled.value = Boolean(status.enabled);
+  } catch {
+    passkeyEnabled.value = false;
+  }
+}
+
+async function enablePasskey() {
+  passkeyError.value = '';
+  passkeyMsg.value = '';
+  passkeyLoading.value = true;
+  try {
+    const result = await registerPasskey(bioLabel === 'Face ID' ? 'iPhone Face ID' : 'This phone');
+    passkeyEnabled.value = true;
+    passkeyMsg.value = result.message || `${bioLabel} sign-in enabled.`;
+  } catch (e) {
+    if (e.name === 'NotAllowedError') {
+      passkeyError.value = `${bioLabel} setup was cancelled.`;
+    } else {
+      passkeyError.value = e.response?.data?.message || e.message || `Could not enable ${bioLabel}`;
+    }
+  } finally {
+    passkeyLoading.value = false;
+  }
+}
+
+async function disablePasskey() {
+  if (!confirm(`Remove ${bioLabel} sign-in from this account?`)) return;
+  passkeyLoading.value = true;
+  passkeyError.value = '';
+  try {
+    await removePasskeys();
+    passkeyEnabled.value = false;
+    passkeyMsg.value = `${bioLabel} sign-in removed.`;
+  } catch (e) {
+    passkeyError.value = e.response?.data?.message || 'Could not remove passkey';
+  } finally {
+    passkeyLoading.value = false;
   }
 }
 
@@ -584,6 +643,34 @@ async function removeOpenAiKey() {
           </div>
         </div>
       </div>
+    </div>
+
+    <div v-if="canUsePasskey" class="card mt-8 space-y-4 p-6">
+      <h3 class="font-semibold text-slate-200">{{ bioLabel }} sign-in</h3>
+      <p class="text-sm text-slate-500">
+        Use {{ bioLabel }} on this phone for faster sign-in. You still need your password the first time on each device.
+      </p>
+      <p v-if="passkeyEnabled" class="text-sm text-teal-300">✓ {{ bioLabel }} is enabled for your account.</p>
+      <p v-if="passkeyMsg" class="text-sm text-teal-300">{{ passkeyMsg }}</p>
+      <p v-if="passkeyError" class="text-sm text-red-300">{{ passkeyError }}</p>
+      <button
+        v-if="!passkeyEnabled"
+        type="button"
+        class="btn-primary"
+        :disabled="passkeyLoading"
+        @click="enablePasskey"
+      >
+        {{ passkeyLoading ? 'Setting up…' : `Enable ${bioLabel}` }}
+      </button>
+      <button
+        v-else
+        type="button"
+        class="btn-secondary"
+        :disabled="passkeyLoading"
+        @click="disablePasskey"
+      >
+        Remove {{ bioLabel }}
+      </button>
     </div>
 
     <form class="card mt-8 space-y-4 p-6" @submit.prevent="changePassword">
