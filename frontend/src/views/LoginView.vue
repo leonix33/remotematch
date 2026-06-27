@@ -56,8 +56,8 @@ async function submit() {
         </button>
       </form>
       <p class="mt-6 text-center text-xs text-slate-500">Invite-only access · Admin creates accounts</p>
-      <p class="mt-2 text-center text-xs leading-relaxed text-slate-600">
-        iPhone: Safari works without installing. Bookmark this page or use Share → scroll down → Add to Home Screen.
+      <p class="mt-3 text-center text-xs text-slate-600">
+        Tap <strong class="text-teal-400">Share · Install</strong> on the right to copy the link or add the app to your phone.
       </p>
       <p class="mt-3 text-center text-xs text-slate-600">
         <RouterLink to="/privacy" class="text-teal-500 hover:underline">Privacy</RouterLink>

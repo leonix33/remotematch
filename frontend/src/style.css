@@ -1585,6 +1585,338 @@ body {
     min-height: 44px;
     padding: 0.55rem 0.9rem !important;
   }
+
+  .pwa-install-fab {
+    position: fixed;
+    right: max(0.75rem, env(safe-area-inset-right, 0px));
+    bottom: calc(5.25rem + env(safe-area-inset-bottom, 0px));
+    z-index: 45;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    min-height: 44px;
+    padding: 0.5rem 0.85rem;
+    border-radius: 999px;
+    border: 1px solid rgba(45, 212, 191, 0.35);
+    background: rgba(15, 23, 42, 0.95);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: #99f6e4;
+    backdrop-filter: blur(8px);
+  }
+
+  .pwa-install-fab-icon {
+    display: inline-flex;
+    height: 1.25rem;
+    width: 1.25rem;
+    align-items: center;
+    justify-content: center;
+    border-radius: 999px;
+    background: rgba(20, 184, 166, 0.2);
+    font-size: 0.75rem;
+  }
+}
+
+.pwa-install-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: flex;
+  align-items: flex-end;
+  background: rgba(2, 6, 23, 0.78);
+  backdrop-filter: blur(4px);
+}
+
+.pwa-install-sheet {
+  position: relative;
+  width: 100%;
+  max-height: min(88dvh, 36rem);
+  overflow-y: auto;
+  border-top-left-radius: 1.35rem;
+  border-top-right-radius: 1.35rem;
+  border: 1px solid rgba(45, 212, 191, 0.2);
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.98), rgba(2, 6, 23, 0.99));
+  padding: 0.5rem 1.25rem 1.25rem;
+  box-shadow: 0 -16px 48px rgba(0, 0, 0, 0.5);
+}
+
+.pwa-install-handle {
+  width: 2.75rem;
+  height: 0.3rem;
+  margin: 0.35rem auto 0.75rem;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.45);
+}
+
+.pwa-install-close {
+  position: absolute;
+  top: 0.85rem;
+  right: 0.85rem;
+  display: flex;
+  height: 2.25rem;
+  width: 2.25rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 1px solid rgba(51, 65, 85, 0.65);
+  background: rgba(30, 41, 59, 0.6);
+  font-size: 1.25rem;
+  line-height: 1;
+  color: #94a3b8;
+}
+
+.pwa-install-hero {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding-right: 2.5rem;
+}
+
+.pwa-install-icon {
+  flex-shrink: 0;
+  border-radius: 1rem;
+  box-shadow: 0 8px 20px rgba(20, 184, 166, 0.25);
+}
+
+.pwa-install-title {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: #f1f5f9;
+  line-height: 1.25;
+}
+
+.pwa-install-subtitle {
+  margin-top: 0.25rem;
+  font-size: 0.875rem;
+  line-height: 1.45;
+  color: #94a3b8;
+}
+
+.pwa-install-copy {
+  margin-top: 1rem;
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  color: #cbd5e1;
+}
+
+.pwa-install-steps {
+  margin-top: 0.85rem;
+  display: grid;
+  gap: 0.65rem;
+  padding-left: 1.15rem;
+  font-size: 0.875rem;
+  line-height: 1.45;
+  color: #94a3b8;
+  list-style: decimal;
+}
+
+.pwa-install-pill {
+  display: inline-block;
+  border-radius: 0.45rem;
+  border: 1px solid rgba(45, 212, 191, 0.25);
+  background: rgba(20, 184, 166, 0.12);
+  padding: 0.1rem 0.45rem;
+  font-weight: 600;
+  color: #ccfbf1;
+}
+
+.pwa-install-hint {
+  margin-top: 0.75rem;
+  font-size: 0.75rem;
+  line-height: 1.45;
+  color: #64748b;
+}
+
+.pwa-install-cta {
+  margin-top: 1rem;
+  width: 100%;
+  min-height: 52px;
+  font-size: 1rem;
+}
+
+.pwa-install-actions {
+  margin-top: 1rem;
+  padding-top: 0.25rem;
+}
+
+/* Share + install edge tab */
+.share-install-tab {
+  position: fixed;
+  right: 0;
+  top: 50%;
+  z-index: 48;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.15rem;
+  min-width: 2.35rem;
+  padding: 0.65rem 0.4rem 0.65rem 0.5rem;
+  border: 1px solid rgba(45, 212, 191, 0.3);
+  border-right: none;
+  border-radius: 0.75rem 0 0 0.75rem;
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.97), rgba(20, 184, 166, 0.12));
+  box-shadow: -4px 0 20px rgba(0, 0, 0, 0.35);
+  color: #99f6e4;
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  line-height: 1.1;
+  backdrop-filter: blur(8px);
+  transform: translateY(-50%);
+  transition: background 0.15s ease, padding-left 0.15s ease;
+}
+
+.share-install-tab:hover {
+  padding-left: 0.65rem;
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.99), rgba(20, 184, 166, 0.22));
+  color: #ccfbf1;
+}
+
+.share-install-tab-icon {
+  font-size: 0.85rem;
+  line-height: 1;
+}
+
+.share-install-tab-text-sub {
+  color: #5eead4;
+  font-size: 0.5625rem;
+}
+
+.share-install-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 72;
+  display: flex;
+  align-items: flex-end;
+  background: rgba(2, 6, 23, 0.78);
+  backdrop-filter: blur(4px);
+}
+
+.share-install-sheet {
+  position: relative;
+  width: 100%;
+  max-height: min(90dvh, 38rem);
+  overflow-y: auto;
+  border-top-left-radius: 1.35rem;
+  border-top-right-radius: 1.35rem;
+  border: 1px solid rgba(45, 212, 191, 0.2);
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.98), rgba(2, 6, 23, 0.99));
+  padding: 0.5rem 1.25rem 1.25rem;
+  box-shadow: 0 -16px 48px rgba(0, 0, 0, 0.5);
+}
+
+.share-install-handle {
+  width: 2.75rem;
+  height: 0.3rem;
+  margin: 0.35rem auto 0.75rem;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.45);
+}
+
+.share-install-close {
+  position: absolute;
+  top: 0.85rem;
+  right: 0.85rem;
+  display: flex;
+  height: 2.25rem;
+  width: 2.25rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 1px solid rgba(51, 65, 85, 0.65);
+  background: rgba(30, 41, 59, 0.6);
+  font-size: 1.25rem;
+  line-height: 1;
+  color: #94a3b8;
+}
+
+.share-install-title {
+  padding-right: 2.5rem;
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: #f1f5f9;
+}
+
+.share-install-subtitle {
+  margin-top: 0.35rem;
+  font-size: 0.875rem;
+  line-height: 1.45;
+  color: #94a3b8;
+}
+
+.share-install-section {
+  margin-top: 1.15rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(51, 65, 85, 0.55);
+}
+
+.share-install-section-label {
+  margin-bottom: 0.65rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.share-install-url-box {
+  border-radius: 0.75rem;
+  border: 1px solid rgba(51, 65, 85, 0.65);
+  background: rgba(2, 6, 23, 0.55);
+  padding: 0.65rem 0.75rem;
+}
+
+.share-install-url {
+  display: block;
+  word-break: break-all;
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  color: #5eead4;
+}
+
+.share-install-actions-row {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.share-install-feedback {
+  margin-top: 0.5rem;
+  font-size: 0.8125rem;
+  color: #5eead4;
+}
+
+.share-install-copy {
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: #cbd5e1;
+}
+
+.share-install-installed {
+  font-size: 0.875rem;
+  color: #5eead4;
+}
+
+.share-install-pill {
+  display: inline-block;
+  border-radius: 0.45rem;
+  border: 1px solid rgba(45, 212, 191, 0.25);
+  background: rgba(20, 184, 166, 0.12);
+  padding: 0.1rem 0.45rem;
+  font-weight: 600;
+  color: #ccfbf1;
+}
+
+@media (max-width: 640px) {
+  .share-install-tab {
+    top: auto;
+    bottom: calc(5.5rem + env(safe-area-inset-bottom, 0px));
+    transform: none;
+    border-radius: 0.75rem 0 0 0.75rem;
+  }
 }
 
 @media (max-width: 640px) and (min-resolution: 2dppx) {

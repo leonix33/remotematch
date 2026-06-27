@@ -4,6 +4,8 @@ import { useRoute, useRouter, RouterLink, RouterView } from 'vue-router';
 import { useAuthStore } from './stores/auth';
 import { useProfileStore } from './stores/profile';
 import PwaPrompt from './components/PwaPrompt.vue';
+import ShareInstallTab from './components/ShareInstallTab.vue';
+import ShareInstallPanel from './components/ShareInstallPanel.vue';
 import AppLogo from './components/AppLogo.vue';
 import AppSidebar from './components/AppSidebar.vue';
 import AppConcierge from './components/AppConcierge.vue';
@@ -58,6 +60,9 @@ onUnmounted(() => {
 
 <template>
   <div v-if="route.path === '/login' || route.path === '/privacy' || route.path === '/terms'" class="min-h-screen min-h-dvh safe-top safe-bottom safe-x">
+    <PwaPrompt />
+    <ShareInstallTab />
+    <ShareInstallPanel />
     <RouterView />
   </div>
   <div v-else class="mobile-app-shell flex min-h-screen min-h-dvh w-full flex-col lg:flex-row">
@@ -125,5 +130,8 @@ onUnmounted(() => {
     <AppConcierge
       v-if="auth.isAdmin && route.path !== '/login' && route.path !== '/onboarding' && route.path !== '/welcome'"
     />
+
+    <ShareInstallTab />
+    <ShareInstallPanel />
   </div>
 </template>
