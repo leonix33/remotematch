@@ -1,5 +1,6 @@
 import { ref } from 'vue';
 import http from '../api/http';
+import { formatApplyEmailNotice } from '../utils/applyEmailMessage';
 
 const APPLY_TIMEOUT_MS = 10 * 60 * 1000;
 const KIT_POLL_INTERVAL_MS = 2500;
@@ -129,12 +130,14 @@ export function useQuickApply() {
 
       const queued = Boolean(data.queued || data.recorded);
       const preparedOnly = Boolean(data.preparedOnly);
+      const emailNote = formatApplyEmailNotice(data.emailNotification);
       if (status === 202 || queued) {
         const hint = data.hint || data.message;
         message.value =
           queued
             ? `Queued ${data.count || jobs.length} application(s)${kits.length ? ` · ${kits.length} tailored resume${kits.length === 1 ? '' : 's'} ready` : data.kitsGenerating ? ' · tailored resumes generating' : ''}. ${hint || ''}`.trim()
             : hint || data.message || 'Apply could not finish on the server.';
+        if (emailNote) message.value = `${message.value} ${emailNote}`.trim();
         if (!queued) {
           error.value = message.value;
           throw new Error(message.value);
@@ -146,6 +149,7 @@ export function useQuickApply() {
           output: data.output,
           queued: true,
           preparedOnly: false,
+          emailNotification: data.emailNotification,
         };
       }
 
@@ -160,7 +164,9 @@ export function useQuickApply() {
         };
       }
 
-      message.value = data.message || `Applied to ${data.count || jobs.length} job(s)`;
+      message.value = [data.message || `Applied to ${data.count || jobs.length} job(s)`, emailNote]
+        .filter(Boolean)
+        .join(' ');
       return {
         count: data.count || jobs.length,
         jobs,
@@ -168,6 +174,7 @@ export function useQuickApply() {
         output: data.output,
         queued: Boolean(data.queued),
         preparedOnly: false,
+        emailNotification: data.emailNotification,
       };
     } catch (e) {
       const status = e.response?.status;

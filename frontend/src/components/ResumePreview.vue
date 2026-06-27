@@ -1,5 +1,6 @@
 <script setup>
 import { computed, ref } from 'vue';
+import ResumeDocumentPreview from './ResumeDocumentPreview.vue';
 
 const props = defineProps({
   resumeText: { type: String, default: '' },
@@ -13,20 +14,9 @@ const props = defineProps({
   },
 });
 
-const expanded = ref(false);
+const viewMode = ref('document');
 
 const hasContent = computed(() => !props.unreadable && (props.resumeText || '').trim().length >= 20);
-
-const previewLines = computed(() => {
-  const text = (props.resumeText || '').trim();
-  if (!text) return [];
-  return text.split('\n').filter((line) => line.trim());
-});
-
-const displayLines = computed(() => {
-  if (expanded.value) return previewLines.value;
-  return previewLines.value.slice(0, 12);
-});
 
 const scoreLabel = computed(() => {
   if (props.score >= 80) return 'Ready to apply';
@@ -49,15 +39,37 @@ const barColor = computed(() => {
 </script>
 
 <template>
-  <div class="rounded-xl border border-slate-700/80 bg-slate-900/60 overflow-hidden">
+  <div class="overflow-hidden rounded-xl border border-slate-700/80 bg-slate-900/60">
     <div class="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 px-4 py-3">
       <div>
         <p class="text-sm font-medium text-slate-200">Resume preview</p>
-        <p v-if="fileName" class="mt-0.5 text-xs text-slate-500">{{ fileName }}</p>
+        <p class="mt-0.5 text-xs text-slate-500">
+          {{ fileName ? fileName : 'Formatted like a Word document — this is what employers see' }}
+        </p>
       </div>
-      <div v-if="hasContent" class="text-right">
-        <p class="text-2xl font-bold" :class="scoreColor">{{ score }}</p>
-        <p class="text-xs text-slate-500">{{ scoreLabel }}</p>
+      <div v-if="hasContent" class="flex items-center gap-3">
+        <div v-if="hasContent" class="flex rounded-lg border border-slate-700 bg-slate-900/60 p-0.5 text-xs">
+          <button
+            type="button"
+            class="rounded-md px-2.5 py-1 transition"
+            :class="viewMode === 'document' ? 'bg-teal-500/20 text-teal-200' : 'text-slate-500 hover:text-slate-300'"
+            @click="viewMode = 'document'"
+          >
+            Document
+          </button>
+          <button
+            type="button"
+            class="rounded-md px-2.5 py-1 transition"
+            :class="viewMode === 'plain' ? 'bg-teal-500/20 text-teal-200' : 'text-slate-500 hover:text-slate-300'"
+            @click="viewMode = 'plain'"
+          >
+            Plain text
+          </button>
+        </div>
+        <div class="text-right">
+          <p class="text-2xl font-bold" :class="scoreColor">{{ score }}</p>
+          <p class="text-xs text-slate-500">{{ scoreLabel }}</p>
+        </div>
       </div>
     </div>
 
@@ -79,20 +91,19 @@ const barColor = computed(() => {
 
       <div v-if="skills.length" class="flex flex-wrap gap-1.5 px-4 pt-3">
         <span v-for="skill in skills.slice(0, 10)" :key="skill" class="badge badge-teal text-xs">{{ skill }}</span>
-        <span v-if="skills.length > 10" class="text-xs text-slate-500 self-center">+{{ skills.length - 10 }} more</span>
+        <span v-if="skills.length > 10" class="self-center text-xs text-slate-500">+{{ skills.length - 10 }} more</span>
       </div>
 
-      <div class="custom-scrollbar max-h-72 overflow-y-auto px-4 py-3">
-        <pre class="whitespace-pre-wrap font-sans text-sm leading-relaxed text-slate-300">{{ displayLines.join('\n') }}</pre>
-        <p v-if="!expanded && previewLines.length > 12" class="mt-2 text-xs text-slate-500">
-          … {{ previewLines.length - 12 }} more lines
-        </p>
-      </div>
-
-      <div v-if="previewLines.length > 12" class="border-t border-slate-800 px-4 py-2">
-        <button type="button" class="text-xs text-teal-400 hover:underline" @click="expanded = !expanded">
-          {{ expanded ? 'Show less' : 'Show full resume' }}
-        </button>
+      <div class="p-4">
+        <ResumeDocumentPreview
+          v-if="viewMode === 'document'"
+          :text="resumeText"
+          compact
+        />
+        <pre
+          v-else
+          class="custom-scrollbar max-h-[28rem] overflow-y-auto whitespace-pre-wrap rounded-lg border border-slate-700/80 bg-white/[0.03] p-5 font-sans text-sm leading-relaxed text-slate-200"
+        >{{ resumeText }}</pre>
       </div>
     </template>
   </div>

@@ -6,6 +6,7 @@ const props = defineProps({
   kit: { type: Object, default: null },
   loading: { type: Boolean, default: false },
   compact: { type: Boolean, default: false },
+  prominent: { type: Boolean, default: false },
 });
 
 const viewMode = ref('document');
@@ -78,7 +79,13 @@ const resumeText = computed(() => {
           Sections: {{ kit.resumeStructure.sectionHeadings.join(' · ') }}
         </p>
 
-        <ResumeDocumentPreview v-if="viewMode === 'document'" class="mt-4" :text="resumeText" />
+        <ResumeDocumentPreview
+          v-if="viewMode === 'document'"
+          class="mt-4"
+          :class="prominent ? 'resume-preview-prominent' : ''"
+          :text="resumeText"
+          :scale="prominent ? 'full' : 'fit'"
+        />
 
         <pre
           v-else

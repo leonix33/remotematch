@@ -1,6 +1,7 @@
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue';
 import http from '../api/http';
+import ResumeDocumentPreview from './ResumeDocumentPreview.vue';
 import { useProfileStore } from '../stores/profile';
 import { useAuthStore } from '../stores/auth';
 
@@ -15,6 +16,9 @@ const props = defineProps({
   showResumeMode: { type: Boolean, default: true },
   showJobCount: { type: Boolean, default: false },
   showApplicantContact: { type: Boolean, default: true },
+  resumeText: { type: String, default: '' },
+  showResumeDocumentPreview: { type: Boolean, default: true },
+  emailDigestEnabled: { type: Boolean, default: true },
 });
 
 const jobCount = defineModel('jobCount', { type: Number, default: 15 });
@@ -50,6 +54,17 @@ const applySummary = computed(() => {
 });
 
 const emailMissing = computed(() => !applySummary.value.email || applySummary.value.email === '—');
+
+const hasResumePreview = computed(
+  () => props.showResumeDocumentPreview && (props.resumeText || '').trim().length >= 50
+);
+
+const resumePreviewNote = computed(() => {
+  if (resumeMode.value === 'tailored') {
+    return 'Your base resume layout below — each job gets a tailored version in the same format.';
+  }
+  return 'This is the resume employers receive on every application.';
+});
 
 async function loadApplyPreview() {
   loadingPreview.value = true;
@@ -140,6 +155,21 @@ onMounted(loadApplyPreview);
         Add your personal email above — not a system or admin address.
       </p>
       <p v-else-if="applyPreview?.emailWarning" class="mt-3 text-xs text-amber-300">{{ applyPreview.emailWarning }}</p>
+
+      <div
+        v-if="digestEmail && emailDigestEnabled !== false"
+        class="mt-4 rounded-lg border border-sky-900/40 bg-sky-950/20 px-3 py-2.5 text-xs text-sky-100/90"
+      >
+        <strong class="text-sky-200">Application summary emails</strong>
+        <span class="mt-1 block text-slate-400">
+          After you apply, we email a list of companies, roles, and follow-up tips to
+          <span class="font-medium text-teal-300">{{ digestEmail }}</span>.
+          Check spam if you do not see it within a few minutes.
+        </span>
+      </div>
+      <p v-else-if="digestEmail && emailDigestEnabled === false" class="mt-3 text-xs text-slate-500">
+        Application summary emails are off — enable them in Profile → Email & follow-ups.
+      </p>
     </div>
 
     <!-- Resume mode -->
@@ -162,6 +192,12 @@ onMounted(loadApplyPreview);
           <p class="mt-2 font-medium text-slate-200">Tailored resume</p>
           <p class="mt-1 text-xs text-slate-500">A version of your resume aligned to each job — same format, all credentials kept.</p>
         </label>
+      </div>
+
+      <div v-if="hasResumePreview && resumeMode === 'base'" class="mt-4">
+        <p class="text-sm font-medium text-slate-200">Resume document preview</p>
+        <p class="mt-1 text-xs text-slate-500">{{ resumePreviewNote }}</p>
+        <ResumeDocumentPreview class="mt-3" :text="resumeText" compact />
       </div>
     </div>
 
@@ -209,6 +245,12 @@ onMounted(loadApplyPreview);
         <strong class="text-slate-300">Active mode:</strong> {{ tailorModeLabel }}
         <span v-if="supplementPages"> · {{ supplementPages }} page{{ supplementPages === 1 ? '' : 's' }}</span>
       </p>
+
+      <div v-if="hasResumePreview" class="mt-5">
+        <p class="text-sm font-medium text-slate-200">Resume document preview</p>
+        <p class="mt-1 text-xs text-slate-500">{{ resumePreviewNote }}</p>
+        <ResumeDocumentPreview class="mt-3" :text="resumeText" compact />
+      </div>
     </div>
 
     <div v-if="showJobCount" class="space-y-5">

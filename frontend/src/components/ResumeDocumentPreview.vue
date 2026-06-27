@@ -5,6 +5,7 @@ import { classifyContentLine, parseResumeForDisplay, parseResumeHeader, splitCon
 const props = defineProps({
   text: { type: String, default: '' },
   scale: { type: String, default: 'fit' }, // fit | full
+  compact: { type: Boolean, default: false },
 });
 
 const doc = computed(() => parseResumeForDisplay(props.text));
@@ -38,7 +39,13 @@ function jobHeaderParts(text) {
 </script>
 
 <template>
-  <div class="resume-doc-shell" :class="scale === 'full' ? 'resume-doc-shell-full' : ''">
+  <div
+    class="resume-doc-shell"
+    :class="[
+      scale === 'full' ? 'resume-doc-shell-full' : '',
+      compact ? 'resume-doc-shell-compact' : '',
+    ]"
+  >
     <div class="resume-page" role="document" aria-label="Resume preview">
       <header v-if="header.name || header.contact.length" class="resume-header-block">
         <h1 class="resume-name">{{ header.name }}</h1>

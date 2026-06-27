@@ -346,6 +346,8 @@ onMounted(async () => {
         v-model:auto-apply="autoApplyEnabled"
         class="mt-5"
         :show-job-count="true"
+        :resume-text="resumeUnreadable ? '' : resumeText"
+        :email-digest-enabled="profileStore.profile?.emailDigestEnabled !== false"
       />
     </section>
 
@@ -365,6 +367,10 @@ onMounted(async () => {
         <p class="mt-1 text-xs text-slate-500">
           {{ jobCount }} top-matching jobs ·
           {{ autoApplyEnabled ? 'forms filled with the email above' : 'approved and resumes prepared — submit when ready' }}
+        </p>
+        <p v-if="digestEmail && profileStore.profile?.emailDigestEnabled !== false" class="mt-3 text-xs text-sky-200/90">
+          After applying, a summary email with every company and follow-up tips goes to
+          <span class="font-medium text-teal-300">{{ digestEmail }}</span>.
         </p>
       </div>
 

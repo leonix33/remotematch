@@ -2,6 +2,7 @@
 import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import { RouterLink, useRoute } from 'vue-router';
 import http from '../api/http';
+import { formatApplyEmailNotice } from '../utils/applyEmailMessage';
 import ApplyWorkflowBanner from '../components/ApplyWorkflowBanner.vue';
 import ApplicationKitPanel from '../components/ApplicationKitPanel.vue';
 import JobScoreBadges from '../components/JobScoreBadges.vue';
@@ -26,6 +27,7 @@ const whisper = ref([]);
 const whisperLoading = ref(false);
 const applying = ref(false);
 const applyMessage = ref('');
+const applyEmailNotice = ref('');
 const tailorOnApprove = ref(false);
 const applyResumeMode = ref('base');
 const kitJob = ref(null);
@@ -118,6 +120,7 @@ async function load() {
 async function applyApproved() {
   applying.value = true;
   applyMessage.value = '';
+  applyEmailNotice.value = '';
   error.value = '';
   try {
     const { data } = await http.post('/agent/apply-approved', {
@@ -125,10 +128,12 @@ async function applyApproved() {
       autoApply: true,
     });
     applyMessage.value = data.message || `Applied to ${data.count} jobs`;
+    applyEmailNotice.value = formatApplyEmailNotice(data.emailNotification);
     await load();
   } catch (e) {
     const d = e.response?.data;
     applyMessage.value = d?.message || d?.hint || 'Apply failed';
+    applyEmailNotice.value = formatApplyEmailNotice(d?.emailNotification);
     if (d?.hint) error.value = d.hint;
   } finally {
     applying.value = false;
@@ -344,6 +349,9 @@ onMounted(async () => {
           <p class="text-xs text-teal-300/90">
             Email on forms: {{ profileStore.profile?.digestEmail || auth.user?.email || 'add in Profile' }}
           </p>
+          <p class="text-xs text-slate-500">
+            After applying, a summary email goes to that address (if enabled in Profile).
+          </p>
           <button
             class="btn-primary px-4 py-2 text-sm"
             :disabled="applying"
@@ -408,6 +416,13 @@ onMounted(async () => {
 
     <p v-if="error" class="mt-4 rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-300">{{ error }}</p>
     <p v-if="applyMessage" class="mt-4 rounded-lg bg-teal-500/10 px-3 py-2 text-sm text-teal-200">{{ applyMessage }}</p>
+    <p
+      v-if="applyEmailNotice"
+      class="mt-2 rounded-lg px-3 py-2 text-sm"
+      :class="applyEmailNotice.startsWith('Summary email sent') ? 'bg-sky-500/10 text-sky-200' : 'bg-amber-500/10 text-amber-200'"
+    >
+      {{ applyEmailNotice }}
+    </p>
     <p v-if="queueBanner" class="mt-4 rounded-lg bg-sky-500/10 px-3 py-2 text-sm text-sky-200">{{ queueBanner }}</p>
 
     <div v-if="whisper.length && status === 'pending' && isAdmin" class="mt-6 card p-4">

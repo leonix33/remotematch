@@ -153,16 +153,19 @@ async function applyApproved(req, res, next) {
       });
     }
 
-    function scheduleApplyFeedback(queued) {
-      setImmediate(() => {
-        tractionService
-          .sendPostApplyFeedback(req.user.sub, scored, { useTailoredResume, queued })
-          .then((r) => {
-            if (r.sent) console.log(`Post-apply email sent to ${r.to}`);
-            else console.warn(`Post-apply email skipped: ${r.reason}`);
-          })
-          .catch((err) => console.warn('Post-apply email failed:', err.message));
-      });
+    async function sendApplyEmailNotification(queued) {
+      try {
+        const result = await tractionService.sendPostApplyFeedback(req.user.sub, scored, {
+          useTailoredResume,
+          queued,
+        });
+        if (result.sent) console.log(`Post-apply email sent to ${result.to}`);
+        else console.warn(`Post-apply email skipped: ${result.reason}`);
+        return result;
+      } catch (err) {
+        console.warn('Post-apply email failed:', err.message);
+        return { sent: false, reason: err.message };
+      }
     }
 
     let output;
@@ -193,7 +196,7 @@ async function applyApproved(req, res, next) {
       if (useTailoredResume && missingKitCount > 0) {
         message += ` (${tailoredCount} with kits, ${missingKitCount} fell back to base resume)`;
       }
-      scheduleApplyFeedback(false);
+      const emailNotification = await sendApplyEmailNotification(false);
       res.json({
         message,
         count: scored.length,
@@ -204,6 +207,7 @@ async function applyApproved(req, res, next) {
         jobIds,
         kitsGenerating: shouldDeferKits,
         output: output.slice(-2000),
+        emailNotification,
       });
     } catch (applyErr) {
       const unavailable = !agentAvailable || jobService.isAgentUnavailableError(applyErr);
@@ -224,7 +228,7 @@ async function applyApproved(req, res, next) {
           await run.save();
         }
         const modeLabel = useTailoredResume ? 'tailored kits' : 'base resume';
-        scheduleApplyFeedback(true);
+        const emailNotification = await sendApplyEmailNotification(true);
         return res.json({
           message: `Queued ${scored.length} application(s) with ${modeLabel}.${shouldDeferKits ? ' Tailored resumes are generating — refresh the preview in a moment.' : ''} Open each job in Chrome and use the RemoteMatch extension to submit forms.`,
           count: scored.length,
@@ -238,6 +242,7 @@ async function applyApproved(req, res, next) {
           kitsGenerating: shouldDeferKits,
           itemsFile,
           hint: 'Install the Chrome extension from Team access, open a job posting, and click Apply with RemoteMatch.',
+          emailNotification,
         });
       }
 

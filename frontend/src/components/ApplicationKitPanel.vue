@@ -260,7 +260,7 @@ watch(
       </div>
 
       <div v-else-if="kit?.tailored && viewTab === 'preview'" class="mt-5">
-        <TailoredResumePreview :kit="kit" />
+        <TailoredResumePreview :kit="kit" prominent />
       </div>
     </div>
   </div>
