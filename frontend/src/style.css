@@ -74,9 +74,17 @@ body {
 .badge-red { @apply bg-red-500/20 text-red-300; }
 .badge-slate { @apply bg-slate-500/20 text-slate-300; }
 
-/* ── Sidebar ── */
+/* ── Sidebar (desktop only — never flex on mobile) ── */
 .sidebar-shell {
-  @apply flex flex-col border-r border-teal-900/30 bg-gradient-to-b from-slate-950 via-slate-950/95 to-slate-900/90 p-5;
+  display: none;
+  @apply w-72 shrink-0 border-r border-teal-900/30 bg-gradient-to-b from-slate-950 via-slate-950/95 to-slate-900/90;
+}
+
+@media (min-width: 1024px) {
+  .sidebar-shell {
+    display: flex;
+    @apply flex-col p-5;
+  }
 }
 
 .sidebar-brand {
@@ -1209,6 +1217,19 @@ body {
   width: 100%;
   max-width: 100vw;
   overflow-x: hidden;
+  flex-direction: column;
+}
+
+@media (min-width: 1024px) {
+  .mobile-app-shell {
+    flex-direction: row;
+  }
+}
+
+.mobile-content-column {
+  width: 100%;
+  min-width: 0;
+  flex: 1 1 auto;
 }
 
 .mobile-main {
@@ -1438,6 +1459,42 @@ body {
 
   .mobile-content-column {
     min-width: 0;
+    width: 100%;
+  }
+
+  .mobile-page-shell {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .mobile-page-shell .card {
+    padding: 1rem;
+  }
+
+  .monitor-tab-bar {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 0.25rem;
+    margin-left: -0.25rem;
+    margin-right: -0.25rem;
+    padding-left: 0.25rem;
+    padding-right: 0.25rem;
+  }
+
+  .monitor-tab {
+    flex-shrink: 0;
+    min-height: 44px;
+    white-space: nowrap;
+  }
+
+  .monitor-header {
+    padding: 1rem;
+  }
+
+  .monitor-panel {
+    padding: 1rem;
   }
 
   .mobile-main-onboarding {
@@ -1469,6 +1526,15 @@ body {
     margin: 0.65rem auto 0;
     border-radius: 999px;
     background: rgba(148, 163, 184, 0.45);
+  }
+
+  .mobile-more-section-label {
+    margin: 0 0.25rem 0.5rem;
+    font-size: 0.625rem;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: #64748b;
   }
 
   .mobile-more-nav {

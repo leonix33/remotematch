@@ -36,7 +36,7 @@ watch(
 </script>
 
 <template>
-  <aside class="sidebar-shell hidden w-72 shrink-0 lg:flex lg:flex-col">
+  <aside class="sidebar-shell">
     <div class="sidebar-brand">
       <AppLogo size="md" variant="sidebar" />
       <p v-if="isProduction" class="mt-3 truncate text-[10px] tracking-wide text-slate-500">

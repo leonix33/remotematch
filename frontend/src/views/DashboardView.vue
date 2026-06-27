@@ -267,7 +267,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="mx-auto max-w-3xl">
+  <div class="mobile-page-shell mx-auto max-w-3xl">
     <div class="text-center lg:text-left">
       <h1 class="text-2xl font-bold text-slate-100">
         {{ firstName ? `Hi ${firstName}` : 'Welcome' }}
@@ -279,7 +279,7 @@ onMounted(async () => {
     <SetupChecklist ref="setupRef" class="mt-6" />
 
     <!-- Step 1: Resume -->
-    <section class="card mt-8 p-6">
+    <section class="card mt-8 p-4 sm:p-6">
       <div class="flex items-center gap-3">
         <span class="flex h-8 w-8 items-center justify-center rounded-full bg-teal-500/20 text-sm font-bold text-teal-300">1</span>
         <div>
@@ -326,7 +326,7 @@ onMounted(async () => {
     </section>
 
     <!-- Step 2: Tailoring + email -->
-    <section class="card mt-6 p-6">
+    <section class="card mt-6 p-4 sm:p-6">
       <div class="flex items-center gap-3">
         <span class="flex h-8 w-8 items-center justify-center rounded-full bg-teal-500/20 text-sm font-bold text-teal-300">2</span>
         <div>
@@ -352,7 +352,7 @@ onMounted(async () => {
     </section>
 
     <!-- Step 3: Apply -->
-    <section class="card mt-6 p-6">
+    <section class="card mt-6 p-4 sm:p-6">
       <div class="flex items-center gap-3">
         <span class="flex h-8 w-8 items-center justify-center rounded-full bg-teal-500/20 text-sm font-bold text-teal-300">3</span>
         <div>

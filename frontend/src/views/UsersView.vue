@@ -421,7 +421,59 @@ onUnmounted(() => {
     </div>
 
     <div v-if="loading" class="mt-8 text-slate-400">Loading team…</div>
-    <div v-else class="mt-8 card overflow-hidden mobile-table-wrap">
+    <div v-else class="mt-8">
+      <div class="mobile-applied-cards md:hidden">
+        <div v-for="u in users" :key="`card-${u._id || u.id}`" class="mobile-applied-card">
+          <div class="flex items-start justify-between gap-3">
+            <div class="min-w-0 flex-1">
+              <p class="font-medium text-slate-200">{{ u.name }}</p>
+              <p class="text-sm text-slate-500">{{ u.email }}</p>
+              <p class="mt-1 text-xs text-slate-600">
+                Applies as: <span class="text-slate-400">{{ applicationNameFor(u) }}</span>
+              </p>
+              <div class="mt-2 flex flex-wrap gap-2">
+                <span class="badge capitalize" :class="roleClass(u.role)">{{ u.role }}</span>
+                <span class="badge" :class="u.active !== false ? 'badge-teal' : 'badge-slate'">
+                  {{ u.active !== false ? 'Active' : 'Disabled' }}
+                </span>
+              </div>
+            </div>
+          </div>
+          <div v-if="!isSelf(u)" class="mobile-job-actions mt-3">
+            <button type="button" class="btn-secondary text-sm" @click="handleMenuAction(u, 'edit-application-name')">
+              Edit name
+            </button>
+            <button
+              v-if="u.role !== 'admin'"
+              type="button"
+              class="btn-secondary text-sm"
+              :disabled="roleSaving === userId(u)"
+              @click="handleMenuAction(u, 'make-admin')"
+            >
+              Make admin
+            </button>
+            <button
+              v-else
+              type="button"
+              class="btn-secondary text-sm"
+              :disabled="roleSaving === userId(u)"
+              @click="handleMenuAction(u, 'make-user')"
+            >
+              Make user
+            </button>
+            <button type="button" class="btn-secondary text-sm" @click="openReset(u)">Reset password</button>
+            <button type="button" class="btn-secondary text-sm" @click="handleMenuAction(u, 'toggle-active')">
+              {{ u.active !== false ? 'Disable' : 'Enable' }}
+            </button>
+            <button type="button" class="btn-secondary text-sm text-red-300" @click="handleMenuAction(u, 'delete')">
+              Delete
+            </button>
+          </div>
+          <p v-else class="mt-3 text-xs text-slate-500">You · {{ u.role }}</p>
+        </div>
+      </div>
+
+      <div class="card hidden overflow-hidden mobile-table-wrap md:block">
       <table class="w-full text-left text-sm">
         <thead class="bg-slate-950/50">
           <tr class="border-b border-slate-800 text-slate-400">
@@ -517,11 +569,12 @@ onUnmounted(() => {
           </tr>
         </tbody>
       </table>
+      </div>
     </div>
 
     <div
       v-if="nameEditTarget"
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 mobile-modal-sheet"
       @click.self="nameEditTarget = null"
     >
       <form class="card w-full max-w-md p-6" @submit.prevent="submitNameEdit">
@@ -551,7 +604,7 @@ onUnmounted(() => {
 
     <div
       v-if="resetTarget"
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 mobile-modal-sheet"
       @click.self="resetTarget = null"
     >
       <form class="card w-full max-w-md p-6" @submit.prevent="submitReset">
@@ -577,7 +630,7 @@ onUnmounted(() => {
 
     <div
       v-if="deleteTarget"
-      class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4 mobile-modal-sheet"
       @click.self="deleteTarget = null"
     >
       <div class="card w-full max-w-md p-6">

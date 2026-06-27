@@ -160,7 +160,7 @@ defineExpose({ refresh: load });
         <p class="text-sm font-medium text-slate-200">Platform setup</p>
         <p class="mt-1 text-xs text-slate-500">Email, AI tailoring, and database — Adzuna is optional for extra listings</p>
       </div>
-      <button type="button" class="btn-secondary px-2 py-1 text-xs" :disabled="loading" @click="load">
+      <button type="button" class="btn-secondary w-full text-sm sm:w-auto sm:px-3 sm:py-1.5 sm:text-xs" :disabled="loading" @click="load">
         {{ loading ? '…' : 'Refresh' }}
       </button>
     </div>
