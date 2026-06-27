@@ -18,6 +18,14 @@ export const brand = {
     (typeof window !== 'undefined' ? window.location.host : 'remotelymatch.app'),
   supportEmail: import.meta.env.VITE_SUPPORT_EMAIL || 'leonix23@gmail.com',
   accent: import.meta.env.VITE_BRAND_ACCENT || 'teal',
+  colors: {
+    slate: '#0f172a',
+    slateMuted: '#1e293b',
+    teal: '#14b8a6',
+    tealLight: '#2dd4bf',
+    gold: '#f59e0b',
+    goldLight: '#fbbf24',
+  },
 };
 
 export function displayDomain() {

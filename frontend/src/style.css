@@ -14,7 +14,10 @@ body {
   width: 100%;
   max-width: 100vw;
   overflow-x: hidden;
-  background: linear-gradient(160deg, #0f172a 0%, #134e4a 50%, #0f172a 100%);
+  background-color: #0f172a;
+  background-image:
+    radial-gradient(ellipse 90% 60% at 50% -30%, rgb(20 184 166 / 0.07), transparent 55%),
+    radial-gradient(ellipse 50% 40% at 100% 100%, rgb(245 158 11 / 0.04), transparent 50%);
   -webkit-tap-highlight-color: transparent;
   font-size: 16px;
 }
@@ -43,7 +46,7 @@ body {
 }
 
 .btn-primary {
-  @apply min-h-[48px] rounded-xl bg-teal-500 px-4 py-2.5 font-semibold text-slate-950 shadow-lg shadow-teal-900/40 transition hover:bg-teal-400 hover:shadow-teal-800/50 active:scale-[0.98] disabled:opacity-50;
+  @apply min-h-[48px] rounded-xl bg-gradient-to-r from-teal-500 to-teal-400 px-4 py-2.5 font-semibold text-slate-950 shadow-lg shadow-teal-900/40 ring-1 ring-amber-400/25 transition hover:from-teal-400 hover:to-teal-300 hover:shadow-teal-800/50 hover:ring-amber-300/35 active:scale-[0.98] disabled:opacity-50;
 }
 
 .btn-continue {
@@ -51,7 +54,11 @@ body {
 }
 
 .btn-secondary {
-  @apply min-h-[44px] rounded-xl border border-teal-700/50 px-4 py-2 text-teal-200 transition hover:bg-teal-900/30 active:scale-[0.98];
+  @apply min-h-[44px] rounded-xl border border-teal-700/50 px-4 py-2 text-teal-200 transition hover:border-amber-500/30 hover:bg-teal-900/30 active:scale-[0.98];
+}
+
+.btn-gold {
+  @apply min-h-[44px] rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-2 font-medium text-amber-200 transition hover:bg-amber-500/20 hover:border-amber-400/50 active:scale-[0.98];
 }
 
 .input {
@@ -101,7 +108,7 @@ body {
 }
 
 .sidebar-link-active {
-  @apply border border-teal-800/40 bg-gradient-to-r from-teal-500/15 to-transparent font-medium text-teal-100 shadow-sm shadow-teal-950/50;
+  @apply border border-teal-800/40 bg-gradient-to-r from-teal-500/15 via-teal-500/5 to-amber-500/5 font-medium text-teal-100 shadow-sm shadow-teal-950/50;
 }
 
 .sidebar-link-icon {

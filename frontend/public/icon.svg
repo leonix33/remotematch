@@ -2,7 +2,7 @@
   <defs>
     <linearGradient id="rm-bg" x1="64" y1="48" x2="448" y2="464" gradientUnits="userSpaceOnUse">
       <stop stop-color="#0f172a"/>
-      <stop offset="1" stop-color="#134e4a"/>
+      <stop offset="1" stop-color="#1e293b"/>
     </linearGradient>
     <linearGradient id="rm-teal" x1="140" y1="120" x2="372" y2="392" gradientUnits="userSpaceOnUse">
       <stop stop-color="#2dd4bf"/>

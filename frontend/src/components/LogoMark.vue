@@ -19,7 +19,7 @@ defineProps({
     <defs>
       <linearGradient id="rm-logo-bg" x1="8" y1="6" x2="56" y2="58" gradientUnits="userSpaceOnUse">
         <stop stop-color="#0f172a" />
-        <stop offset="1" stop-color="#134e4a" />
+        <stop offset="1" stop-color="#1e293b" />
       </linearGradient>
       <linearGradient id="rm-logo-teal" x1="18" y1="16" x2="46" y2="48" gradientUnits="userSpaceOnUse">
         <stop stop-color="#2dd4bf" />
