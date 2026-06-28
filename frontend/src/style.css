@@ -45,6 +45,14 @@ body {
   @apply rounded-2xl border border-teal-900/40 bg-slate-900/70 backdrop-blur-sm shadow-xl;
 }
 
+.team-table-scroll {
+  -webkit-overflow-scrolling: touch;
+}
+
+.team-table-scroll thead {
+  box-shadow: 0 1px 0 rgb(30 41 59 / 0.8);
+}
+
 .btn-primary {
   @apply min-h-[48px] rounded-xl bg-gradient-to-r from-teal-500 to-teal-400 px-4 py-2.5 font-semibold text-slate-950 shadow-lg shadow-teal-900/40 ring-1 ring-amber-400/25 transition hover:from-teal-400 hover:to-teal-300 hover:shadow-teal-800/50 hover:ring-amber-300/35 active:scale-[0.98] disabled:opacity-50;
 }
@@ -1451,6 +1459,12 @@ body {
     border-radius: 0 !important;
     padding: max(1rem, env(safe-area-inset-top, 0px)) max(1rem, env(safe-area-inset-right, 0px))
       max(1rem, env(safe-area-inset-bottom, 0px)) max(1rem, env(safe-area-inset-left, 0px)) !important;
+  }
+
+  .team-actions-sheet {
+    border-bottom-left-radius: 0 !important;
+    border-bottom-right-radius: 0 !important;
+    padding-bottom: max(1.25rem, env(safe-area-inset-bottom, 0px)) !important;
   }
 
   .mobile-pwa-banners {
