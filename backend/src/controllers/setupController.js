@@ -81,10 +81,21 @@ async function testEmail(req, res, next) {
         ...result,
       });
     }
+    const delivery = result.deliveryStatus;
+    let message = `Handed off to Resend for ${result.to}.`;
+    if (delivery?.status === 'delivered') {
+      message = `Resend reports Delivered to ${result.to}. If you do not see it, check Spam, Promotions, and All Mail.`;
+    } else if (delivery?.status === 'bounced' || delivery?.status === 'complained') {
+      message = `Resend reports ${delivery.status} for ${result.to}. The provider rejected or blocked this message.`;
+    } else if (delivery?.status === 'sent') {
+      message = `Resend accepted and sent to ${result.to}. Gmail can take a few minutes — check Spam and Promotions.`;
+    } else {
+      message += ' Check inbox, Spam, and Promotions — delivery can take a few minutes.';
+    }
     res.json({
-      message: `Handed off to Resend for ${result.to}. Check inbox, Junk, and Spam — iCloud and Yahoo often delay new senders by 5–15 minutes.`,
+      message,
       deliveryNote:
-        'Accepted by Resend does not guarantee inbox delivery. Open resend.com/emails to see Delivered, Bounced, or Complained.',
+        'Weekly pulse emails go to each user’s login email. Testing a different address is the right way to confirm that inbox can receive mail.',
       ...result,
     });
   } catch (err) {

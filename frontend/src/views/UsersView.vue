@@ -32,6 +32,7 @@ const testEmailSending = ref(false);
 const testEmailMsg = ref('');
 const testEmailError = ref('');
 const testEmailResendId = ref('');
+const testEmailDeliveryStatus = ref('');
 const emailDiagnostics = ref(null);
 const loginEmailSending = ref('');
 const loginUrl = import.meta.env.VITE_APP_URL
@@ -255,6 +256,7 @@ async function sendDeliveryTest() {
   testEmailMsg.value = '';
   testEmailError.value = '';
   testEmailResendId.value = '';
+  testEmailDeliveryStatus.value = '';
   if (!to) {
     testEmailError.value = 'Enter an email address to test.';
     return;
@@ -263,7 +265,11 @@ async function sendDeliveryTest() {
   try {
     const { data } = await http.post('/setup/test-email', { to });
     testEmailResendId.value = data.id || '';
+    testEmailDeliveryStatus.value = data.deliveryStatus?.status || '';
     testEmailMsg.value = data.message || `Handed off to Resend for ${to}. Check inbox, Junk, and Spam.`;
+    if (data.deliveryNote) {
+      testEmailMsg.value += ` ${data.deliveryNote}`;
+    }
     if (data.diagnostics) emailDiagnostics.value = { ...emailDiagnostics.value, ...data.diagnostics };
   } catch (e) {
     testEmailError.value =
@@ -614,18 +620,28 @@ onMounted(() => {
           v-model="testEmailTo"
           type="email"
           class="input flex-1"
-          placeholder="e.g. ebenezerawosanya@yahoo.com"
+          placeholder="e.g. your personal Gmail"
           autocomplete="off"
         />
+        <button type="button" class="btn-secondary shrink-0 text-sm" @click="testEmailTo = auth.user?.email || ''">
+          Use my login email
+        </button>
         <button type="button" class="btn-primary shrink-0" :disabled="testEmailSending" @click="sendDeliveryTest">
           {{ testEmailSending ? 'Sending…' : 'Send test email' }}
         </button>
       </div>
       <p v-if="testEmailMsg" class="mt-3 rounded-lg bg-teal-500/10 px-3 py-2 text-sm text-teal-200">{{ testEmailMsg }}</p>
       <p v-if="testEmailResendId" class="mt-2 text-xs text-slate-500">
-        Resend ID: <code class="text-slate-400">{{ testEmailResendId }}</code> —
-        <a href="https://resend.com/emails" target="_blank" rel="noopener" class="text-teal-400 hover:underline">check delivery status in Resend</a>
+        Resend ID: <code class="text-slate-400">{{ testEmailResendId }}</code>
+        <span v-if="testEmailDeliveryStatus"> · Status: <strong class="text-slate-300">{{ testEmailDeliveryStatus }}</strong></span>
+        —
+        <a href="https://resend.com/emails" target="_blank" rel="noopener" class="text-teal-400 hover:underline">open Resend dashboard</a>
       </p>
+      <div class="mt-3 rounded-lg border border-amber-900/40 bg-amber-950/20 p-3 text-xs text-amber-100/90">
+        <strong class="text-amber-200">Why weekly pulse arrived but a test might not:</strong>
+        weekly pulse goes to your <strong>login email</strong> (the account you signed in with). If you test a
+        <strong>different address</strong>, open that inbox — check <strong>Spam</strong> and <strong>Promotions</strong> in Gmail.
+      </div>
       <p v-if="testEmailError" class="mt-3 rounded-lg bg-red-500/10 px-3 py-2 text-sm text-red-300">{{ testEmailError }}</p>
       <div class="mt-3 rounded-lg border border-slate-800 bg-slate-950/50 p-3 text-xs text-slate-500">
         <p class="font-medium text-slate-400">If Gmail works but iCloud / Yahoo does not</p>

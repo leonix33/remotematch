@@ -194,6 +194,21 @@ async function sendEmail({ to, subject, html, text }) {
   return { sent: true, id };
 }
 
+async function getResendEmailStatus(id) {
+  if (!env.resendApiKey || !id) return null;
+  const { ok, body } = await resendFetch(`/emails/${encodeURIComponent(id)}`);
+  if (!ok) return { status: 'unknown', error: parseResendError(body) };
+  try {
+    const parsed = JSON.parse(body);
+    return {
+      status: String(parsed.last_event || parsed.status || 'unknown').toLowerCase(),
+      createdAt: parsed.created_at || null,
+    };
+  } catch {
+    return { status: 'unknown', error: body };
+  }
+}
+
 async function sendTestEmail(to) {
   const recipient = String(to || env.adminEmail || '').trim();
   if (!recipient) {
@@ -229,7 +244,12 @@ async function sendTestEmail(to) {
     ),
   });
 
-  return { ...result, diagnostics, to: recipient };
+  let deliveryStatus = null;
+  if (result.id) {
+    deliveryStatus = await getResendEmailStatus(result.id);
+  }
+
+  return { ...result, diagnostics, to: recipient, deliveryStatus };
 }
 
 async function sendToUser(userId, subject, html) {
