@@ -2,6 +2,7 @@
 export const CANONICAL_DOMAIN = 'remotelymatch.app';
 export const CANONICAL_APP_URL = `https://${CANONICAL_DOMAIN}`;
 export const DISPLAY_NAME = 'remotelymatch';
+export const TEAM_MAILBOX = `team@${CANONICAL_DOMAIN}`;
 
 /** Legacy Render host (service slug predates rebrand) */
 export const LEGACY_RENDER_HOST = 'remotematch.onrender.com';

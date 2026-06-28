@@ -234,7 +234,14 @@ async function enablePasskey() {
     if (e.name === 'NotAllowedError') {
       passkeyError.value = `${bioLabel} setup was cancelled.`;
     } else {
-      passkeyError.value = e.response?.data?.message || e.message || `Could not enable ${bioLabel}`;
+      const msg = e.response?.data?.message || e.message || `Could not enable ${bioLabel}`;
+      if (/rp id.*invalid/i.test(msg)) {
+        const host = typeof window !== 'undefined' ? window.location.hostname : '';
+        passkeyError.value =
+          `${msg} Open https://remotelymatch.app in Safari (not ${host || 'this URL'}) and reinstall the app from there.`;
+      } else {
+        passkeyError.value = msg;
+      }
     }
   } finally {
     passkeyLoading.value = false;

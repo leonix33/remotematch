@@ -230,7 +230,7 @@ function openSearch(item) {
     <div class="mt-6 rounded-xl border border-amber-900/40 bg-amber-950/20 p-4 text-sm text-amber-100/90">
       <strong class="text-amber-200">Why we don’t auto-scrape LinkedIn:</strong>
       Automated login and Easy Apply violate LinkedIn’s terms and trigger account restrictions.
-      Your agent still runs 14+ other job boards unattended — use LinkedIn as your human discovery channel.
+      Your agent still runs 20+ other job boards unattended — use LinkedIn as your human discovery channel.
     </div>
   </div>
 </template>

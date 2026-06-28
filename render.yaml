@@ -56,12 +56,19 @@ services:
         value: "7"
       - key: RESEND_API_KEY
         sync: false
-      # Uses noreply@remotelymatch.app automatically when CUSTOM_DOMAIN is set (see env.js)
+      # Reliable delivery: Gmail App Password (recommended primary — works for Yahoo/iCloud/Gmail)
+      - key: GMAIL_SMTP_USER
+        sync: false
+      - key: GMAIL_SMTP_PASS
+        sync: false
+      # Primary sender: team@remotelymatch.app (Google Workspace + Resend fallback)
       - key: EMAIL_FROM
-        value: "remotelymatch <noreply@remotelymatch.app>"
+        value: "remotelymatch <team@remotelymatch.app>"
+      - key: TEAM_EMAIL
+        value: team@remotelymatch.app
       - key: VAPID_PUBLIC_KEY
         sync: false
       - key: VAPID_PRIVATE_KEY
         sync: false
       - key: VAPID_SUBJECT
-        value: mailto:leonix23@gmail.com
+        value: mailto:team@remotelymatch.app

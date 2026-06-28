@@ -1,4 +1,6 @@
+const vm = require('node:vm');
 const { USER_AGENT } = require('../../constants/brand');
+const jobSourcesConfig = require('../../config/jobSources');
 const { stripHtml } = require('./jobNormalizer');
 
 async function fetchJson(url, options = {}) {
@@ -19,6 +21,32 @@ async function fetchJson(url, options = {}) {
   } finally {
     clearTimeout(timeout);
   }
+}
+
+async function fetchText(url, extraHeaders = {}) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), jobSourcesConfig.fetchTimeoutMs);
+  try {
+    const res = await fetch(url, {
+      signal: controller.signal,
+      headers: {
+        'User-Agent': USER_AGENT,
+        ...(extraHeaders || {}),
+      },
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`);
+    return res.text();
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+async function fetchPostJson(url, body, extraHeaders = {}) {
+  return fetchJson(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...extraHeaders },
+    body: JSON.stringify(body),
+  });
 }
 
 function rawJob(partial) {
@@ -301,9 +329,295 @@ async function fetchWeWorkRemotely() {
   }
 }
 
+async function fetchJobicy() {
+  try {
+    const data = await fetchJson('https://jobicy.com/api/v2/remote-jobs?count=100');
+    return (data.jobs || []).map((item) =>
+      rawJob({
+        id: `jobicy-${item.id}`,
+        title: item.jobTitle,
+        company: item.companyName || 'Unknown',
+        location: item.jobGeo || 'Remote',
+        applyUrl: item.url,
+        source: 'Jobicy',
+        description: stripHtml(`${item.jobExcerpt || ''} ${item.jobDescription || ''}`),
+        postedAt: item.pubDate || null,
+        remoteType: 'remote',
+        atsType: 'job-board',
+      })
+    );
+  } catch {
+    return [];
+  }
+}
+
+async function fetchJungle(maxPages = jobSourcesConfig.junglePages) {
+  const ALGOLIA_URL =
+    'https://csekhvms53-dsn.algolia.net/1/indexes/wttj_jobs_production_en/query';
+  const ALGOLIA_HEADERS = {
+    'x-algolia-application-id': 'CSEKHVMS53',
+    'x-algolia-api-key': '4bd8f6215d0cc52b26430765769e65a0',
+    Referer: 'https://www.welcometothejungle.com/',
+    Origin: 'https://www.welcometothejungle.com',
+  };
+
+  const seen = new Set();
+  const jobs = [];
+
+  try {
+    for (let page = 0; page < maxPages; page++) {
+      const data = await fetchPostJson(
+        ALGOLIA_URL,
+        {
+          query: '',
+          hitsPerPage: 100,
+          page,
+          filters: 'remote:fulltime OR remote:partial',
+        },
+        ALGOLIA_HEADERS
+      );
+
+      for (const hit of data.hits || []) {
+        const org = hit.organization || {};
+        const orgSlug = org.slug || '';
+        const jobSlug = hit.slug || hit.reference || '';
+        const applyUrl =
+          orgSlug && jobSlug
+            ? `https://www.welcometothejungle.com/en/companies/${orgSlug}/jobs/${jobSlug}`
+            : '';
+        const id = `jungle-${hit.reference || jobSlug}`;
+        if (seen.has(id)) continue;
+        seen.add(id);
+
+        const descParts = [
+          hit.summary,
+          Array.isArray(hit.profile) ? hit.profile.join('\n') : hit.profile,
+          Array.isArray(hit.key_missions) ? hit.key_missions.join('\n') : hit.key_missions,
+        ].filter(Boolean);
+
+        jobs.push(
+          rawJob({
+            id,
+            title: hit.name || '',
+            company: org.name || 'Unknown',
+            location: hit.offices?.[0]?.city || 'Remote',
+            applyUrl,
+            source: 'Welcome to the Jungle',
+            description: stripHtml(descParts.join('\n\n')),
+            postedAt: hit.published_at || null,
+            remoteType: hit.remote === 'fulltime' || hit.remote === 'partial' ? 'remote' : 'hybrid',
+            atsType: 'job-board',
+          })
+        );
+      }
+
+      if (!data.hits?.length || page + 1 >= (data.nbPages || 0)) break;
+    }
+  } catch {
+    return jobs;
+  }
+
+  return jobs;
+}
+
+function parseRobertHalfEmbeddedJobs(html) {
+  const marker = "initialResults = JSON.parse('";
+  const start = html.indexOf(marker);
+  if (start === -1) return [];
+
+  const contentStart = start + marker.length;
+  const contentEnd = html.indexOf("');", contentStart);
+  if (contentEnd === -1) return [];
+
+  const literal = html.slice(contentStart, contentEnd);
+  const decoded = vm.runInNewContext(`'${literal}'`);
+  const parsed = JSON.parse(decoded);
+  return parsed.data?.jobs || [];
+}
+
+async function fetchRobertHalf(maxPages = jobSourcesConfig.roberthalfPages) {
+  const BROWSER_HEADERS = {
+    'User-Agent':
+      'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+  };
+
+  const seen = new Set();
+  const jobs = [];
+
+  try {
+    for (let page = 1; page <= maxPages; page++) {
+      const html = await fetchText(
+        `https://www.roberthalf.com/us/en/jobs?remote=yes&pagenumber=${page}`,
+        BROWSER_HEADERS
+      );
+      const pageJobs = parseRobertHalfEmbeddedJobs(html);
+      if (!pageJobs.length) break;
+
+      for (const item of pageJobs) {
+        if (String(item.remote || '').toLowerCase() !== 'yes') continue;
+        const id = `roberthalf-${item.unique_job_number || item.jobtitle}`;
+        if (seen.has(id)) continue;
+        seen.add(id);
+
+        const location = [item.city, item.stateprovince, item.country].filter(Boolean).join(', ');
+        const applyUrl = item.job_detail_url
+          ? item.job_detail_url.startsWith('http')
+            ? item.job_detail_url
+            : `https://www.roberthalf.com${item.job_detail_url}`
+          : '';
+
+        jobs.push(
+          rawJob({
+            id,
+            title: item.jobtitle || '',
+            company: 'Robert Half',
+            location: location || 'Remote',
+            applyUrl,
+            source: 'Robert Half',
+            description: stripHtml(item.description || ''),
+            postedAt: item.date_posted || null,
+            remoteType: 'remote',
+            salaryMin: item.payrate_min ? Number(item.payrate_min) : null,
+            salaryMax: item.payrate_max ? Number(item.payrate_max) : null,
+            atsType: 'job-board',
+          })
+        );
+      }
+    }
+  } catch {
+    return jobs;
+  }
+
+  return jobs;
+}
+
+async function fetchArbeitnow(maxPages = jobSourcesConfig.arbeitnowPages) {
+  const seen = new Set();
+  const jobs = [];
+
+  try {
+    for (let page = 1; page <= maxPages; page++) {
+      const data = await fetchJson(`https://www.arbeitnow.com/api/job-board-api?page=${page}`);
+      const pageJobs = (data.data || []).filter((item) => item.remote);
+      if (!pageJobs.length) break;
+
+      for (const item of pageJobs) {
+        const id = `arbeitnow-${item.slug}`;
+        if (seen.has(id)) continue;
+        seen.add(id);
+
+        jobs.push(
+          rawJob({
+            id,
+            title: item.title,
+            company: item.company_name || 'Unknown',
+            location: item.location || 'Remote',
+            applyUrl: item.url,
+            source: 'Arbeitnow',
+            description: stripHtml(item.description || ''),
+            postedAt: item.created_at ? new Date(item.created_at * 1000).toISOString() : null,
+            remoteType: 'remote',
+            skills: item.tags || [],
+            atsType: 'job-board',
+          })
+        );
+      }
+    }
+  } catch {
+    return jobs;
+  }
+
+  return jobs;
+}
+
+async function fetchJobspresso() {
+  try {
+    const rss = await fetchText('https://jobspresso.co/jobs/feed/');
+    return parseRssJobs(rss, 'Jobspresso', 'jobspresso');
+  } catch {
+    return [];
+  }
+}
+
+async function fetchFourDayWeek(maxPages = jobSourcesConfig.fourdayweekPages) {
+  const seen = new Set();
+  const jobs = [];
+
+  try {
+    for (let page = 1; page <= maxPages; page++) {
+      const data = await fetchJson(
+        `https://4dayweek.io/api/v2/jobs?work_arrangement=remote&limit=100&page=${page}`
+      );
+
+      for (const item of data.data || []) {
+        const id = `fourdayweek-${item.id || item.slug}`;
+        if (seen.has(id)) continue;
+        seen.add(id);
+
+        jobs.push(
+          rawJob({
+            id,
+            title: item.title || item.role,
+            company: item.company?.name || 'Unknown',
+            location: item.locations?.map((l) => l.country).filter(Boolean).join(', ') || 'Remote',
+            applyUrl: item.url,
+            source: '4 Day Week',
+            description: stripHtml(item.description || ''),
+            postedAt: item.published_at || null,
+            remoteType: 'remote',
+            salaryMin: item.salary_min ? item.salary_min / 100 : null,
+            salaryMax: item.salary_max ? item.salary_max / 100 : null,
+            atsType: 'job-board',
+          })
+        );
+      }
+
+      if (!data.has_more) break;
+    }
+  } catch {
+    return jobs;
+  }
+
+  return jobs;
+}
+
+function companyFromLandingUrl(url = '') {
+  const match = url.match(/\/at\/([^/]+)/i);
+  if (match) return match[1].replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+  return 'Unknown';
+}
+
+async function fetchLandingJobs() {
+  try {
+    const data = await fetchJson('https://landing.jobs/api/v1/jobs?remote=true');
+    if (!Array.isArray(data)) return [];
+    return data.map((item) =>
+      rawJob({
+        id: `landingjobs-${item.id}`,
+        title: item.title,
+        company: companyFromLandingUrl(item.url),
+        location: 'Remote',
+        applyUrl: item.url,
+        source: 'Landing.jobs',
+        description: stripHtml(
+          [item.role_description, item.main_requirements, item.nice_to_have, item.perks]
+            .filter(Boolean)
+            .join('\n\n')
+        ),
+        postedAt: item.published_at || item.created_at || null,
+        remoteType: 'remote',
+        skills: item.tags || [],
+        atsType: 'job-board',
+      })
+    );
+  } catch {
+    return [];
+  }
+}
+
 async function fetchWorkingNomads() {
   try {
-    const data = await fetchJson('https://www.workingnomads.co/api/exposed_jobs/');
+    const data = await fetchJson('https://www.workingnomads.com/api/exposed_jobs/');
     if (!Array.isArray(data)) return [];
     return data.map((item) =>
       rawJob({
@@ -313,7 +627,9 @@ async function fetchWorkingNomads() {
         location: item.location || 'Remote',
         applyUrl: item.url,
         source: 'Working Nomads',
-        description: stripHtml(`${item.category_name || ''} ${(item.tags || []).join(' ')}`),
+        description: stripHtml(
+          `${item.category_name || ''} ${Array.isArray(item.tags) ? item.tags.join(' ') : item.tags || ''} ${item.description || ''}`
+        ),
         atsType: 'job-board',
       })
     );
@@ -513,11 +829,18 @@ async function fetchYCombinatorJobs() {
 const SOURCE_FETCHERS = {
   remoteok: fetchRemoteOk,
   remotive: fetchRemotive,
+  jobicy: fetchJobicy,
   himalayas: fetchHimalayas,
   weworkremotely: fetchWeWorkRemotely,
   greenhouse: fetchGreenhouseBoards,
   lever: fetchLeverCompanies,
   ashby: fetchAshbyOrgs,
+  jungle: fetchJungle,
+  roberthalf: fetchRobertHalf,
+  arbeitnow: fetchArbeitnow,
+  jobspresso: fetchJobspresso,
+  fourdayweek: fetchFourDayWeek,
+  landingjobs: fetchLandingJobs,
   wellfound: fetchWellfound,
   dice: fetchDice,
   indeed: fetchIndeed,
@@ -532,12 +855,21 @@ const SOURCE_FETCHERS = {
 
 module.exports = {
   fetchJson,
+  fetchText,
+  fetchPostJson,
   SOURCE_FETCHERS,
   fetchRemoteOk,
   fetchRemotive,
+  fetchJobicy,
   fetchGreenhouseBoards,
   fetchLeverCompanies,
   fetchAshbyOrgs,
+  fetchJungle,
+  fetchRobertHalf,
+  fetchArbeitnow,
+  fetchJobspresso,
+  fetchFourDayWeek,
+  fetchLandingJobs,
   fetchWellfound,
   fetchDice,
   fetchIndeed,

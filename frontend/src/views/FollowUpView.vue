@@ -147,8 +147,8 @@ onMounted(async () => {
           <p v-else class="mt-2 text-sm text-amber-300">
             Add your email in Profile → Email & follow-ups
           </p>
-          <p v-if="digest && digest.resendConfigured === false" class="mt-2 text-sm text-amber-300">
-            Email delivery is not configured on the server — ask your admin to add RESEND_API_KEY on Render.
+          <p v-if="digest && digest.emailConfigured === false" class="mt-2 text-sm text-amber-300">
+            Email delivery is not configured — ask your admin to add GMAIL_SMTP_USER/PASS or RESEND_API_KEY on Render.
           </p>
         </div>
         <div class="mobile-job-actions flex w-full flex-wrap gap-2 sm:w-auto sm:flex-nowrap">

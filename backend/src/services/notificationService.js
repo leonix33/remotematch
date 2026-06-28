@@ -214,4 +214,27 @@ async function scanAndNotify(userId) {
   }
 }
 
-module.exports = { create, list, markRead, markAllRead, unreadCount, scanAndNotify, setEmitter };
+async function notifyApplyBatch(userId, { jobs = [], companies = [], queued = false, emailSent = false, emailTo = '' } = {}) {
+  const count = (jobs || []).length;
+  if (!count) return null;
+  const names = (companies || []).filter(Boolean).slice(0, 3);
+  const companyText = names.length ? names.join(', ') : `${count} role(s)`;
+  const suffix = (companies || []).length > 3 ? ` +${companies.length - 3} more` : '';
+  const emailNote = emailSent
+    ? `Summary also emailed to ${emailTo || 'your inbox'}.`
+    : 'Open Follow-ups for details — email could not be sent.';
+  return create(userId, {
+    type: 'apply_batch',
+    title: queued ? `${count} role(s) queued for apply` : `Applied to ${count} role(s)`,
+    body: `${companyText}${suffix}. ${emailNote}`,
+    link: '/follow-ups',
+    meta: {
+      jobIds: jobs.map((j) => j.jobId).filter(Boolean),
+      count,
+      companies: companies || [],
+      emailSent,
+    },
+  });
+}
+
+module.exports = { create, list, markRead, markAllRead, unreadCount, scanAndNotify, notifyApplyBatch, setEmitter };

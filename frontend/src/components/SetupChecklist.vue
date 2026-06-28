@@ -52,7 +52,7 @@ const items = computed(() => {
       label: 'Company email domain',
       ok: deliveryReady && !usingSandbox,
       hint: usingSandbox
-        ? 'Verify remotelymatch.app in Resend → use noreply@remotelymatch.app'
+        ? 'Set up team@remotelymatch.app in Google Workspace + verify domain in Resend'
         : domainIssue
           ? `Status: ${h.emailDomainStatus || 'unknown'} — finish DNS in Resend`
           : h.emailFrom || 'Domain sender configured',
@@ -324,12 +324,12 @@ defineExpose({ refresh: load });
 
       <p class="text-slate-300">
         <strong>Step 3.</strong> Render → Environment →
-        <code class="text-violet-300">EMAIL_FROM=remotelymatch &lt;noreply@remotelymatch.app&gt;</code>
+        <code class="text-violet-300">EMAIL_FROM=remotelymatch &lt;team@remotelymatch.app&gt;</code>
         → redeploy
       </p>
       <p>
         <strong>Personal email stays separate:</strong> keep your Gmail in Profile for job forms.
-        <code>noreply@remotelymatch.app</code> is only the sender for remotelymatch digests.
+        <code>team@remotelymatch.app</code> is the sender for invites, resets, and apply summaries.
       </p>
       <RouterLink to="/profile" class="inline-block text-teal-400 hover:underline">Profile → email & digest settings</RouterLink>
     </div>

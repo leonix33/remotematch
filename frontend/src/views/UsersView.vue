@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from 'vue';
 import http from '../api/http';
 import { useAuthStore } from '../stores/auth';
 import PasswordInput from '../components/PasswordInput.vue';
+import { TEAM_MAILBOX } from '../constants/domain';
 
 const auth = useAuthStore();
 const users = ref([]);
@@ -78,24 +79,19 @@ async function createUser() {
   try {
     const { data } = await http.post('/users', form.value);
     form.value = { name: '', email: '', password: '', role: 'user' };
+    manualInvite.value = {
+      name: data.name,
+      email: data.email,
+      password: tempPassword,
+      loginUrl: data.loginUrl || loginUrl,
+      emailSent: Boolean(data.inviteEmailSent),
+    };
     if (data.inviteEmailSent) {
-      success.value = `Invite email sent to ${data.email}. They can log in at ${loginUrl}.`;
+      success.value = `Invite email sent to ${data.email}. Use the share buttons below if they don’t see it (Yahoo/iCloud often filter new senders).`;
     } else if (data.inviteEmailError) {
-      manualInvite.value = {
-        name: data.name,
-        email: data.email,
-        password: tempPassword,
-        loginUrl: data.loginUrl || loginUrl,
-      };
-      success.value = `Account created for ${data.email}. Email could not be sent — copy the invite below and send it manually (text, WhatsApp, etc.).`;
+      success.value = `Account created for ${data.email}. Email could not be sent — share the login details below (WhatsApp, Gmail, or text).`;
     } else {
-      manualInvite.value = {
-        name: data.name,
-        email: data.email,
-        password: tempPassword,
-        loginUrl: data.loginUrl || loginUrl,
-      };
-      success.value = `Account created for ${data.email}. Share the login details below manually.`;
+      success.value = `Account created for ${data.email}. Share the login details below.`;
     }
     await load();
   } catch (e) {
@@ -113,6 +109,17 @@ async function copyText(value, label) {
 
 function inviteMessage(inv) {
   return `You're invited to remotelymatch!\n\nLog in: ${inv.loginUrl}\nEmail: ${inv.email}\nTemporary password: ${inv.password}\n\nChange your password after first login.`;
+}
+
+function shareInviteViaGmail(inv) {
+  const subject = encodeURIComponent("You're invited to remotelymatch");
+  const body = encodeURIComponent(inviteMessage(inv));
+  const to = encodeURIComponent(inv.email);
+  window.open(`https://mail.google.com/mail/?view=cm&fs=1&to=${to}&su=${subject}&body=${body}`, '_blank', 'noopener');
+}
+
+function shareInviteViaWhatsApp(inv) {
+  window.open(`https://wa.me/?text=${encodeURIComponent(inviteMessage(inv))}`, '_blank', 'noopener');
 }
 
 async function toggleActive(user) {
@@ -264,9 +271,9 @@ async function sendDeliveryTest() {
   testEmailSending.value = true;
   try {
     const { data } = await http.post('/setup/test-email', { to });
-    testEmailResendId.value = data.id || '';
-    testEmailDeliveryStatus.value = data.deliveryStatus?.status || '';
-    testEmailMsg.value = data.message || `Handed off to Resend for ${to}. Check inbox, Junk, and Spam.`;
+    testEmailResendId.value = data.provider === 'resend' ? data.id || '' : '';
+    testEmailDeliveryStatus.value = data.provider || data.deliveryStatus?.status || '';
+    testEmailMsg.value = data.message || `Test email sent to ${to}. Check inbox, Junk, and Spam.`;
     if (data.deliveryNote) {
       testEmailMsg.value += ` ${data.deliveryNote}`;
     }
@@ -300,16 +307,17 @@ async function sendLoginEmail(user) {
   const password = randomPassword();
   try {
     const { data } = await http.post(`/users/${id}/reset-password`, { password });
+    manualInvite.value = {
+      name: data.name || user.name,
+      email: data.email,
+      password,
+      loginUrl: data.loginUrl || loginUrl,
+      emailSent: Boolean(data.resetEmailSent),
+    };
     if (data.resetEmailSent) {
-      success.value = `Login email sent to ${data.email} with a new temporary password.`;
+      success.value = `Login email sent to ${data.email}. Share below if they don’t see it.`;
     } else {
-      manualInvite.value = {
-        name: data.name || user.name,
-        email: data.email,
-        password,
-        loginUrl: data.loginUrl || loginUrl,
-      };
-      success.value = `Email could not reach ${data.email}. Copy the login details below and send manually (WhatsApp, text, etc.).`;
+      success.value = `Email could not reach ${data.email}. Share the login details below (WhatsApp, Gmail, or text).`;
     }
     await load();
   } catch (e) {
@@ -357,16 +365,17 @@ async function submitReset() {
     const { data } = await http.post(`/users/${id}/reset-password`, { password: tempPassword });
     resetTarget.value = null;
     resetPassword.value = '';
+    manualInvite.value = {
+      name: data.name || target.name,
+      email: data.email,
+      password: tempPassword,
+      loginUrl: data.loginUrl || loginUrl,
+      emailSent: Boolean(data.resetEmailSent),
+    };
     if (data.resetEmailSent) {
-      success.value = `Password reset email sent to ${data.email}.`;
+      success.value = `Password reset email sent to ${data.email}. Share below if they don’t see it.`;
     } else {
-      manualInvite.value = {
-        name: data.name || target.name,
-        email: data.email,
-        password: tempPassword,
-        loginUrl: data.loginUrl || loginUrl,
-      };
-      success.value = `Password reset for ${data.email}. Copy the new login details below and send to them.`;
+      success.value = `Password reset for ${data.email}. Share the new login details below.`;
     }
     await load();
   } catch (e) {
@@ -439,10 +448,16 @@ onMounted(() => {
     <p v-if="success && !resetTarget && !deleteTarget" class="mt-4 rounded-lg bg-teal-500/10 px-3 py-2 text-sm text-teal-200">{{ success }}</p>
 
     <div v-if="manualInvite" class="mt-4 card border border-amber-800/40 bg-amber-950/20 p-5">
-      <h3 class="font-semibold text-amber-200">Manual invite — send to {{ manualInvite.name }}</h3>
+      <h3 class="font-semibold text-amber-200">
+        {{ manualInvite.emailSent ? 'Share login details' : 'Manual invite' }} — {{ manualInvite.name }}
+      </h3>
       <p class="mt-1 text-sm text-slate-400">
-        Resend is in test mode until you verify <strong class="text-slate-300">remotelymatch.app</strong> at
-        <a href="https://resend.com/domains" target="_blank" rel="noopener" class="text-teal-400 hover:underline">resend.com/domains</a>.
+        <template v-if="manualInvite.emailSent">
+          We emailed <strong class="text-slate-300">{{ manualInvite.email }}</strong>. If nothing arrives, use WhatsApp or Gmail below — Yahoo and iCloud often filter automated mail.
+        </template>
+        <template v-else>
+          Email could not be delivered automatically. Copy or share the details below.
+        </template>
       </p>
       <div class="mt-4 space-y-3 rounded-xl bg-slate-950/60 p-4 text-sm">
         <div class="flex flex-wrap items-center justify-between gap-2">
@@ -467,13 +482,21 @@ onMounted(() => {
         </div>
         <code class="block text-amber-200">{{ manualInvite.password }}</code>
       </div>
-      <button
-        type="button"
-        class="btn-primary mt-4"
-        @click="copyText(inviteMessage(manualInvite), 'all')"
-      >
-        {{ copied === 'all' ? 'Copied full message' : 'Copy full invite message' }}
-      </button>
+      <div class="mt-4 flex flex-wrap gap-2">
+        <button
+          type="button"
+          class="btn-primary"
+          @click="copyText(inviteMessage(manualInvite), 'all')"
+        >
+          {{ copied === 'all' ? 'Copied full message' : 'Copy full message' }}
+        </button>
+        <button type="button" class="btn-secondary" @click="shareInviteViaGmail(manualInvite)">
+          Open in Gmail
+        </button>
+        <button type="button" class="btn-secondary" @click="shareInviteViaWhatsApp(manualInvite)">
+          Share on WhatsApp
+        </button>
+      </div>
     </div>
 
     <div v-if="loading" class="mt-8 text-slate-400">Loading team…</div>
@@ -612,8 +635,65 @@ onMounted(() => {
         <span class="badge" :class="emailDiagnostics.emailDeliveryReady ? 'badge-teal' : 'badge-slate'">
           {{ emailDiagnostics.emailDeliveryReady ? 'Email ready' : 'Email not ready' }}
         </span>
-        <span v-if="emailDiagnostics.emailFrom" class="text-slate-500">From: {{ emailDiagnostics.emailFrom }}</span>
+        <span v-if="emailDiagnostics.gmailSmtpConfigured" class="badge badge-teal">
+          Workspace SMTP
+        </span>
+        <span v-else class="badge badge-slate">Workspace SMTP not set</span>
+        <span v-if="emailDiagnostics.teamEmail || emailDiagnostics.emailFrom" class="text-slate-500">
+          Sender: {{ emailDiagnostics.teamEmail || emailDiagnostics.emailFrom }}
+        </span>
       </div>
+      <div
+        v-if="emailDiagnostics?.gmailSmtpConfigured && emailDiagnostics.gmailUsesTeamMailbox === false"
+        class="mt-3 rounded-lg border border-amber-900/40 bg-amber-950/20 p-3 text-xs text-amber-100/90"
+      >
+        <strong class="text-amber-200">Sender mismatch:</strong>
+        set <code class="text-amber-200">GMAIL_SMTP_USER</code> to
+        <code class="text-amber-200">{{ emailDiagnostics.teamEmail || TEAM_MAILBOX }}</code>
+        so outbound mail matches your domain.
+      </div>
+      <details class="mt-4 rounded-xl border border-slate-800 bg-slate-950/40 p-4 text-sm">
+        <summary class="cursor-pointer font-medium text-teal-300">
+          Set up {{ TEAM_MAILBOX }} (Google Workspace)
+        </summary>
+        <ol class="mt-4 list-decimal space-y-3 pl-5 text-slate-400">
+          <li>
+            Go to
+            <a href="https://workspace.google.com" target="_blank" rel="noopener" class="text-teal-400 hover:underline">workspace.google.com</a>
+            → <strong class="text-slate-300">Get started</strong> → use domain
+            <code class="text-slate-300">remotelymatch.app</code>.
+          </li>
+          <li>
+            Verify the domain (Google gives you a TXT record — add it in Cloudflare or your registrar DNS).
+          </li>
+          <li>
+            Create the mailbox <code class="text-slate-300">{{ TEAM_MAILBOX }}</code> (Business Starter is enough).
+          </li>
+          <li>
+            Sign in as <code class="text-slate-300">{{ TEAM_MAILBOX }}</code> → Google Account → Security →
+            <strong class="text-slate-300">2-Step Verification</strong> → <strong class="text-slate-300">App passwords</strong> → create one for Mail.
+          </li>
+          <li>
+            In <strong class="text-slate-300">Render</strong> → Environment, add:
+            <ul class="mt-2 list-inside list-disc space-y-1 text-xs">
+              <li><code>GMAIL_SMTP_USER</code> = <code>{{ TEAM_MAILBOX }}</code></li>
+              <li><code>GMAIL_SMTP_PASS</code> = the App Password (no spaces)</li>
+              <li><code>EMAIL_FROM</code> = <code>remotelymatch &lt;{{ TEAM_MAILBOX }}&gt;</code></li>
+            </ul>
+            Redeploy, then run a test below.
+          </li>
+          <li>
+            <strong class="text-slate-300">Forward replies to your personal Gmail (optional):</strong>
+            in Workspace Admin → Apps → Google Workspace → Gmail → Routing → add a rule to forward
+            <code class="text-slate-300">{{ TEAM_MAILBOX }}</code> → <code class="text-slate-300">leonix23@gmail.com</code>.
+            <em class="text-slate-500">Do not also use Cloudflare Email Routing for the same address — pick one.</em>
+          </li>
+        </ol>
+        <p class="mt-4 text-xs text-slate-500">
+          Resend stays as fallback if Workspace SMTP fails. Keep <code>remotelymatch.app</code> verified in
+          <a href="https://resend.com/domains" target="_blank" rel="noopener" class="text-teal-400 hover:underline">Resend Domains</a>.
+        </p>
+      </details>
       <p v-if="emailDiagnostics?.emailDomainError" class="mt-2 text-xs text-amber-300">{{ emailDiagnostics.emailDomainError }}</p>
       <div class="mt-4 flex flex-col gap-2 sm:flex-row">
         <input
@@ -635,7 +715,10 @@ onMounted(() => {
         Resend ID: <code class="text-slate-400">{{ testEmailResendId }}</code>
         <span v-if="testEmailDeliveryStatus"> · Status: <strong class="text-slate-300">{{ testEmailDeliveryStatus }}</strong></span>
         —
-        <a href="https://resend.com/emails" target="_blank" rel="noopener" class="text-teal-400 hover:underline">open Resend dashboard</a>
+        <a href="https://resend.com/emails" target="_blank" rel="noopener" class="text-teal-400 hover:underline">Resend dashboard</a>
+      </p>
+      <p v-else-if="testEmailDeliveryStatus === 'gmail'" class="mt-2 text-xs text-slate-500">
+        Sent via Gmail SMTP — no Resend tracking for this message.
       </p>
       <div class="mt-3 rounded-lg border border-amber-900/40 bg-amber-950/20 p-3 text-xs text-amber-100/90">
         <strong class="text-amber-200">Why weekly pulse arrived but a test might not:</strong>

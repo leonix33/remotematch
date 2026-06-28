@@ -11,6 +11,22 @@ const env = require('../config/env');
 const authService = require('./authService');
 const { setChallenge, consumeChallenge } = require('./passkeyChallengeStore');
 
+function resolveRpId(hostname) {
+  const host = String(hostname || '').toLowerCase();
+  if (!host || host === 'localhost' || host === '127.0.0.1') return 'localhost';
+
+  const customDomain = String(env.customDomain || '').replace(/^www\./, '').toLowerCase();
+  const withoutWww = host.replace(/^www\./, '');
+
+  // Custom domain or its subdomains → use registrable domain (e.g. www.remotelymatch.app → remotelymatch.app)
+  if (customDomain && (withoutWww === customDomain || withoutWww.endsWith(`.${customDomain}`))) {
+    return customDomain;
+  }
+
+  // Other hosts (e.g. remotematch.onrender.com) must use their own hostname as rpId
+  return withoutWww;
+}
+
 function getWebAuthnConfig(req) {
   const origin = req.headers.origin || env.appUrl.replace(/\/$/, '');
   let host = '';
@@ -19,11 +35,9 @@ function getWebAuthnConfig(req) {
   } catch {
     host = env.customDomain || 'localhost';
   }
-  const isLocal = host === 'localhost' || host === '127.0.0.1';
-  const rpID = isLocal ? 'localhost' : (env.customDomain || host).replace(/^www\./, '');
   return {
     rpName: env.appName,
-    rpID,
+    rpID: resolveRpId(host),
     origin: origin.replace(/\/$/, ''),
   };
 }

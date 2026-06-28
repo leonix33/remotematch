@@ -207,8 +207,8 @@ async function sendAppliedDigestEmail(userId, authEmail = '') {
   if (!to) {
     return { sent: false, reason: 'No personal email — add one in Profile → Email & follow-ups' };
   }
-  if (!env.resendApiKey) {
-    return { sent: false, reason: 'Resend not configured (add RESEND_API_KEY on Render)' };
+  if (!emailService.isEmailConfigured()) {
+    return { sent: false, reason: 'No email provider configured — add GMAIL_SMTP_USER/PASS or RESEND_API_KEY on Render' };
   }
 
   const applied = await buildAppliedJobsDigest(userId, profile);
@@ -263,7 +263,7 @@ async function scanAndNotifyTraction(userId) {
     if (profile.emailDigestEnabled !== false && item.type === 'follow_up' && item.urgency === 'high') {
       try {
         const to = await resolveDigestEmailForUser(userId, profile);
-        if (to && env.resendApiKey) {
+        if (to && emailService.isEmailConfigured()) {
           await emailService.sendFollowUpReminder({ to, item });
         }
       } catch {
@@ -286,8 +286,8 @@ async function sendPostApplyFeedback(userId, jobs = [], options = {}) {
   if (!to) {
     return { sent: false, reason: 'No personal email — add one in Profile → Email & follow-ups' };
   }
-  if (!env.resendApiKey) {
-    return { sent: false, reason: 'Resend not configured (add RESEND_API_KEY on Render)' };
+  if (!emailService.isEmailConfigured()) {
+    return { sent: false, reason: 'No email provider configured — add GMAIL_SMTP_USER/PASS or RESEND_API_KEY on Render' };
   }
 
   const allJobs = scoreJobsForProfile(jobService.readJobsFromSqlite(5000), profile, userId);
@@ -319,10 +319,24 @@ async function sendPostApplyFeedback(userId, jobs = [], options = {}) {
     queued: Boolean(options.queued),
     preparedOnly: Boolean(options.preparedOnly),
   });
-  if (!emailResult.sent) {
-    return { sent: false, reason: emailResult.reason || 'Email provider rejected the send', to };
+
+  try {
+    const notificationService = require('./notificationService');
+    await notificationService.notifyApplyBatch(userId, {
+      jobs: list,
+      companies,
+      queued: Boolean(options.queued),
+      emailSent: Boolean(emailResult.sent),
+      emailTo: to,
+    });
+  } catch (err) {
+    console.warn('apply batch in-app notification failed:', err.message);
   }
-  return { sent: true, to, ...emailResult };
+
+  if (!emailResult.sent) {
+    return { sent: false, reason: emailResult.reason || 'Email provider rejected the send', to, inAppNotified: true };
+  }
+  return { sent: true, to, inAppNotified: true, ...emailResult };
 }
 
 async function previewDigest(userId, authEmail = '') {
@@ -350,7 +364,7 @@ async function previewDigest(userId, authEmail = '') {
   return {
     digestEmail,
     emailDigestEnabled: profile.emailDigestEnabled !== false,
-    resendConfigured: Boolean(env.resendApiKey),
+    emailConfigured: emailService.isEmailConfigured(),
     applied,
     followUps: trace.filter((t) => t.type === 'follow_up'),
     approveNow: trace.filter((t) => t.type === 'approve_now'),

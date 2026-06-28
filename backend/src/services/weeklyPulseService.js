@@ -6,7 +6,7 @@ const env = require('../config/env');
 let lastSentWeek = '';
 
 async function sendWeeklyPulse() {
-  if (!env.mongoUri || !env.resendApiKey) return;
+  if (!env.mongoUri || !emailService.isEmailConfigured()) return;
 
   const now = new Date();
   const weekKey = `${now.getFullYear()}-W${Math.ceil(now.getDate() / 7)}`;

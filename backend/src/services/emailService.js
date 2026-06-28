@@ -1,8 +1,49 @@
 const env = require('../config/env');
 const User = require('../models/User');
 
+let nodemailer = null;
+try {
+  nodemailer = require('nodemailer');
+} catch {
+  nodemailer = null;
+}
+
 const DOMAIN_STATUS_TTL_MS = 5 * 60 * 1000;
 let domainStatusCache = { at: 0, value: null };
+let gmailTransport = null;
+
+function hasGmailSmtp() {
+  return Boolean(env.gmailSmtpUser && env.gmailSmtpPass && nodemailer);
+}
+
+function hasResend() {
+  return Boolean(env.resendApiKey);
+}
+
+function isEmailConfigured() {
+  return hasGmailSmtp() || hasResend();
+}
+
+function getGmailTransport() {
+  if (!hasGmailSmtp()) return null;
+  if (!gmailTransport) {
+    gmailTransport = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: env.gmailSmtpUser,
+        pass: env.gmailSmtpPass,
+      },
+    });
+  }
+  return gmailTransport;
+}
+
+function maskEmail(email = '') {
+  const raw = String(email || '').trim();
+  if (!raw.includes('@')) return raw ? '***' : null;
+  const [user, domain] = raw.split('@');
+  return `${user.slice(0, 3)}***@${domain}`;
+}
 
 function escapeHtml(value) {
   return String(value)
@@ -145,20 +186,47 @@ async function getEmailDiagnostics() {
     : await getResendDomainStatus(from.domain || env.customDomain);
 
   return {
-    emailConfigured: Boolean(env.resendApiKey),
+    emailConfigured: isEmailConfigured(),
     emailFrom: env.emailFrom || null,
-    emailProduction: Boolean(env.resendApiKey && !sandbox),
+    emailProduction: Boolean(hasResend() && !sandbox),
     emailSandbox: sandbox,
     emailDomain: from.domain || env.customDomain || null,
     emailDomainStatus: domainStatus.status,
-    emailDeliveryReady: Boolean(env.resendApiKey && domainStatus.deliveryReady),
+    emailDeliveryReady: Boolean(hasGmailSmtp() || (hasResend() && domainStatus.deliveryReady)),
     emailDomainError: domainStatus.error || null,
     emailDomainNote: domainStatus.note || null,
+    gmailSmtpConfigured: hasGmailSmtp(),
+    gmailSmtpUser: maskEmail(env.gmailSmtpUser),
+    teamEmail: env.teamEmail || null,
+    gmailUsesTeamMailbox:
+      !env.gmailSmtpUser ||
+      !env.teamEmail ||
+      env.gmailSmtpUser.toLowerCase() === env.teamEmail.toLowerCase(),
+    emailPrimaryProvider: hasGmailSmtp() ? 'gmail' : hasResend() ? 'resend' : null,
+    emailProviders: [hasGmailSmtp() ? 'gmail' : null, hasResend() ? 'resend' : null].filter(Boolean),
   };
 }
 
-async function sendEmail({ to, subject, html, text }) {
-  if (!env.resendApiKey || !to) return { sent: false, reason: 'email not configured' };
+async function sendViaGmail({ to, subject, html, text }) {
+  const transport = getGmailTransport();
+  if (!transport) return { sent: false, reason: 'Gmail SMTP not configured', provider: 'gmail' };
+  try {
+    const info = await transport.sendMail({
+      from: `"${env.appName}" <${env.gmailSmtpUser}>`,
+      to,
+      subject,
+      html,
+      text: text || undefined,
+    });
+    return { sent: true, id: info.messageId || null, provider: 'gmail' };
+  } catch (err) {
+    console.error('Gmail SMTP send failed:', err.message);
+    return { sent: false, reason: err.message, provider: 'gmail' };
+  }
+}
+
+async function sendViaResend({ to, subject, html, text }) {
+  if (!hasResend()) return { sent: false, reason: 'Resend not configured', provider: 'resend' };
 
   const payload = {
     from: env.emailFrom,
@@ -181,7 +249,7 @@ async function sendEmail({ to, subject, html, text }) {
     const err = await res.text();
     const reason = parseResendError(err);
     console.error('Resend send failed:', reason);
-    return { sent: false, reason };
+    return { sent: false, reason, provider: 'resend' };
   }
 
   let id = null;
@@ -189,9 +257,32 @@ async function sendEmail({ to, subject, html, text }) {
     const parsed = await res.json();
     id = parsed.id || null;
   } catch {
-    // body already consumed in some edge cases — ignore
+    // ignore
   }
-  return { sent: true, id };
+  return { sent: true, id, provider: 'resend' };
+}
+
+async function sendEmail({ to, subject, html, text }) {
+  if (!to) return { sent: false, reason: 'No recipient email' };
+  if (!isEmailConfigured()) {
+    return {
+      sent: false,
+      reason: 'No email provider configured — add GMAIL_SMTP_USER/PASS or RESEND_API_KEY on Render',
+    };
+  }
+
+  const attempts = [];
+  if (hasGmailSmtp()) attempts.push(sendViaGmail);
+  if (hasResend()) attempts.push(sendViaResend);
+
+  const errors = [];
+  for (const attempt of attempts) {
+    const result = await attempt({ to, subject, html, text });
+    if (result.sent) return result;
+    errors.push(`${result.provider}: ${result.reason}`);
+  }
+
+  return { sent: false, reason: errors.join(' · ') };
 }
 
 async function getResendEmailStatus(id) {
@@ -219,15 +310,19 @@ async function sendTestEmail(to) {
   if (!diagnostics.emailConfigured) {
     return {
       sent: false,
-      reason: 'Resend API key not configured (add RESEND_API_KEY on Render)',
+      reason: 'No email provider configured — add GMAIL_SMTP_USER/PASS or RESEND_API_KEY on Render',
       diagnostics,
     };
   }
 
+  const senderLabel = diagnostics.gmailSmtpConfigured
+    ? `Gmail (${diagnostics.gmailSmtpUser})`
+    : env.emailFrom;
+
   const text = [
     `${env.appName} — email delivery test`,
     '',
-    `This is a test from ${env.emailFrom}.`,
+    `This is a test from ${senderLabel}.`,
     'If you received this, password resets, invites, and application summaries will reach this inbox.',
     '',
     `Log in: ${env.appUrl.replace(/\/$/, '')}/login`,
@@ -239,14 +334,16 @@ async function sendTestEmail(to) {
     text,
     html: wrapHtml(
       'Email delivery test',
-      `If you are reading this, <strong>${escapeHtml(env.appName)}</strong> can reach <strong>${escapeHtml(recipient)}</strong>.<br><br>Sender: <strong>${escapeHtml(env.emailFrom)}</strong><br><br>Invites, password resets, and application traction summaries use this same sender.`,
+      `If you are reading this, <strong>${escapeHtml(env.appName)}</strong> can reach <strong>${escapeHtml(recipient)}</strong>.<br><br>Sender: <strong>${escapeHtml(senderLabel)}</strong><br><br>Invites, password resets, and application traction summaries use this same delivery path.`,
       '/login'
     ),
   });
 
   let deliveryStatus = null;
-  if (result.id) {
+  if (result.provider === 'resend' && result.id) {
     deliveryStatus = await getResendEmailStatus(result.id);
+  } else if (result.sent && result.provider === 'gmail') {
+    deliveryStatus = { status: 'sent_via_gmail', note: 'Gmail SMTP accepted the message — check inbox and spam.' };
   }
 
   return { ...result, diagnostics, to: recipient, deliveryStatus };
@@ -596,6 +693,7 @@ module.exports = {
   sendToUser,
   getEmailDiagnostics,
   getResendDomainStatus,
+  isEmailConfigured,
   notifyHighMatch,
   notifyChatInvite,
   notifyInterviewReminder,

@@ -82,20 +82,23 @@ async function testEmail(req, res, next) {
       });
     }
     const delivery = result.deliveryStatus;
-    let message = `Handed off to Resend for ${result.to}.`;
-    if (delivery?.status === 'delivered') {
+    const provider = result.provider || 'email';
+    let message = `Sent via ${provider} to ${result.to}. Check inbox, Spam, and Promotions.`;
+    if (provider === 'gmail') {
+      message = `Sent via Gmail SMTP to ${result.to}. Usually arrives within a minute — check Spam if needed.`;
+    } else if (delivery?.status === 'sent_via_gmail') {
+      message = `Sent via Gmail SMTP to ${result.to}. ${delivery.note || 'Check inbox and Spam.'}`;
+    } else if (delivery?.status === 'delivered') {
       message = `Resend reports Delivered to ${result.to}. If you do not see it, check Spam, Promotions, and All Mail.`;
     } else if (delivery?.status === 'bounced' || delivery?.status === 'complained') {
       message = `Resend reports ${delivery.status} for ${result.to}. The provider rejected or blocked this message.`;
     } else if (delivery?.status === 'sent') {
-      message = `Resend accepted and sent to ${result.to}. Gmail can take a few minutes — check Spam and Promotions.`;
-    } else {
-      message += ' Check inbox, Spam, and Promotions — delivery can take a few minutes.';
+      message = `Resend accepted and sent to ${result.to}. Delivery can take a few minutes — check Spam and Promotions.`;
     }
     res.json({
       message,
       deliveryNote:
-        'Weekly pulse emails go to each user’s login email. Testing a different address is the right way to confirm that inbox can receive mail.',
+        'All transactional mail (invites, password resets, apply summaries) uses Gmail SMTP first when configured, then Resend.',
       ...result,
     });
   } catch (err) {

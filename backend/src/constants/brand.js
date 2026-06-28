@@ -3,6 +3,9 @@ const DISPLAY_NAME = 'remotelymatch';
 const CANONICAL_DOMAIN = 'remotelymatch.app';
 const CANONICAL_APP_URL = `https://${CANONICAL_DOMAIN}`;
 
+/** Default transactional / team sender on the custom domain */
+const TEAM_MAILBOX = `team@${CANONICAL_DOMAIN}`;
+
 /** Legacy Render hostname (service slug predates rebrand) */
 const LEGACY_RENDER_HOST = 'remotematch.onrender.com';
 const LEGACY_RENDER_URL = `https://${LEGACY_RENDER_HOST}`;
@@ -14,6 +17,7 @@ module.exports = {
   DISPLAY_NAME,
   CANONICAL_DOMAIN,
   CANONICAL_APP_URL,
+  TEAM_MAILBOX,
   LEGACY_RENDER_HOST,
   LEGACY_RENDER_URL,
   USER_AGENT,

@@ -8,6 +8,11 @@ function parseList(value, fallback = []) {
     .filter(Boolean);
 }
 
+function parseNumber(value, fallback) {
+  const n = Number(value);
+  return Number.isFinite(n) && n > 0 ? n : fallback;
+}
+
 module.exports = {
   greenhouseBoards: parseList(process.env.JOB_GREENHOUSE_BOARDS, [
     'anthropic',
@@ -42,6 +47,10 @@ module.exports = {
   usajobsApiKey: process.env.USAJOBS_API_KEY || '',
   usajobsEmail: process.env.USAJOBS_USER_EMAIL || env.adminEmail || '',
   fetchTimeoutMs: Number(process.env.JOB_FETCH_TIMEOUT_MS) || 15000,
+  junglePages: parseNumber(process.env.JOB_JUNGLE_PAGES, 5),
+  roberthalfPages: parseNumber(process.env.JOB_ROBERTHALF_PAGES, 8),
+  arbeitnowPages: parseNumber(process.env.JOB_ARBEITNOW_PAGES, 3),
+  fourdayweekPages: parseNumber(process.env.JOB_FOURDAYWEEK_PAGES, 3),
   diceApiKey: process.env.DICE_API_KEY || '1YAt0R9wBg4WfsF9VB2778F5CHLAPMVW3WAZcKd8',
   diceSearchKeyword: process.env.DICE_SEARCH_KEYWORD || 'remote',
   indeedRssUrl: process.env.INDEED_RSS_URL || '',
@@ -55,16 +64,23 @@ module.exports = {
   enabledSources: parseList(process.env.JOB_SOURCES_ENABLED, [
     'remoteok',
     'remotive',
+    'jobicy',
     'himalayas',
     'weworkremotely',
     'greenhouse',
     'lever',
     'ashby',
+    'jungle',
+    'roberthalf',
+    'arbeitnow',
+    'workingnomads',
+    'jobspresso',
+    'fourdayweek',
+    'landingjobs',
     'wellfound',
     'dice',
     'adzuna',
     'indeed',
-    'workingnomads',
     'devitjobs',
     'aijobs',
     'ycombinator',

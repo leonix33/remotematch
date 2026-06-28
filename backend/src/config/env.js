@@ -1,16 +1,24 @@
 const dotenv = require('dotenv');
-const { DISPLAY_NAME, LEGACY_RENDER_URL } = require('../constants/brand');
+const { DISPLAY_NAME, LEGACY_RENDER_URL, CANONICAL_DOMAIN, TEAM_MAILBOX } = require('../constants/brand');
 const path = require('path');
 
 dotenv.config({ path: path.join(__dirname, '../../.env') });
 
 const trim = (v) => (typeof v === 'string' ? v.trim() : v);
 
+function resolveTeamEmail(domain = '') {
+  const explicit = trim(process.env.TEAM_EMAIL) || '';
+  if (explicit) return explicit.toLowerCase();
+  const d = trim(domain) || CANONICAL_DOMAIN;
+  return d ? `team@${d}` : TEAM_MAILBOX;
+}
+
 function resolveEmailFrom() {
   const explicit = trim(process.env.EMAIL_FROM) || '';
-  const domain = trim(process.env.CUSTOM_DOMAIN) || '';
+  const domain = trim(process.env.CUSTOM_DOMAIN) || CANONICAL_DOMAIN;
   const appName = trim(process.env.APP_NAME) || DISPLAY_NAME;
   const sandbox = `${appName} <onboarding@resend.dev>`;
+  const teamFrom = `${appName} <${resolveTeamEmail(domain)}>`;
 
   if (explicit && !explicit.includes('resend.dev')) {
     return explicit;
@@ -18,7 +26,7 @@ function resolveEmailFrom() {
 
   const isProd = (process.env.NODE_ENV || 'development') === 'production';
   if (isProd && domain && (!explicit || explicit.includes('resend.dev'))) {
-    return `${appName} <noreply@${domain}>`;
+    return teamFrom;
   }
 
   return explicit || sandbox;
@@ -53,11 +61,14 @@ module.exports = {
   clientOrigin: trim(process.env.CLIENT_ORIGIN) || 'http://localhost:5173',
   clientOrigins: parseOrigins(),
   appUrl: trim(process.env.APP_URL) || trim(process.env.CLIENT_ORIGIN) || 'https://remotelymatch.app',
-  customDomain: trim(process.env.CUSTOM_DOMAIN) || 'remotelymatch.app',
+  customDomain: trim(process.env.CUSTOM_DOMAIN) || CANONICAL_DOMAIN,
+  teamEmail: resolveTeamEmail(trim(process.env.CUSTOM_DOMAIN) || CANONICAL_DOMAIN),
   agentHome: process.env.AGENT_HOME || require('path').resolve(__dirname, '../../../..'),
   appName: trim(process.env.APP_NAME) || DISPLAY_NAME,
   deployTag: 'sync-v6',
   resendApiKey: trim(process.env.RESEND_API_KEY) || '',
+  gmailSmtpUser: trim(process.env.GMAIL_SMTP_USER) || '',
+  gmailSmtpPass: trim(process.env.GMAIL_SMTP_PASS) || '',
   emailFrom: resolveEmailFrom(),
   vapidPublicKey: trim(process.env.VAPID_PUBLIC_KEY) || '',
   vapidPrivateKey: trim(process.env.VAPID_PRIVATE_KEY) || '',
