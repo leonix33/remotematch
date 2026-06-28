@@ -53,6 +53,86 @@ body {
   box-shadow: 0 1px 0 rgb(30 41 59 / 0.8);
 }
 
+.team-member-avatar {
+  display: flex;
+  height: 2.75rem;
+  width: 2.75rem;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  background: linear-gradient(135deg, rgb(20 184 166 / 0.25), rgb(45 212 191 / 0.1));
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: rgb(153 246 228);
+  border: 1px solid rgb(45 212 191 / 0.25);
+}
+
+.team-member-avatar--sm {
+  height: 2.25rem;
+  width: 2.25rem;
+  font-size: 0.75rem;
+}
+
+.team-manage-section-label {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgb(100 116 139);
+}
+
+.team-manage-action {
+  display: block;
+  width: 100%;
+  border-radius: 0.75rem;
+  border: 1px solid rgb(51 65 85 / 0.8);
+  background: rgb(15 23 42 / 0.5);
+  padding: 0.75rem 1rem;
+  text-align: left;
+  transition: background 0.15s ease;
+}
+
+.team-manage-action + .team-manage-action {
+  margin-top: 0.5rem;
+}
+
+.team-manage-action:hover:not(:disabled) {
+  background: rgb(30 41 59 / 0.8);
+}
+
+.team-manage-action:disabled {
+  opacity: 0.5;
+}
+
+.team-manage-action--danger {
+  border-color: rgb(127 29 29 / 0.4);
+  background: rgb(69 10 10 / 0.2);
+}
+
+.team-manage-action--danger:hover:not(:disabled) {
+  background: rgb(127 29 29 / 0.25);
+}
+
+.team-manage-action-title {
+  display: block;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: rgb(226 232 240);
+}
+
+.team-manage-action--danger .team-manage-action-title {
+  color: rgb(252 165 165);
+}
+
+.team-manage-action-hint {
+  display: block;
+  margin-top: 0.2rem;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: rgb(100 116 139);
+}
+
 .btn-primary {
   @apply min-h-[48px] rounded-xl bg-gradient-to-r from-teal-500 to-teal-400 px-4 py-2.5 font-semibold text-slate-950 shadow-lg shadow-teal-900/40 ring-1 ring-amber-400/25 transition hover:from-teal-400 hover:to-teal-300 hover:shadow-teal-800/50 hover:ring-amber-300/35 active:scale-[0.98] disabled:opacity-50;
 }

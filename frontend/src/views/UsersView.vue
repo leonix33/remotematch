@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, ref } from 'vue';
+import { computed, onMounted, ref } from 'vue';
 import http from '../api/http';
 import { useAuthStore } from '../stores/auth';
 
@@ -24,6 +24,8 @@ const nameEditTarget = ref(null);
 const nameEditValue = ref('');
 const nameEditSaving = ref(false);
 const menuUser = ref(null);
+const userSearch = ref('');
+const showInviteForm = ref(false);
 const loginUrl = import.meta.env.VITE_APP_URL
   ? `${import.meta.env.VITE_APP_URL.replace(/\/$/, '')}/login`
   : `${window.location.origin}/login`;
@@ -108,7 +110,7 @@ async function toggleActive(user) {
   success.value = '';
   try {
     await http.patch(`/users/${user._id || user.id}`, { active: !user.active });
-    success.value = `${user.name} is now ${user.active !== false ? 'disabled' : 'active'}.`;
+    success.value = `${user.name} is now ${user.active !== false ? 'blocked from logging in' : 'able to log in again'}.`;
     await load();
   } catch (e) {
     error.value = e.response?.data?.message || 'Could not update user';
@@ -204,6 +206,36 @@ function roleClass(role) {
   return role === 'admin' ? 'badge-gold' : 'badge-teal';
 }
 
+const filteredUsers = computed(() => {
+  const q = userSearch.value.trim().toLowerCase();
+  if (!q) return users.value;
+  return users.value.filter(
+    (u) => u.name?.toLowerCase().includes(q) || u.email?.toLowerCase().includes(q)
+  );
+});
+
+const seatsMax = computed(() => teamUsage.value?.limits?.members ?? null);
+const atSeatLimit = computed(() => seatsMax.value != null && users.value.length >= seatsMax.value);
+
+function userInitials(name) {
+  return (name || '?')
+    .split(/\s+/)
+    .map((part) => part[0])
+    .filter(Boolean)
+    .slice(0, 2)
+    .join('')
+    .toUpperCase();
+}
+
+function generatePassword() {
+  const chars = 'abcdefghijkmnopqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let password = '';
+  for (let i = 0; i < 12; i += 1) {
+    password += chars[Math.floor(Math.random() * chars.length)];
+  }
+  form.value.password = password;
+}
+
 function openActions(user) {
   menuUser.value = user;
 }
@@ -270,15 +302,14 @@ onMounted(() => {
   <div>
     <div class="flex flex-wrap items-start justify-between gap-4">
       <div>
-        <h2 class="page-title text-2xl font-bold text-slate-100">Team access</h2>
+        <h2 class="page-title text-2xl font-bold text-slate-100">Manage your team</h2>
         <p class="page-subtitle mt-1 max-w-xl text-slate-400">
-          You are the admin. Invite users who can log in, browse jobs, track applications, and use the AI tools.
+          Invite people, reset passwords, change roles, or remove access. You control who can use remotelymatch.
         </p>
       </div>
       <div class="card px-4 py-3 text-center">
-        <p class="text-2xl font-bold text-teal-300">{{ users.length }}</p>
-        <p class="text-xs text-slate-500">team members</p>
-        <p v-if="teamUsage?.limits" class="mt-1 text-xs text-slate-600">max {{ teamUsage.limits.members }}</p>
+        <p class="text-2xl font-bold text-teal-300">{{ users.length }}<span v-if="seatsMax" class="text-lg text-slate-500"> / {{ seatsMax }}</span></p>
+        <p class="text-xs text-slate-500">seats used</p>
       </div>
     </div>
 
@@ -362,11 +393,150 @@ onMounted(() => {
       </button>
     </div>
 
-    <div class="mt-8 grid gap-8 xl:grid-cols-2">
+    <div v-if="loading" class="mt-8 text-slate-400">Loading team…</div>
+    <div v-else class="mt-8">
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h3 class="text-lg font-semibold text-slate-200">Team members</h3>
+          <p class="text-sm text-slate-500">Tap <strong class="font-medium text-slate-400">Manage</strong> on anyone to reset password, change role, or remove them.</p>
+        </div>
+        <button
+          type="button"
+          class="btn-primary text-sm"
+          :disabled="atSeatLimit"
+          @click="showInviteForm = true"
+        >
+          + Invite someone
+        </button>
+      </div>
+
+      <div v-if="users.length > 3" class="mt-4">
+        <input
+          v-model="userSearch"
+          type="search"
+          class="input max-w-md"
+          placeholder="Search by name or email…"
+          autocomplete="off"
+        />
+      </div>
+
+      <p v-if="atSeatLimit" class="mt-4 rounded-lg bg-amber-500/10 px-3 py-2 text-sm text-amber-200">
+        Seat limit reached ({{ seatsMax }}). Upgrade your plan or remove a member before inviting someone new.
+      </p>
+
+      <p v-if="userSearch && !filteredUsers.length" class="mt-4 text-sm text-slate-500">No members match “{{ userSearch }}”.</p>
+
+      <div class="mobile-applied-cards mt-4 md:hidden">
+        <div v-for="u in filteredUsers" :key="`card-${u._id || u.id}`" class="team-member-card mobile-applied-card">
+          <div class="flex items-start gap-3">
+            <div class="team-member-avatar" aria-hidden="true">{{ userInitials(u.name) }}</div>
+            <div class="min-w-0 flex-1">
+              <div class="flex flex-wrap items-center gap-2">
+                <p class="font-medium text-slate-200">{{ u.name }}</p>
+                <span v-if="isSelf(u)" class="text-xs text-slate-500">(you)</span>
+              </div>
+              <p class="text-sm text-slate-500">{{ u.email }}</p>
+              <p v-if="applicationNameFor(u) !== u.name" class="mt-1 text-xs text-slate-600">
+                Applies as <span class="text-slate-400">{{ applicationNameFor(u) }}</span>
+              </p>
+              <div class="mt-2 flex flex-wrap gap-2">
+                <span class="badge capitalize" :class="roleClass(u.role)">{{ u.role }}</span>
+                <span class="badge" :class="u.active !== false ? 'badge-teal' : 'badge-slate'">
+                  {{ u.active !== false ? 'Can log in' : 'Blocked' }}
+                </span>
+              </div>
+            </div>
+          </div>
+          <div v-if="!isSelf(u)" class="mt-4 grid grid-cols-2 gap-2">
+            <button type="button" class="btn-secondary text-sm" @click="openReset(u)">Reset password</button>
+            <button
+              type="button"
+              class="btn-primary text-sm"
+              :disabled="roleSaving === userId(u)"
+              @click="openActions(u)"
+            >
+              Manage
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card mt-4 hidden md:block">
+      <div class="team-table-scroll max-h-[min(65vh,36rem)] overflow-x-auto overflow-y-auto mobile-table-wrap">
+      <table class="w-full text-left text-sm">
+        <thead class="sticky top-0 z-10 bg-slate-950/95 backdrop-blur-sm">
+          <tr class="border-b border-slate-800 text-slate-400">
+            <th class="px-6 py-4">Member</th>
+            <th class="px-6 py-4">Role</th>
+            <th class="px-6 py-4">Access</th>
+            <th class="px-6 py-4 text-right">Manage</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="u in filteredUsers" :key="u._id || u.id" class="border-b border-slate-800/80">
+            <td class="px-6 py-4">
+              <div class="flex items-center gap-3">
+                <div class="team-member-avatar team-member-avatar--sm" aria-hidden="true">{{ userInitials(u.name) }}</div>
+                <div>
+                  <p class="font-medium text-slate-200">
+                    {{ u.name }}
+                    <span v-if="isSelf(u)" class="text-xs font-normal text-slate-500">(you)</span>
+                  </p>
+                  <p class="text-slate-500">{{ u.email }}</p>
+                  <p v-if="applicationNameFor(u) !== u.name" class="mt-0.5 text-xs text-slate-600">
+                    Applies as <span class="text-slate-400">{{ applicationNameFor(u) }}</span>
+                  </p>
+                </div>
+              </div>
+            </td>
+            <td class="px-6 py-4">
+              <span class="badge capitalize" :class="roleClass(u.role)">{{ u.role }}</span>
+            </td>
+            <td class="px-6 py-4">
+              <span class="badge" :class="u.active !== false ? 'badge-teal' : 'badge-slate'">
+                {{ u.active !== false ? 'Can log in' : 'Blocked' }}
+              </span>
+            </td>
+            <td class="px-6 py-4 text-right">
+              <div v-if="!isSelf(u)" class="flex justify-end gap-2">
+                <button type="button" class="btn-secondary px-3 py-1.5 text-xs" @click="openReset(u)">
+                  Reset password
+                </button>
+                <button
+                  type="button"
+                  class="btn-primary px-3 py-1.5 text-xs"
+                  :disabled="roleSaving === userId(u)"
+                  @click="openActions(u)"
+                >
+                  Manage
+                </button>
+              </div>
+              <span v-else class="text-xs text-slate-500">Your account</span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      </div>
+      </div>
+    </div>
+
+    <div class="mt-10 border-t border-slate-800/80 pt-8">
+      <button
+        type="button"
+        class="flex w-full items-center justify-between gap-3 text-left"
+        @click="showInviteForm = !showInviteForm"
+      >
+        <div>
+          <h3 class="text-lg font-semibold text-slate-200">Invite someone new</h3>
+          <p class="text-sm text-slate-500">Create an account and send login details by email.</p>
+        </div>
+        <span class="text-slate-500">{{ showInviteForm ? '▴' : '▾' }}</span>
+      </button>
+
+      <div v-show="showInviteForm" class="mt-6 grid gap-8 xl:grid-cols-2">
       <form class="card p-6" @submit.prevent="createUser">
-        <h3 class="font-semibold text-slate-200">Invite a user</h3>
-        <p class="mt-1 text-sm text-slate-500">Only admins can create accounts. No public signup.</p>
-        <p class="mt-1 text-xs text-slate-600">If email is configured, an invite is sent automatically with login details.</p>
+        <h3 class="font-semibold text-slate-200">New team member</h3>
+        <p class="mt-1 text-sm text-slate-500">They’ll get an email with a login link and temporary password when email is configured.</p>
 
         <div class="mt-6 space-y-4">
           <div>
@@ -379,116 +549,40 @@ onMounted(() => {
           </div>
           <div>
             <label class="mb-1 block text-sm text-slate-400">Temporary password</label>
-            <input v-model="form.password" type="password" required minlength="8" class="input" placeholder="8+ characters" />
-            <p class="mt-1 text-xs text-slate-500">Share this once if invite email is not configured.</p>
+            <div class="flex gap-2">
+              <input v-model="form.password" type="text" required minlength="8" class="input flex-1" placeholder="8+ characters" />
+              <button type="button" class="btn-secondary shrink-0 px-3 text-sm" @click="generatePassword">Generate</button>
+            </div>
+            <p class="mt-1 text-xs text-slate-500">Copy and send via WhatsApp or text if the invite email doesn’t arrive.</p>
           </div>
           <div>
             <label class="mb-1 block text-sm text-slate-400">Role</label>
             <select v-model="form.role" class="input">
               <option value="user">User — jobs, applications, AI tools</option>
-              <option value="admin">Admin — full access + invite users</option>
+              <option value="admin">Admin — can invite and manage team</option>
             </select>
           </div>
         </div>
 
-        <button type="submit" class="btn-primary mt-6" :disabled="saving">
-          {{ saving ? 'Creating…' : 'Create account' }}
+        <button type="submit" class="btn-primary mt-6 w-full sm:w-auto" :disabled="saving || atSeatLimit">
+          {{ saving ? 'Creating…' : 'Create account & send invite' }}
         </button>
       </form>
 
       <div class="card p-6">
-        <h3 class="font-semibold text-slate-200">What each role can do</h3>
+        <h3 class="font-semibold text-slate-200">Role guide</h3>
         <ul class="mt-4 space-y-3 text-sm text-slate-400">
-          <li class="flex gap-3"><span class="badge badge-gold">Admin</span> Invite users, run agent, view all data</li>
-          <li class="flex gap-3"><span class="badge badge-teal">User</span> Dashboard, jobs, applications, cover letters</li>
+          <li class="flex gap-3"><span class="badge badge-gold">Admin</span> Invite users, manage team, run agent, full access</li>
+          <li class="flex gap-3"><span class="badge badge-teal">User</span> Jobs, applications, resumes, AI tools — no team admin</li>
         </ul>
         <div class="mt-6 rounded-xl border border-teal-900/40 bg-slate-950/50 p-4 text-sm text-slate-500">
-          <p class="font-medium text-slate-300">Tier 3 — Team plans</p>
-          <p class="mt-2">Free: 3 seats, 5 agent runs/mo. Pro: 15 seats, 50 runs. Shared watchlists on Social tab.</p>
-          <p class="mt-2">Chrome extension: load <code class="text-teal-400">chrome-extension/</code> unpacked in Chrome.</p>
+          <p class="font-medium text-slate-300">Quick tips</p>
+          <ul class="mt-2 list-inside list-disc space-y-1">
+            <li>Use <strong class="text-slate-400">Reset password</strong> if someone can’t log in.</li>
+            <li>Use <strong class="text-slate-400">Blocked</strong> to pause access without deleting their data.</li>
+            <li>Delete only when you want to remove them completely — you can re-invite later.</li>
+          </ul>
         </div>
-      </div>
-    </div>
-
-    <div v-if="loading" class="mt-8 text-slate-400">Loading team…</div>
-    <div v-else class="mt-8">
-      <div class="mobile-applied-cards md:hidden">
-        <div v-for="u in users" :key="`card-${u._id || u.id}`" class="mobile-applied-card">
-          <div class="flex items-start justify-between gap-3">
-            <div class="min-w-0 flex-1">
-              <p class="font-medium text-slate-200">{{ u.name }}</p>
-              <p class="text-sm text-slate-500">{{ u.email }}</p>
-              <p class="mt-1 text-xs text-slate-600">
-                Applies as: <span class="text-slate-400">{{ applicationNameFor(u) }}</span>
-              </p>
-              <div class="mt-2 flex flex-wrap gap-2">
-                <span class="badge capitalize" :class="roleClass(u.role)">{{ u.role }}</span>
-                <span class="badge" :class="u.active !== false ? 'badge-teal' : 'badge-slate'">
-                  {{ u.active !== false ? 'Active' : 'Disabled' }}
-                </span>
-              </div>
-            </div>
-          </div>
-          <div v-if="!isSelf(u)" class="mt-3">
-            <button
-              type="button"
-              class="btn-secondary inline-flex w-full items-center justify-center gap-1.5 py-2.5 text-sm"
-              :disabled="roleSaving === userId(u)"
-              @click="openActions(u)"
-            >
-              Actions
-              <span class="text-[10px] text-slate-500">▾</span>
-            </button>
-          </div>
-          <p v-else class="mt-3 text-xs text-slate-500">You · {{ u.role }}</p>
-        </div>
-      </div>
-
-      <div class="card hidden md:block">
-      <div class="team-table-scroll max-h-[min(65vh,36rem)] overflow-x-auto overflow-y-auto mobile-table-wrap">
-      <table class="w-full text-left text-sm">
-        <thead class="sticky top-0 z-10 bg-slate-950/95 backdrop-blur-sm">
-          <tr class="border-b border-slate-800 text-slate-400">
-            <th class="px-6 py-4">Member</th>
-            <th class="px-6 py-4">Role</th>
-            <th class="px-6 py-4">Status</th>
-            <th class="px-6 py-4 text-right">Action</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="u in users" :key="u._id || u.id" class="border-b border-slate-800/80">
-            <td class="px-6 py-4">
-              <p class="font-medium text-slate-200">{{ u.name }}</p>
-              <p class="text-slate-500">{{ u.email }}</p>
-              <p class="mt-1 text-xs text-slate-600">
-                Applies as: <span class="text-slate-400">{{ applicationNameFor(u) }}</span>
-              </p>
-            </td>
-            <td class="px-6 py-4">
-              <span class="badge capitalize" :class="roleClass(u.role)">{{ u.role }}</span>
-            </td>
-            <td class="px-6 py-4">
-              <span class="badge" :class="u.active !== false ? 'badge-teal' : 'badge-slate'">
-                {{ u.active !== false ? 'Active' : 'Disabled' }}
-              </span>
-            </td>
-            <td class="px-6 py-4 text-right">
-              <div v-if="!isSelf(u)" class="inline-block text-left">
-                <button
-                  type="button"
-                  class="btn-secondary inline-flex items-center gap-1.5 px-3 py-1.5 text-xs"
-                  :disabled="roleSaving === userId(u)"
-                  @click="openActions(u)"
-                >
-                  Actions
-                  <span class="text-[10px] text-slate-500">▾</span>
-                </button>
-              </div>
-              <span v-else class="text-xs text-slate-500">You · {{ u.role }}</span>
-            </td>
-          </tr>
-        </tbody>
-      </table>
       </div>
       </div>
     </div>
@@ -558,58 +652,78 @@ onMounted(() => {
       @click.self="closeMenu"
       @keydown.escape="closeMenu"
     >
-      <div class="team-actions-sheet card w-full max-w-sm p-5 sm:rounded-2xl sm:p-6" @click.stop>
-        <h3 id="team-actions-title" class="font-semibold text-slate-200">{{ menuUser.name }}</h3>
-        <p class="mt-1 text-sm text-slate-500">{{ menuUser.email }}</p>
-        <div class="mt-4 flex flex-col gap-2">
-          <button
-            type="button"
-            class="btn-secondary w-full justify-start text-left text-sm"
-            @click="handleMenuAction(menuUser, 'edit-application-name')"
-          >
-            Edit application name
-          </button>
-          <button
-            v-if="menuUser.role !== 'admin'"
-            type="button"
-            class="btn-secondary w-full justify-start text-left text-sm text-amber-200"
-            :disabled="roleSaving === userId(menuUser)"
-            @click="handleMenuAction(menuUser, 'make-admin')"
-          >
-            Make admin
-          </button>
-          <button
-            v-else
-            type="button"
-            class="btn-secondary w-full justify-start text-left text-sm"
-            :disabled="roleSaving === userId(menuUser)"
-            @click="handleMenuAction(menuUser, 'make-user')"
-          >
-            Make user
-          </button>
-          <button
-            type="button"
-            class="btn-secondary w-full justify-start text-left text-sm"
-            @click="openReset(menuUser)"
-          >
-            Reset password
-          </button>
-          <button
-            type="button"
-            class="btn-secondary w-full justify-start text-left text-sm"
-            @click="handleMenuAction(menuUser, 'toggle-active')"
-          >
-            {{ menuUser.active !== false ? 'Disable account' : 'Enable account' }}
-          </button>
-          <button
-            type="button"
-            class="btn-secondary w-full justify-start text-left text-sm text-red-300"
-            @click="handleMenuAction(menuUser, 'delete')"
-          >
-            Delete user
-          </button>
+      <div class="team-actions-sheet card w-full max-w-md p-5 sm:rounded-2xl sm:p-6" @click.stop>
+        <div class="flex items-start gap-3">
+          <div class="team-member-avatar" aria-hidden="true">{{ userInitials(menuUser.name) }}</div>
+          <div class="min-w-0 flex-1">
+            <h3 id="team-actions-title" class="font-semibold text-slate-200">{{ menuUser.name }}</h3>
+            <p class="text-sm text-slate-500">{{ menuUser.email }}</p>
+            <div class="mt-2 flex flex-wrap gap-2">
+              <span class="badge capitalize" :class="roleClass(menuUser.role)">{{ menuUser.role }}</span>
+              <span class="badge" :class="menuUser.active !== false ? 'badge-teal' : 'badge-slate'">
+                {{ menuUser.active !== false ? 'Can log in' : 'Blocked' }}
+              </span>
+            </div>
+          </div>
         </div>
-        <button type="button" class="btn-secondary mt-4 w-full" @click="closeMenu">Cancel</button>
+
+        <p class="team-manage-section-label mt-6">Profile</p>
+        <button
+          type="button"
+          class="team-manage-action"
+          @click="handleMenuAction(menuUser, 'edit-application-name')"
+        >
+          <span class="team-manage-action-title">Edit application name</span>
+          <span class="team-manage-action-hint">Name shown on job applications and resumes</span>
+        </button>
+
+        <p class="team-manage-section-label mt-5">Access</p>
+        <button type="button" class="team-manage-action" @click="openReset(menuUser)">
+          <span class="team-manage-action-title">Reset password</span>
+          <span class="team-manage-action-hint">Set a new temporary password and email it to them</span>
+        </button>
+        <button
+          v-if="menuUser.role !== 'admin'"
+          type="button"
+          class="team-manage-action"
+          :disabled="roleSaving === userId(menuUser)"
+          @click="handleMenuAction(menuUser, 'make-admin')"
+        >
+          <span class="team-manage-action-title">Make admin</span>
+          <span class="team-manage-action-hint">Can invite users and manage the team</span>
+        </button>
+        <button
+          v-else
+          type="button"
+          class="team-manage-action"
+          :disabled="roleSaving === userId(menuUser)"
+          @click="handleMenuAction(menuUser, 'make-user')"
+        >
+          <span class="team-manage-action-title">Make regular user</span>
+          <span class="team-manage-action-hint">Remove team admin permissions</span>
+        </button>
+        <button
+          type="button"
+          class="team-manage-action"
+          @click="handleMenuAction(menuUser, 'toggle-active')"
+        >
+          <span class="team-manage-action-title">{{ menuUser.active !== false ? 'Block login' : 'Restore access' }}</span>
+          <span class="team-manage-action-hint">
+            {{ menuUser.active !== false ? 'They cannot sign in until you restore access' : 'Let them log in again' }}
+          </span>
+        </button>
+
+        <p class="team-manage-section-label mt-5 text-red-400/80">Danger zone</p>
+        <button
+          type="button"
+          class="team-manage-action team-manage-action--danger"
+          @click="handleMenuAction(menuUser, 'delete')"
+        >
+          <span class="team-manage-action-title">Delete user</span>
+          <span class="team-manage-action-hint">Permanently remove their account and data</span>
+        </button>
+
+        <button type="button" class="btn-secondary mt-5 w-full" @click="closeMenu">Done</button>
       </div>
     </div>
 
