@@ -40,7 +40,7 @@ const updateSchema = z.object({
   contactPhone: z.string().optional(),
   defaultSupplementPages: z.number().min(1).max(6).optional(),
   defaultTailorMode: z.enum(['balanced', 'high_match']).optional(),
-  defaultQuickApplyCount: z.number().min(5).max(50).optional(),
+  defaultQuickApplyCount: z.number().min(3).max(50).optional(),
   highMatchTarget: z.number().min(80).max(98).optional(),
   savedJobs: z
     .array(
@@ -270,6 +270,48 @@ async function testOpenAiKey(req, res, next) {
   }
 }
 
+const recruiterKeySchema = z.object({
+  apiKey: z.string().min(8).max(200),
+});
+
+async function saveHunterKey(req, res, next) {
+  try {
+    const { apiKey } = recruiterKeySchema.parse(req.body);
+    const profile = await profileService.setHunterKey(req.user.sub, apiKey.trim());
+    res.json({ message: 'Hunter.io key saved', profile });
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function clearHunterKey(req, res, next) {
+  try {
+    const profile = await profileService.clearHunterKey(req.user.sub);
+    res.json({ message: 'Hunter.io key removed', profile });
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function saveApolloKey(req, res, next) {
+  try {
+    const { apiKey } = recruiterKeySchema.parse(req.body);
+    const profile = await profileService.setApolloKey(req.user.sub, apiKey.trim());
+    res.json({ message: 'Apollo key saved', profile });
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function clearApolloKey(req, res, next) {
+  try {
+    const profile = await profileService.clearApolloKey(req.user.sub);
+    res.json({ message: 'Apollo key removed', profile });
+  } catch (err) {
+    next(err);
+  }
+}
+
 async function getApplyPreview(req, res, next) {
   try {
     const profile = await profileService.getOrCreate(req.user.sub);
@@ -293,7 +335,7 @@ async function getApplyPreview(req, res, next) {
         defaultSupplementPages: profile.defaultSupplementPages || 3,
         defaultTailorMode: profile.defaultTailorMode || 'balanced',
         highMatchTarget: profile.highMatchTarget || 90,
-        autoApplyEnabled: profile.autoApplyEnabled !== false,
+        autoApplyEnabled: profile.autoApplyEnabled === true,
       },
       emailWarning,
     });
@@ -310,4 +352,8 @@ module.exports = {
   saveOpenAiKey,
   clearOpenAiKey,
   testOpenAiKey,
+  saveHunterKey,
+  clearHunterKey,
+  saveApolloKey,
+  clearApolloKey,
 };

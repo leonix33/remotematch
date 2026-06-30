@@ -215,7 +215,7 @@ defineExpose({ refresh: load });
       </li>
     </ul>
 
-    <p v-if="allCoreReady" class="mt-3 text-xs text-teal-400">Core services ready — apply batches will email follow-up digests automatically.</p>
+    <p v-if="allCoreReady" class="mt-3 text-xs text-teal-400">Core services ready — review jobs in My Queue before applying; follow-up digests email after each batch.</p>
     <p v-else-if="health?.emailConfigured && !health?.emailDeliveryReady" class="mt-3 text-xs text-amber-300">
       Email is configured but not delivering — verify <strong>remotelymatch.app</strong> in Resend (DNS records below).
     </p>

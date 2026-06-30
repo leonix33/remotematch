@@ -111,7 +111,9 @@ onUnmounted(() => {
           <span class="mobile-tab-icon" :class="isMobileActive(item) ? 'text-teal-300' : 'text-slate-500'">
             {{ item.icon }}
           </span>
-          <span class="mobile-tab-label">{{ item.label === 'My Queue' ? 'Queue' : item.label }}</span>
+          <span class="mobile-tab-label">{{
+            item.label === 'My Queue' ? 'Queue' : item.label === 'Follow-ups' ? 'Follow' : item.label
+          }}</span>
         </RouterLink>
         <button
           type="button"

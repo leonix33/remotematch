@@ -4,6 +4,13 @@ const applicationService = require('./applicationService');
 const approvalService = require('./approvalService');
 const localOutcomeStore = require('./localOutcomeStore');
 const localFollowUpStore = require('./localFollowUpStore');
+const followUpDraftService = require('./followUpDraftService');
+const followUpKitStore = require('./followUpKitStore');
+const followUpScheduleService = require('./followUpScheduleService');
+const atsKeywordService = require('./atsKeywordService');
+const contactEnrichmentService = require('./contactEnrichmentService');
+const applicationKitStore = require('./applicationKitStore');
+const jobDescriptionService = require('./jobDescriptionService');
 const localNotificationStore = require('./localNotificationStore');
 const emailService = require('./emailService');
 const applicantContactService = require('./applicantContactService');
@@ -61,6 +68,7 @@ async function buildTractionTrace(userId) {
     const { urgency, status, score: dayScore } = followUpUrgency(days);
 
     if (app.status === 'submitted' && days != null && days >= 3) {
+      const followUpKit = followUpKitStore.get(userId, app.jobId);
       trace.push({
         id: `fu-${app.jobId}`,
         type: 'follow_up',
@@ -81,8 +89,11 @@ async function buildTractionTrace(userId) {
         appliedAt,
         applicationStatus: app.status,
         reason: `Applied ${days} day(s) ago — no reply logged yet`,
-        suggestedAction: 'Send a polite LinkedIn message or email to recruiter/hiring manager',
+        suggestedAction: followUpKit?.emailBody
+          ? 'Use your pre-drafted email, LinkedIn message, or call script below'
+          : 'Send a polite LinkedIn message or email to recruiter/hiring manager',
         link: '/follow-ups',
+        followUpKit,
       });
     } else if (['manual-review', 'filled-only', 'external-apply', 'email-apply'].includes(app.status)) {
       trace.push({
@@ -231,6 +242,7 @@ async function sendAppliedDigestEmail(userId, authEmail = '') {
 }
 
 async function scanAndNotifyTraction(userId) {
+  await followUpScheduleService.processDueReminders(userId);
   const profile = await profileService.getOrCreate(userId);
   if (profile.followUpRemindersEnabled === false) {
     return { created: 0, reason: 'Follow-up reminders disabled' };
@@ -372,8 +384,92 @@ async function previewDigest(userId, authEmail = '') {
   };
 }
 
+async function buildFollowUpBoard(userId, authEmail = '') {
+  await followUpScheduleService.processDueReminders(userId);
+
+  const profile = await profileService.getOrCreate(userId);
+  const apps = await applicationService.listForUser(userId, { limit: 200 });
+  const submitted = apps.filter((a) => a.status === 'submitted' || a.submittedAt);
+  const enrichmentStatus = await contactEnrichmentService.getEnrichmentStatus(userId);
+
+  const rows = [];
+  for (const app of submitted) {
+    const jobId = app.jobId;
+    let kit = followUpKitStore.get(userId, jobId);
+    if (!kit) {
+      try {
+        kit = await followUpDraftService.getOrGenerate(userId, jobId, {
+          authEmail,
+          job: { jobId, title: app.title, company: app.company, url: app.jobUrl || app.applyUrl },
+          daysSinceApply: daysSince(app.submittedAt || app.lastAttempted) ?? 0,
+        });
+      } catch {
+        kit = null;
+      }
+    }
+
+    const applicationKit = await applicationKitStore.get(userId, jobId);
+    let ats = null;
+    try {
+      const jd = await jobDescriptionService.resolveJobDescription({
+        jobId,
+        title: app.title,
+        company: app.company,
+        url: app.jobUrl || app.applyUrl,
+      });
+      ats = atsKeywordService.scoreAtsKeywords({
+        resumeText: profile.resumeText,
+        tailoredText: applicationKit?.tailoredResumeText || kit?.tailoredResumeText,
+        jobDescription: jd,
+      });
+    } catch {
+      ats = null;
+    }
+
+    const schedule = followUpScheduleService.scheduleMeta(userId, jobId);
+    const days = daysSince(app.submittedAt || app.lastAttempted);
+    const completed = localFollowUpStore.isCompleted(userId, jobId);
+
+    rows.push({
+      jobId,
+      title: app.title,
+      company: app.company,
+      url: app.applyUrl || app.jobUrl,
+      source: app.source,
+      status: app.status,
+      appliedAt: app.submittedAt || app.lastAttempted,
+      daysSinceApply: days,
+      matchPct: kit?.atsMatchPct ?? applicationKit?.estimatedMatchPct ?? null,
+      ats,
+      followUpKit: kit,
+      schedule,
+      followUpCompleted: completed,
+      followUpDue: schedule?.isDue && !completed,
+      followUpUpcoming: schedule?.isUpcoming && !completed,
+    });
+  }
+
+  rows.sort((a, b) => {
+    if (a.followUpDue !== b.followUpDue) return a.followUpDue ? -1 : 1;
+    return (b.daysSinceApply || 0) - (a.daysSinceApply || 0);
+  });
+
+  return {
+    jobs: rows,
+    summary: {
+      total: rows.length,
+      dueNow: rows.filter((r) => r.followUpDue).length,
+      upcoming: rows.filter((r) => r.followUpUpcoming).length,
+      completed: rows.filter((r) => r.followUpCompleted).length,
+    },
+    enrichment: enrichmentStatus,
+    followUpDay: followUpScheduleService.FOLLOW_UP_DAYS,
+  };
+}
+
 module.exports = {
   buildTractionTrace,
+  buildFollowUpBoard,
   buildAppliedJobsDigest,
   sendAppliedDigestEmail,
   sendPostApplyFeedback,

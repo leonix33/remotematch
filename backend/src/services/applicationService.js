@@ -104,6 +104,17 @@ async function recordApplicationsFromJobs(userId, jobs = [], options = {}) {
   let emailNotification = null;
   if (options.notify !== false && results.length) {
     try {
+      const followUpDraftService = require('./followUpDraftService');
+      const followUpScheduleService = require('./followUpScheduleService');
+      await followUpDraftService.generateForJobs(userId, jobs, { authEmail: options.authEmail });
+      for (const job of jobs) {
+        await followUpScheduleService.scheduleForApplication(userId, job, now);
+      }
+    } catch (err) {
+      console.warn('Follow-up kit generation failed:', err.message);
+    }
+
+    try {
       const tractionService = require('./tractionService');
       emailNotification = await tractionService.sendPostApplyFeedback(userId, jobs, {
         authEmail: options.authEmail,

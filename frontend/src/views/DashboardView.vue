@@ -22,12 +22,12 @@ const { saveState, schedule, flush } = useProfileAutosave();
 const resumeText = ref('');
 const resumeMode = ref('tailored');
 const supplementPages = ref(3);
-const tailorMode = ref('balanced');
+const tailorMode = ref('high_match');
 const digestEmail = ref('');
 const contactPhone = ref('');
 const applicantName = ref('');
-const jobCount = ref(15);
-const autoApplyEnabled = ref(true);
+const jobCount = ref(5);
+const autoApplyEnabled = ref(false);
 const savingResume = ref(false);
 const saveMessage = ref('');
 const queueCounts = ref({ pending: 0, approved: 0, applied: 0 });
@@ -97,7 +97,7 @@ function syncFromProfile(p) {
   contactPhone.value = p.contactPhone || '';
   applicantName.value = p.applicantName || p.displayName || auth.user?.name || '';
   if (p.defaultQuickApplyCount) jobCount.value = p.defaultQuickApplyCount;
-  autoApplyEnabled.value = p.autoApplyEnabled !== false;
+  autoApplyEnabled.value = p.autoApplyEnabled === true;
 }
 
 watch(() => profileStore.profile, syncFromProfile, { immediate: true });
@@ -209,7 +209,7 @@ async function startApplying() {
       count: jobCount.value,
       useTailoredResume: resumeMode.value === 'tailored',
       autoApply: autoApplyEnabled.value,
-      minMatch: profileStore.profile?.minMatchScore || 40,
+      minMatch: profileStore.profile?.minMatchScore || 60,
       runSearch: false,
     });
     if (result?.kits?.length || (resumeMode.value === 'tailored' && (result?.count || result?.preparedOnly))) {
@@ -272,7 +272,9 @@ onMounted(async () => {
       <h1 class="text-2xl font-bold text-slate-100">
         {{ firstName ? `Hi ${firstName}` : 'Welcome' }}
       </h1>
-      <p class="mt-1 text-slate-400">Upload your resume, set tailoring options, and apply with your email.</p>
+      <p class="mt-1 text-slate-400">
+        Tailor resumes, pass ATS checks, and get replies — not spray-and-pray volume.
+      </p>
       <p v-if="saveStatusLabel" class="mt-2 text-xs text-teal-400/90">{{ saveStatusLabel }}</p>
     </div>
 
@@ -357,9 +359,21 @@ onMounted(async () => {
       <div class="flex items-center gap-3">
         <span class="flex h-8 w-8 items-center justify-center rounded-full bg-teal-500/20 text-sm font-bold text-teal-300">3</span>
         <div>
-          <h2 class="font-semibold text-slate-100">Start applying</h2>
-          <p class="text-sm text-slate-500">Review your plan, then submit</p>
+          <h2 class="font-semibold text-slate-100">{{ autoApplyEnabled ? 'Start applying' : 'Prepare applications' }}</h2>
+          <p class="text-sm text-slate-500">
+            {{ autoApplyEnabled ? 'Submits top matches automatically' : 'Review tailored resumes in My Queue before you submit' }}
+          </p>
         </div>
+      </div>
+
+      <div class="mt-5 rounded-xl border border-slate-800 bg-slate-950/40 p-4 text-sm text-slate-400">
+        <p class="font-medium text-slate-200">Quality-first workflow</p>
+        <ol class="mt-2 list-inside list-decimal space-y-1 text-xs">
+          <li><RouterLink to="/jobs" class="text-teal-400 hover:underline">Jobs</RouterLink> — browse &amp; save roles you actually want</li>
+          <li><RouterLink to="/approvals" class="text-teal-400 hover:underline">My Queue</RouterLink> — check match % and interview likelihood; reject weak fits</li>
+          <li>Prepare batch here (or approve one-by-one) with tailored resumes</li>
+          <li><RouterLink to="/follow-ups" class="text-teal-400 hover:underline">Follow-ups</RouterLink> — track replies and nudge hiring managers</li>
+        </ol>
       </div>
 
       <div class="mt-5 rounded-xl border border-teal-900/40 bg-teal-950/20 p-4 text-sm">

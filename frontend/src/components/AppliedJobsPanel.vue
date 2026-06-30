@@ -51,8 +51,19 @@ const hasData = computed(() => props.jobs.length > 0 || props.companies.length >
           <span v-if="companies.length"> · {{ companies.length }} compan{{ companies.length === 1 ? 'y' : 'ies' }}</span>
         </p>
       </div>
-      <RouterLink to="/follow-ups" class="text-sm text-teal-400 hover:underline">Follow-ups →</RouterLink>
+      <RouterLink
+        v-if="hasData"
+        to="/follow-ups"
+        class="btn-primary px-4 py-2 text-sm"
+      >
+        Open follow-up command center →
+      </RouterLink>
+      <RouterLink v-else to="/follow-ups" class="text-sm text-teal-400 hover:underline">Follow-ups →</RouterLink>
     </div>
+
+    <p v-if="hasData" class="mt-3 rounded-lg border border-violet-900/40 bg-violet-950/20 px-3 py-2 text-xs text-violet-200/90">
+      Replies come from follow-ups — each role gets ATS score, recruiter contacts, and a day-5 reminder.
+    </p>
 
     <div v-if="loading" class="mt-4 text-sm text-slate-500">Loading applications…</div>
 

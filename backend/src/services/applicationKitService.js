@@ -86,7 +86,7 @@ async function generateForJob(userId, jobId, options = {}) {
     options.tailorMode === 'high_match' || options.tailorMode === 'balanced'
       ? options.tailorMode
       : existing?.tailorMode || profile.defaultTailorMode || 'balanced';
-  const highMatchTarget = options.highMatchTarget ?? existing?.highMatchTarget ?? profile.highMatchTarget ?? 90;
+  const highMatchTarget = options.highMatchTarget ?? existing?.highMatchTarget ?? profile.highMatchTarget ?? 95;
 
   if (!(profile?.resumeText || '').trim() || profile.resumeText.trim().length < 50) {
     const err = new Error('Add your resume in Profile before generating a tailored application kit.');

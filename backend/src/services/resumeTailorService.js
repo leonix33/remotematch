@@ -282,7 +282,7 @@ function buildDemoKit(profile, job, jobDescription, contact = {}, options = {}) 
     demo: true,
     tailorMode,
     supplementPagesTarget: pageTarget,
-    highMatchTarget: options.highMatchTarget || 90,
+    highMatchTarget: options.highMatchTarget || 95,
     estimatedMatchPct: Math.min(
       95,
       (job?.personalMatchPct ?? job?.matchPct ?? 70) + (tailorMode === 'high_match' ? 12 : 5)
@@ -423,7 +423,7 @@ async function generateAdditiveKit({
   tailorFocus = '',
   supplementPages = DEFAULT_SUPPLEMENT_PAGES,
   tailorMode = 'balanced',
-  highMatchTarget = 90,
+  highMatchTarget = 95,
 }) {
   const pageTarget = inferResumePageTarget(profile?.resumeText, supplementPages);
   const options = { supplementPages: pageTarget, tailorMode, highMatchTarget };
@@ -442,7 +442,7 @@ async function generateAdditiveKit({
   const contactBlock = contactHeader(contact);
   const jdAlignmentNote =
     tailorMode === 'high_match'
-      ? 'Weave exact JD terms into experience bullets where the candidate has truthful experience. Do not add meta "JD mapping" sections.'
+      ? `Maximize ATS keyword alignment — target ${highMatchTarget}% overlap with JD terms the candidate truthfully has. Weave exact JD phrases into experience bullets where supported. Never invent experience.`
       : 'Naturally align experience bullets to the job description without sounding templated.';
 
   const system = `You are an expert resume writer helping a candidate tailor their resume for one job application.
@@ -563,6 +563,8 @@ module.exports = {
   finalizeTailoredResume,
   enrichKitForDisplay,
   finalizeNormalizedKit,
+  TECH_KEYWORDS,
+  extractJdRequirements,
   MIN_SUPPLEMENT_PAGES,
   MAX_SUPPLEMENT_PAGES,
   DEFAULT_SUPPLEMENT_PAGES,

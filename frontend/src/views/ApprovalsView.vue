@@ -270,7 +270,7 @@ function kitBadge(job) {
   if (job.kit?.applied) return { label: 'Applied', cls: 'badge-teal' };
   if (!job.kit?.hasKit) return null;
   if (job.kit.useForApply === false) return { label: 'Kit saved · base on apply', cls: 'badge-slate' };
-  const mode = job.kit.tailorMode === 'high_match' ? '90% match kit' : 'kit ready';
+  const mode = job.kit.tailorMode === 'high_match' ? '95% match kit' : 'kit ready';
   return { label: `${job.kit.pageCount || 3}-page ${mode}`, cls: 'badge-teal' };
 }
 
@@ -317,7 +317,7 @@ onMounted(async () => {
         <p class="mt-1 max-w-xl text-slate-400">
           {{ isAdmin
             ? 'Triage by interview likelihood — approve roles with the best chance of a human reply.'
-            : 'Review jobs, approve the ones you want, then apply.' }}
+            : 'Approve strong fits, open Application kit for ATS keyword match, then submit.' }}
         </p>
       </div>
       <div class="mobile-queue-stats flex flex-wrap gap-3">
@@ -363,7 +363,18 @@ onMounted(async () => {
       </div>
     </div>
 
-    <ApplyWorkflowBanner v-if="isAdmin" class="mt-6" />
+    <ApplyWorkflowBanner class="mt-6" />
+
+    <div
+      v-if="counts.approved > 0 || counts.pending > 0"
+      class="mt-4 rounded-xl border border-amber-900/40 bg-amber-950/20 px-4 py-3 text-sm text-amber-100/90"
+    >
+      <p class="font-medium text-amber-200">Before you submit</p>
+      <p class="mt-1 text-xs text-amber-100/80">
+        Open <strong>Application kit</strong> on each role → <strong>ATS</strong> tab. Aim for ~95% keyword match.
+        After applying, use <RouterLink to="/follow-ups" class="text-violet-300 hover:underline">Follow-ups</RouterLink> for recruiter drafts and day-5 reminders.
+      </p>
+    </div>
 
     <div v-if="status === 'pending' && counts.pending > 0 && isAdmin" class="mt-6 card flex flex-wrap items-center gap-3 p-4">
       <span class="text-sm text-slate-400">Quick triage:</span>

@@ -46,7 +46,7 @@ watch(
 
     <nav class="sidebar-nav custom-scrollbar flex-1 space-y-5 overflow-y-auto pr-1">
       <section class="sidebar-section">
-        <p class="sidebar-section-label px-3">Get started</p>
+        <p class="sidebar-section-label px-3">Your workflow</p>
         <div class="mt-1 space-y-0.5">
           <RouterLink
             v-for="item in simpleNav"

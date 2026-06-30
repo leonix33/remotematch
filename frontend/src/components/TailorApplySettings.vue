@@ -21,8 +21,8 @@ const props = defineProps({
   emailDigestEnabled: { type: Boolean, default: true },
 });
 
-const jobCount = defineModel('jobCount', { type: Number, default: 15 });
-const autoApply = defineModel('autoApply', { type: Boolean, default: true });
+const jobCount = defineModel('jobCount', { type: Number, default: 5 });
+const autoApply = defineModel('autoApply', { type: Boolean, default: false });
 
 const profileStore = useProfileStore();
 const auth = useAuthStore();
@@ -34,7 +34,7 @@ const isTailored = computed(() => resumeMode.value === 'tailored');
 
 const tailorModeLabel = computed(() => {
   if (tailorMode.value === 'high_match') {
-    return 'Close match — uses the same terms from the job posting where your experience supports it';
+    return 'ATS mode — targets ~95% keyword overlap with the job posting (truthful experience only)';
   }
   return 'Balanced — strong match without copying every phrase from the posting';
 });
@@ -235,8 +235,8 @@ onMounted(loadApplyPreview);
         >
           <input v-model="tailorMode" type="radio" value="high_match" class="mt-1 accent-teal-500" />
           <span>
-            <strong class="text-slate-200">High match</strong>
-            <span class="mt-0.5 block text-xs text-slate-500">Uses the employer's wording where it fits your real experience.</span>
+            <strong class="text-slate-200">ATS high match (recommended)</strong>
+            <span class="mt-0.5 block text-xs text-slate-500">~95% keyword alignment with the JD — passes filters and reaches recruiters when your experience supports it.</span>
           </span>
         </label>
       </div>
@@ -259,7 +259,8 @@ onMounted(loadApplyPreview);
           <div>
             <p class="text-sm font-medium text-slate-200">Auto apply</p>
             <p class="mt-1 text-xs text-slate-500">
-              On — submit applications when you click start. Off — only approve jobs and prepare tailored resumes for review.
+              <strong class="text-slate-400">Off (recommended)</strong> — prepare tailored resumes, review in My Queue, then submit yourself.
+              On — submit forms automatically when you click start.
             </p>
           </div>
           <button
@@ -279,19 +280,19 @@ onMounted(loadApplyPreview);
       </div>
 
       <div>
-        <label class="mb-1 block text-sm text-slate-400">How many jobs to apply to</label>
+        <label class="mb-1 block text-sm text-slate-400">How many jobs per batch</label>
         <select v-model.number="jobCount" class="input w-auto min-w-[12rem]">
+          <option :value="3">Top 3 matches</option>
+          <option :value="5">Top 5 matches (recommended)</option>
           <option :value="10">Top 10 matches</option>
           <option :value="15">Top 15 matches</option>
           <option :value="20">Top 20 matches</option>
-          <option :value="25">Top 25 matches</option>
-          <option :value="50">Top 50 matches</option>
         </select>
         <p class="mt-1 text-xs text-slate-600">
           {{
             autoApply
-              ? 'More jobs = more applications. Kits are built when you submit.'
-              : 'Jobs are approved and resumes prepared — submit later from the queue or turn Auto apply on.'
+              ? 'Fewer, stronger applications beat mass applying. Review match scores in My Queue first.'
+              : 'Resumes are prepared for review — submit from My Queue after you check each role.'
           }}
         </p>
       </div>

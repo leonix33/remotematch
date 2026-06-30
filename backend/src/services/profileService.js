@@ -16,6 +16,21 @@ function isComplete(profile) {
   );
 }
 
+function enrichmentMeta(profile) {
+  const hasUserHunter = Boolean(profile?.hunterApiKeyEncrypted);
+  const hasUserApollo = Boolean(profile?.apolloApiKeyEncrypted);
+  const hasServerHunter = Boolean(env.hunterApiKey);
+  const hasServerApollo = Boolean(env.apolloApiKey);
+  return {
+    hunterConfigured: hasUserHunter || hasServerHunter,
+    apolloConfigured: hasUserApollo || hasServerApollo,
+    hunterKeyHint: profile?.hunterKeyHint || (hasServerHunter ? maskApiKey(env.hunterApiKey) : null),
+    apolloKeyHint: profile?.apolloKeyHint || (hasServerApollo ? maskApiKey(env.apolloApiKey) : null),
+    hunterKeySource: hasUserHunter ? 'user' : hasServerHunter ? 'server' : null,
+    apolloKeySource: hasUserApollo ? 'user' : hasServerApollo ? 'server' : null,
+  };
+}
+
 function openaiMeta(profile) {
   const hasUserKey = Boolean(profile?.openaiApiKeyEncrypted);
   const hasServerKey = Boolean(env.openaiApiKey);
@@ -33,10 +48,11 @@ function openaiMeta(profile) {
 
 function toResponse(profile) {
   const doc = profile.toObject ? profile.toObject() : { ...profile };
-  const { openaiApiKeyEncrypted, ...safe } = doc;
+  const { openaiApiKeyEncrypted, hunterApiKeyEncrypted, apolloApiKeyEncrypted, ...safe } = doc;
   return enrichProfileResponse({
     ...safe,
     ...openaiMeta(doc),
+    ...enrichmentMeta(doc),
     complete: isComplete(doc),
     mongoRequired: false,
   });
@@ -46,14 +62,14 @@ async function getRaw(userId) {
   if (!env.mongoUri) {
     return profileFileService.get(userId);
   }
-  return Profile.findOne({ userId }).select('+openaiApiKeyEncrypted').lean();
+  return Profile.findOne({ userId }).select('+openaiApiKeyEncrypted +hunterApiKeyEncrypted +apolloApiKeyEncrypted').lean();
 }
 
 async function getOrCreate(userId) {
   if (!env.mongoUri) {
     return toResponse(profileFileService.get(userId));
   }
-  let profile = await Profile.findOne({ userId }).select('+openaiApiKeyEncrypted');
+  let profile = await Profile.findOne({ userId }).select('+openaiApiKeyEncrypted +hunterApiKeyEncrypted +apolloApiKeyEncrypted');
   if (!profile) {
     profile = await Profile.create({ userId });
   }
@@ -69,7 +85,7 @@ async function update(userId, data) {
     { userId },
     { $set: data },
     { new: true, upsert: true }
-  ).select('+openaiApiKeyEncrypted');
+  ).select('+openaiApiKeyEncrypted +hunterApiKeyEncrypted +apolloApiKeyEncrypted');
   return toResponse(profile);
 }
 
@@ -83,4 +99,38 @@ async function clearOpenAiKey(userId) {
   return update(userId, { openaiApiKeyEncrypted: '', openaiKeyHint: '' });
 }
 
-module.exports = { getOrCreate, getRaw, update, setOpenAiKey, clearOpenAiKey, isComplete, toResponse, openaiMeta };
+async function setHunterKey(userId, apiKey) {
+  const encrypted = encryptApiKey(apiKey);
+  const hint = maskApiKey(apiKey);
+  return update(userId, { hunterApiKeyEncrypted: encrypted, hunterKeyHint: hint || '' });
+}
+
+async function clearHunterKey(userId) {
+  return update(userId, { hunterApiKeyEncrypted: '', hunterKeyHint: '' });
+}
+
+async function setApolloKey(userId, apiKey) {
+  const encrypted = encryptApiKey(apiKey);
+  const hint = maskApiKey(apiKey);
+  return update(userId, { apolloApiKeyEncrypted: encrypted, apolloKeyHint: hint || '' });
+}
+
+async function clearApolloKey(userId) {
+  return update(userId, { apolloApiKeyEncrypted: '', apolloKeyHint: '' });
+}
+
+module.exports = {
+  getOrCreate,
+  getRaw,
+  update,
+  setOpenAiKey,
+  clearOpenAiKey,
+  setHunterKey,
+  clearHunterKey,
+  setApolloKey,
+  clearApolloKey,
+  isComplete,
+  toResponse,
+  openaiMeta,
+  enrichmentMeta,
+};

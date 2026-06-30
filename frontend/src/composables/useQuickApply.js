@@ -27,27 +27,18 @@ async function pollTailoredKits(jobIds, onProgress) {
 }
 
 async function fetchPendingJobs(count, minMatch) {
-  const thresholds = [minMatch || 40, 35, 30, 25, 20];
-  let lastData = null;
-
-  for (const threshold of thresholds) {
-    const { data } = await http.get('/approvals', {
-      params: {
-        status: 'pending',
-        sort: 'match',
-        limit: count,
-        minMatch: threshold,
-        offset: 0,
-      },
-    });
-    lastData = data;
-    const jobs = data?.items || [];
-    if (jobs.length >= count || threshold === 20) {
-      return { jobs, listData: data };
-    }
-  }
-
-  return { jobs: lastData?.items || [], listData: lastData };
+  const floor = Math.max(50, Number(minMatch) || 60);
+  const { data } = await http.get('/approvals', {
+    params: {
+      status: 'pending',
+      sort: 'match',
+      limit: count,
+      minMatch: floor,
+      offset: 0,
+    },
+  });
+  const jobs = data?.items || [];
+  return { jobs, listData: data, minMatchUsed: floor };
 }
 
 export function useQuickApply() {
@@ -73,13 +64,13 @@ export function useQuickApply() {
       }
 
       step.value = 'Finding your best matches…';
-      let { jobs, listData } = await fetchPendingJobs(count, minMatch);
+      let { jobs, listData, minMatchUsed } = await fetchPendingJobs(count, minMatch);
 
       if (!jobs.length && !runSearch) {
         step.value = 'Refreshing job listings…';
         try {
           await http.post('/agent/run', {}, { timeout: 300000 });
-          ({ jobs, listData } = await fetchPendingJobs(count, minMatch));
+          ({ jobs, listData, minMatchUsed } = await fetchPendingJobs(count, minMatch));
         } catch {
           /* continue */
         }
@@ -89,7 +80,7 @@ export function useQuickApply() {
         const hint = listData?.hint;
         throw new Error(
           hint ||
-            'No matching jobs found. Update your resume and target roles in Profile, or lower your match threshold.'
+            `No jobs at ${minMatchUsed || minMatch || 60}%+ match. Browse Jobs, tighten your target roles in Profile, or lower minimum match score slightly.`
         );
       }
 

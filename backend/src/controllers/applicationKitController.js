@@ -1,4 +1,9 @@
 const applicationKitService = require('../services/applicationKitService');
+const atsKeywordService = require('../services/atsKeywordService');
+const profileService = require('../services/profileService');
+const jobDescriptionService = require('../services/jobDescriptionService');
+const applicationKitStore = require('../services/applicationKitStore');
+const jobService = require('../services/jobService');
 
 async function listKits(req, res, next) {
   try {
@@ -56,4 +61,24 @@ async function generateKit(req, res, next) {
   }
 }
 
-module.exports = { listKits, getKit, generateKit, updatePreference };
+async function atsScore(req, res, next) {
+  try {
+    const jobId = req.params.jobId;
+    const profile = await profileService.getOrCreate(req.user.sub);
+    const kit = await applicationKitStore.get(req.user.sub, jobId);
+    const job =
+      jobService.readJobsFromSqlite(5000).find((j) => j.jobId === jobId) ||
+      (kit ? { jobId, title: kit.jobTitle, company: kit.company, url: kit.jobUrl } : { jobId });
+    const jd = await jobDescriptionService.resolveJobDescription(job);
+    const ats = atsKeywordService.scoreAtsKeywords({
+      resumeText: profile.resumeText,
+      tailoredText: kit?.tailoredResumeText,
+      jobDescription: jd,
+    });
+    res.json({ jobId, ...ats });
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { listKits, getKit, generateKit, updatePreference, atsScore };

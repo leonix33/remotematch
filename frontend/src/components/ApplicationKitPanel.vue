@@ -2,6 +2,7 @@
 import { ref, watch } from 'vue';
 import http from '../api/http';
 import TailoredResumePreview from './TailoredResumePreview.vue';
+import AtsKeywordScore from './AtsKeywordScore.vue';
 
 const props = defineProps({
   job: { type: Object, required: true },
@@ -54,7 +55,7 @@ async function generate() {
       tailorFocus: tailorFocus.value.trim(),
       supplementPages: supplementPages.value,
       tailorMode: tailorMode.value,
-      highMatchTarget: 90,
+      highMatchTarget: 95,
     });
     kit.value = data;
     useForApply.value = data.useForApply !== false;
@@ -163,11 +164,23 @@ watch(
         <button
           type="button"
           class="rounded-lg px-3 py-2 text-sm"
+          :class="viewTab === 'ats' ? 'bg-teal-500/20 text-teal-200' : 'text-slate-400 hover:text-slate-200'"
+          @click="viewTab = 'ats'"
+        >
+          ATS score
+        </button>
+        <button
+          type="button"
+          class="rounded-lg px-3 py-2 text-sm"
           :class="viewTab === 'settings' ? 'bg-teal-500/20 text-teal-200' : 'text-slate-400 hover:text-slate-200'"
           @click="viewTab = 'settings'"
         >
           Use / re-tailor
         </button>
+      </div>
+
+      <div v-if="viewTab === 'ats' && kit?.tailored" class="mt-4">
+        <AtsKeywordScore :job-id="job.jobId" :refresh-key="kit.generatedAt ? 1 : 0" />
       </div>
 
       <div v-if="viewTab === 'settings' || !kit?.tailored" class="mt-4 space-y-4 rounded-xl border border-slate-800 bg-slate-950/40 p-4">
@@ -213,8 +226,8 @@ watch(
           <label class="mt-2 flex cursor-pointer items-start gap-2 text-sm text-slate-300">
             <input v-model="tailorMode" type="radio" value="high_match" class="mt-0.5 accent-teal-500" name="tailor-mode" />
             <span>
-              <strong class="text-slate-100">High match</strong>
-              <span class="mt-0.5 block text-xs text-slate-500">Uses the employer's wording where it fits your real experience.</span>
+              <strong class="text-slate-100">ATS high match</strong>
+              <span class="mt-0.5 block text-xs text-slate-500">Target ~95% keyword overlap with the job posting for ATS filters.</span>
             </span>
           </label>
         </div>

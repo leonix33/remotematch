@@ -1,4 +1,5 @@
 const tractionService = require('../services/tractionService');
+const followUpDraftService = require('../services/followUpDraftService');
 
 async function trace(req, res, next) {
   try {
@@ -45,4 +46,37 @@ async function markDone(req, res, next) {
   }
 }
 
-module.exports = { trace, previewDigest, sendDigest, scan, markDone };
+async function followUpKit(req, res, next) {
+  try {
+    const kit = await followUpDraftService.getOrGenerate(req.user.sub, req.params.jobId, {
+      authEmail: req.user.email,
+      force: req.query.regenerate === '1',
+    });
+    res.json(kit);
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function followUpBoard(req, res, next) {
+  try {
+    const board = await tractionService.buildFollowUpBoard(req.user.sub, req.user.email);
+    res.json(board);
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function enrichFollowUp(req, res, next) {
+  try {
+    const kit = await followUpDraftService.getOrGenerate(req.user.sub, req.params.jobId, {
+      authEmail: req.user.email,
+      force: true,
+    });
+    res.json(kit);
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { trace, previewDigest, sendDigest, scan, markDone, followUpKit, followUpBoard, enrichFollowUp };

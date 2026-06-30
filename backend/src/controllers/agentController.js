@@ -77,7 +77,7 @@ async function applyApproved(req, res, next) {
         ? req.body.useTailoredResume
         : profile.defaultApplyResumeMode === 'tailored';
     const autoApply =
-      typeof req.body?.autoApply === 'boolean' ? req.body.autoApply : profile.autoApplyEnabled !== false;
+      typeof req.body?.autoApply === 'boolean' ? req.body.autoApply : profile.autoApplyEnabled === true;
 
     const agentAvailable = jobService.isAgentApplyAvailable();
     const jobCount = scored.length;

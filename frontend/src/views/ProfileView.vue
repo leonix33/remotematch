@@ -42,6 +42,14 @@ const openaiSaving = ref(false);
 const openaiTesting = ref(false);
 const openaiMsg = ref('');
 const openaiError = ref('');
+const hunterKey = ref('');
+const hunterSaving = ref(false);
+const hunterMsg = ref('');
+const hunterError = ref('');
+const apolloKey = ref('');
+const apolloSaving = ref(false);
+const apolloMsg = ref('');
+const apolloError = ref('');
 const aiStatus = ref(null);
 const { saveState, schedule } = useProfileAutosave();
 const autosaveEnabled = ref(false);
@@ -65,9 +73,9 @@ const form = ref({
   niceToHaveSkills: '',
   targetCompanies: '',
   resumeText: '',
-  minMatchScore: 40,
+  minMatchScore: 60,
   tailorResumeOnApply: false,
-  autoApplyEnabled: true,
+  autoApplyEnabled: false,
   defaultApplyResumeMode: 'base',
   digestEmail: '',
   emailDigestEnabled: true,
@@ -91,9 +99,9 @@ function loadForm(p) {
     niceToHaveSkills: (p.niceToHaveSkills || []).join('\n'),
     targetCompanies: (p.targetCompanies || []).join('\n'),
     resumeText: p.resumeText || '',
-    minMatchScore: p.minMatchScore || 40,
+    minMatchScore: p.minMatchScore || 60,
     tailorResumeOnApply: Boolean(p.tailorResumeOnApply),
-    autoApplyEnabled: p.autoApplyEnabled !== false,
+    autoApplyEnabled: p.autoApplyEnabled === true,
     defaultApplyResumeMode: p.defaultApplyResumeMode === 'tailored' ? 'tailored' : 'base',
     digestEmail: p.digestEmail || '',
     emailDigestEnabled: p.emailDigestEnabled !== false,
@@ -366,6 +374,72 @@ async function removeOpenAiKey() {
     openaiError.value = e.response?.data?.message || 'Could not remove key';
   }
 }
+
+async function saveHunterKey() {
+  hunterError.value = '';
+  hunterMsg.value = '';
+  if (!hunterKey.value.trim()) {
+    hunterError.value = 'Paste your Hunter.io API key';
+    return;
+  }
+  hunterSaving.value = true;
+  try {
+    const { data } = await http.post('/profile/me/hunter-key', { apiKey: hunterKey.value.trim() });
+    hunterKey.value = '';
+    hunterMsg.value = data.message || 'Hunter.io connected.';
+    await profileStore.fetch();
+  } catch (e) {
+    hunterError.value = e.response?.data?.message || 'Could not save Hunter key';
+  } finally {
+    hunterSaving.value = false;
+  }
+}
+
+async function removeHunterKey() {
+  if (!confirm('Remove your Hunter.io API key?')) return;
+  hunterError.value = '';
+  hunterMsg.value = '';
+  try {
+    await http.delete('/profile/me/hunter-key');
+    hunterMsg.value = 'Hunter.io key removed.';
+    await profileStore.fetch();
+  } catch (e) {
+    hunterError.value = e.response?.data?.message || 'Could not remove key';
+  }
+}
+
+async function saveApolloKey() {
+  apolloError.value = '';
+  apolloMsg.value = '';
+  if (!apolloKey.value.trim()) {
+    apolloError.value = 'Paste your Apollo API key';
+    return;
+  }
+  apolloSaving.value = true;
+  try {
+    const { data } = await http.post('/profile/me/apollo-key', { apiKey: apolloKey.value.trim() });
+    apolloKey.value = '';
+    apolloMsg.value = data.message || 'Apollo connected.';
+    await profileStore.fetch();
+  } catch (e) {
+    apolloError.value = e.response?.data?.message || 'Could not save Apollo key';
+  } finally {
+    apolloSaving.value = false;
+  }
+}
+
+async function removeApolloKey() {
+  if (!confirm('Remove your Apollo API key?')) return;
+  apolloError.value = '';
+  apolloMsg.value = '';
+  try {
+    await http.delete('/profile/me/apollo-key');
+    apolloMsg.value = 'Apollo key removed.';
+    await profileStore.fetch();
+  } catch (e) {
+    apolloError.value = e.response?.data?.message || 'Could not remove key';
+  }
+}
 </script>
 
 <template>
@@ -444,7 +518,8 @@ async function removeOpenAiKey() {
 
       <div>
         <label class="mb-1 block text-sm text-slate-400">Minimum match score: {{ form.minMatchScore }}%</label>
-        <input v-model.number="form.minMatchScore" type="range" min="40" max="95" class="w-full accent-teal-500" />
+        <input v-model.number="form.minMatchScore" type="range" min="50" max="95" class="w-full accent-teal-500" />
+        <p class="mt-1 text-xs text-slate-500">60%+ recommended — only strong-fit roles enter your queue.</p>
       </div>
 
       <div class="rounded-xl border border-slate-800 bg-slate-950/40 p-4">
@@ -610,6 +685,85 @@ async function removeOpenAiKey() {
         </div>
         <p v-if="openaiMsg" class="mt-3 text-sm text-teal-300">{{ openaiMsg }}</p>
         <p v-if="openaiError" class="mt-3 text-sm text-red-300">{{ openaiError }}</p>
+      </div>
+
+      <div class="rounded-xl border border-sky-900/40 bg-gradient-to-br from-slate-950/80 to-sky-950/20 p-4">
+        <div class="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h3 class="font-semibold text-slate-200">Recruiter contact lookup</h3>
+            <p class="mt-1 text-sm text-slate-500">
+              Optional — enrich follow-up kits with verified hiring manager emails from Hunter.io and Apollo.
+            </p>
+          </div>
+          <span
+            class="badge"
+            :class="profileStore.profile?.hunterConfigured || profileStore.profile?.apolloConfigured ? 'badge-teal' : 'badge-gold'"
+          >
+            {{ profileStore.profile?.hunterConfigured || profileStore.profile?.apolloConfigured ? 'Enrichment on' : 'JD-only contacts' }}
+          </span>
+        </div>
+
+        <div class="mt-4 grid gap-4 md:grid-cols-2">
+          <div>
+            <label class="mb-1 block text-sm text-slate-400">Hunter.io API key</label>
+            <input
+              v-model="hunterKey"
+              type="password"
+              class="input font-mono text-sm"
+              placeholder="hunter_..."
+              autocomplete="off"
+            />
+            <p v-if="profileStore.profile?.hunterKeyHint" class="mt-1 text-xs text-slate-500">
+              Connected: <code class="text-sky-300">{{ profileStore.profile.hunterKeyHint }}</code>
+            </p>
+            <div class="mt-2 flex flex-wrap gap-2">
+              <button type="button" class="btn-primary text-sm" :disabled="hunterSaving" @click="saveHunterKey">
+                {{ hunterSaving ? 'Saving…' : 'Save Hunter key' }}
+              </button>
+              <button
+                v-if="profileStore.profile?.hunterKeySource === 'user'"
+                type="button"
+                class="btn-secondary text-sm text-red-300"
+                @click="removeHunterKey"
+              >
+                Remove
+              </button>
+            </div>
+          </div>
+          <div>
+            <label class="mb-1 block text-sm text-slate-400">Apollo API key</label>
+            <input
+              v-model="apolloKey"
+              type="password"
+              class="input font-mono text-sm"
+              placeholder="apollo_..."
+              autocomplete="off"
+            />
+            <p v-if="profileStore.profile?.apolloKeyHint" class="mt-1 text-xs text-slate-500">
+              Connected: <code class="text-sky-300">{{ profileStore.profile.apolloKeyHint }}</code>
+            </p>
+            <div class="mt-2 flex flex-wrap gap-2">
+              <button type="button" class="btn-primary text-sm" :disabled="apolloSaving" @click="saveApolloKey">
+                {{ apolloSaving ? 'Saving…' : 'Save Apollo key' }}
+              </button>
+              <button
+                v-if="profileStore.profile?.apolloKeySource === 'user'"
+                type="button"
+                class="btn-secondary text-sm text-red-300"
+                @click="removeApolloKey"
+              >
+                Remove
+              </button>
+            </div>
+          </div>
+        </div>
+        <p class="mt-3 text-xs text-slate-600">
+          Keys are encrypted at rest. Server-wide keys in Render env also work if you skip this.
+        </p>
+        <p v-if="hunterMsg" class="mt-3 text-sm text-teal-300">{{ hunterMsg }}</p>
+        <p v-if="hunterError" class="mt-1 text-sm text-red-300">{{ hunterError }}</p>
+        <p v-if="apolloMsg" class="mt-1 text-sm text-teal-300">{{ apolloMsg }}</p>
+        <p v-if="apolloError" class="mt-1 text-sm text-red-300">{{ apolloError }}</p>
       </div>
 
       <p v-if="error" class="text-sm text-red-300">{{ error }}</p>
