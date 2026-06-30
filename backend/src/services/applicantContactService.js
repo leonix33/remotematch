@@ -91,6 +91,7 @@ function contactSignature(contact) {
 module.exports = {
   isAppOrSystemEmail,
   resolveContactEmail,
+  resolveAuthEmail,
   resolveApplicantName,
   resolveApplicantContact,
   contactHeader,
