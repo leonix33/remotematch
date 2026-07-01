@@ -93,5 +93,7 @@ Platform engineer with AWS and Kubernetes.
     const corrupt = 'PK\x03\x04 ! [Content_Types].xml \x00\x01\x02 broken word/document.xml';
     assert.equal(isUnreadableResumeText(corrupt), true);
     assert.equal(isUnreadableResumeText('Platform Engineer with AWS, Kubernetes, and Terraform.'), false);
+    assert.equal(isUnreadableResumeText(''), false);
+    assert.equal(isUnreadableResumeText('   '), false);
   });
 });

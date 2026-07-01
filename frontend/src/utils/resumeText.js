@@ -1,7 +1,11 @@
-/** Detect raw file bytes saved as text (e.g. broken .docx upload). */
+/** Detect raw file bytes saved as text (e.g. broken .docx upload). Empty is not corrupt. */
 export function isUnreadableResumeText(text = '') {
   const trimmed = String(text).trim();
-  if (trimmed.length < 20) return true;
+  if (!trimmed.length) return false;
+  if (trimmed.length < 20) {
+    if (trimmed.startsWith('PK') || /\[Content_Types\]|word\/document\.xml/i.test(trimmed)) return true;
+    return false;
+  }
 
   const sample = trimmed.slice(0, 4000);
 
@@ -38,7 +42,13 @@ export function isUnreadableResumeText(text = '') {
 
 export function sanitizeResumeProfile(profile) {
   if (!profile) return profile;
-  if (!isUnreadableResumeText(profile.resumeText || '')) return profile;
+  const text = (profile.resumeText || '').trim();
+  if (!text) {
+    return { ...profile, resumeText: '', resumeUnreadable: false };
+  }
+  if (!isUnreadableResumeText(text)) {
+    return { ...profile, resumeUnreadable: false };
+  }
   return {
     ...profile,
     resumeText: '',

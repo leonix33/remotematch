@@ -105,10 +105,10 @@ export const useProfileStore = defineStore('profile', {
     },
     async clearResume() {
       const userId = currentUserId();
-      const data = await this.save({ resumeText: '', resumeFileName: '', extractedSkills: [] });
       clearProfileCache(userId);
-      writeProfileCache(userId, data);
-      return data;
+      await this.save({ resumeText: '', resumeFileName: '', extractedSkills: [] });
+      await this.fetch();
+      return this.profile;
     },
     async parseResume({ fileBase64, filename, applyToProfile = false, mergeSkills = true, resumeText }) {
       const userId = currentUserId();

@@ -219,7 +219,11 @@ function computeResumeScore(profile) {
 
 function isUnreadableResumeText(text = '') {
   const trimmed = String(text).trim();
-  if (trimmed.length < 20) return true;
+  if (!trimmed.length) return false;
+  if (trimmed.length < 20) {
+    if (trimmed.startsWith('PK') || /\[Content_Types\]|word\/document\.xml/i.test(trimmed)) return true;
+    return false;
+  }
 
   const sample = trimmed.slice(0, 4000);
 
@@ -488,8 +492,9 @@ function parseResumeFromText(resumeText) {
 }
 
 function enrichProfileResponse(profile) {
-  const unreadable = isUnreadableResumeText(profile.resumeText || '');
-  const resumeText = unreadable ? '' : prepareResumeTextForParsing(profile.resumeText || '');
+  const raw = profile.resumeText || '';
+  const unreadable = raw.trim() ? isUnreadableResumeText(raw) : false;
+  const resumeText = unreadable ? '' : prepareResumeTextForParsing(raw);
   const extractedSkills = unreadable
     ? []
     : profile.extractedSkills?.length > 0

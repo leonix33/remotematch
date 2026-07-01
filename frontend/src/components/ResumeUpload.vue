@@ -52,7 +52,9 @@ async function extractDocxText(file) {
 const MAX_RESUME_BYTES = 8 * 1024 * 1024;
 
 const savedResumeUnreadable = computed(
-  () => profileStore.profile?.resumeUnreadable || isUnreadableResumeText(props.modelValue)
+  () =>
+    Boolean(profileStore.profile?.resumeUnreadable) ||
+    Boolean(props.modelValue?.trim() && isUnreadableResumeText(props.modelValue))
 );
 
 function buildParseSummary(result, resumeText) {

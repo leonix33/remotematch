@@ -53,7 +53,9 @@ const firstName = computed(() => {
 });
 
 const resumeUnreadable = computed(
-  () => profileStore.profile?.resumeUnreadable || isUnreadableResumeText(resumeText.value)
+  () =>
+    Boolean(profileStore.profile?.resumeUnreadable) ||
+    Boolean(resumeText.value?.trim() && isUnreadableResumeText(resumeText.value))
 );
 const hasResume = computed(
   () => !resumeUnreadable.value && (resumeText.value || '').trim().length >= 50
@@ -85,7 +87,7 @@ const applyButtonLabel = computed(() => {
 
 function syncFromProfile(p) {
   if (!p) return;
-  if (p.resumeUnreadable || isUnreadableResumeText(p.resumeText || '')) {
+  if (p.resumeUnreadable || (p.resumeText?.trim() && isUnreadableResumeText(p.resumeText))) {
     resumeText.value = '';
   } else {
     resumeText.value = p.resumeText || '';
