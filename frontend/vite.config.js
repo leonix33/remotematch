@@ -14,7 +14,17 @@ export default defineConfig(({ mode }) => {
       tailwindcss(),
       VitePWA({
         registerType: 'autoUpdate',
-        includeAssets: ['icon.svg', 'logo.svg', 'offline.html', 'icons/icon-180.png', 'icons/icon-192.png', 'icons/icon-512.png'],
+        includeAssets: [
+          'icon.svg',
+          'app-icon.svg',
+          'logo.svg',
+          'offline.html',
+          'favicon-32.png',
+          'icons/icon-180.png',
+          'icons/icon-192.png',
+          'icons/icon-512.png',
+          'icons/icon-512-maskable.png',
+        ],
         manifest: {
           id: appUrl,
           name: appName,
@@ -32,9 +42,8 @@ export default defineConfig(({ mode }) => {
           icons: [
             { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
             { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
-            { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
-            { src: '/logo.svg', sizes: '512x512', type: 'image/svg+xml', purpose: 'any' },
-            { src: '/icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'maskable' },
+            { src: '/icons/icon-512-maskable.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+            { src: '/app-icon.svg', sizes: '512x512', type: 'image/svg+xml', purpose: 'any' },
           ],
         },
         workbox: {
