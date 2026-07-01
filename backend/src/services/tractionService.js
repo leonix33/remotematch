@@ -4,13 +4,10 @@ const applicationService = require('./applicationService');
 const approvalService = require('./approvalService');
 const localOutcomeStore = require('./localOutcomeStore');
 const localFollowUpStore = require('./localFollowUpStore');
-const followUpDraftService = require('./followUpDraftService');
 const followUpKitStore = require('./followUpKitStore');
 const followUpScheduleService = require('./followUpScheduleService');
-const atsKeywordService = require('./atsKeywordService');
 const contactEnrichmentService = require('./contactEnrichmentService');
 const applicationKitStore = require('./applicationKitStore');
-const jobDescriptionService = require('./jobDescriptionService');
 const localNotificationStore = require('./localNotificationStore');
 const emailService = require('./emailService');
 const applicantContactService = require('./applicantContactService');
@@ -395,37 +392,8 @@ async function buildFollowUpBoard(userId, authEmail = '') {
   const rows = [];
   for (const app of submitted) {
     const jobId = app.jobId;
-    let kit = followUpKitStore.get(userId, jobId);
-    if (!kit) {
-      try {
-        kit = await followUpDraftService.getOrGenerate(userId, jobId, {
-          authEmail,
-          job: { jobId, title: app.title, company: app.company, url: app.jobUrl || app.applyUrl },
-          daysSinceApply: daysSince(app.submittedAt || app.lastAttempted) ?? 0,
-        });
-      } catch {
-        kit = null;
-      }
-    }
-
+    const kit = followUpKitStore.get(userId, jobId);
     const applicationKit = await applicationKitStore.get(userId, jobId);
-    let ats = null;
-    try {
-      const jd = await jobDescriptionService.resolveJobDescription({
-        jobId,
-        title: app.title,
-        company: app.company,
-        url: app.jobUrl || app.applyUrl,
-      });
-      ats = atsKeywordService.scoreAtsKeywords({
-        resumeText: profile.resumeText,
-        tailoredText: applicationKit?.tailoredResumeText || kit?.tailoredResumeText,
-        jobDescription: jd,
-      });
-    } catch {
-      ats = null;
-    }
-
     const schedule = followUpScheduleService.scheduleMeta(userId, jobId);
     const days = daysSince(app.submittedAt || app.lastAttempted);
     const completed = localFollowUpStore.isCompleted(userId, jobId);
@@ -440,7 +408,7 @@ async function buildFollowUpBoard(userId, authEmail = '') {
       appliedAt: app.submittedAt || app.lastAttempted,
       daysSinceApply: days,
       matchPct: kit?.atsMatchPct ?? applicationKit?.estimatedMatchPct ?? null,
-      ats,
+      ats: null,
       followUpKit: kit,
       schedule,
       followUpCompleted: completed,

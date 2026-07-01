@@ -629,7 +629,7 @@ onMounted(() => {
     <div id="team-email-test" class="mt-10 card p-6">
       <h3 class="font-semibold text-slate-200">Test email delivery</h3>
       <p class="mt-1 text-sm text-slate-500">
-        Send a test message to any address — yours, a teammate’s, or Yahoo/Gmail — to confirm they can receive mail from remotelymatch.
+        Resend works today (may land in Junk on iCloud/Yahoo). <strong class="text-slate-400">Best deliverability:</strong> Google Workspace SMTP as primary — Resend stays as fallback.
       </p>
       <div v-if="emailDiagnostics" class="mt-3 flex flex-wrap gap-2 text-xs">
         <span class="badge" :class="emailDiagnostics.emailDeliveryReady ? 'badge-teal' : 'badge-slate'">
@@ -648,7 +648,7 @@ onMounted(() => {
           v-else-if="emailDiagnostics.emailDeliveryReady && emailDiagnostics.emailProviders?.includes('resend')"
           class="badge badge-gold"
         >
-          Workspace SMTP optional
+          Resend only — add Gmail for inbox delivery
         </span>
         <span v-else class="badge badge-slate">Workspace SMTP not set</span>
         <span v-if="emailDiagnostics.teamEmail || emailDiagnostics.emailFrom" class="text-slate-500">
@@ -659,7 +659,7 @@ onMounted(() => {
         v-if="emailDiagnostics?.emailDeliveryReady && !emailDiagnostics.gmailSmtpConfigured && emailDiagnostics.emailProviders?.includes('resend')"
         class="mt-2 text-xs text-slate-500"
       >
-        Outbound mail works via Resend. Add Google Workspace SMTP below only if you need better delivery to Yahoo/iCloud or a real <code class="text-slate-400">team@</code> inbox.
+        Resend is fine for Gmail recipients. For <strong class="text-slate-400">iCloud and Yahoo</strong>, set up Google Workspace below — the app sends via Gmail SMTP first, then falls back to Resend.
       </p>
       <div
         v-if="emailDiagnostics?.gmailSmtpConfigured && emailDiagnostics.gmailUsesTeamMailbox === false"

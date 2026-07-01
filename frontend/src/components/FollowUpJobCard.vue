@@ -7,7 +7,7 @@ const props = defineProps({
   copied: { type: String, default: '' },
 });
 
-const emit = defineEmits(['select', 'mark-done', 'copy', 'open-job', 'enrich']);
+const emit = defineEmits(['select', 'mark-done', 'copy', 'open-job', 'enrich', 'generate']);
 
 function mailtoLink(kit) {
   const to = kit?.emailTo || kit?.recipient?.email || '';
@@ -49,6 +49,13 @@ function formatDate(iso) {
         </div>
       </div>
     </button>
+
+    <div v-if="selected && !job.followUpKit" class="follow-up-card__detail border-t border-slate-800/80 p-4 sm:p-5">
+      <p class="text-sm text-slate-400">Follow-up kit not generated yet for this role.</p>
+      <button type="button" class="btn-primary mt-3 text-sm" @click="emit('generate', job)">
+        Generate follow-up kit
+      </button>
+    </div>
 
     <div v-if="selected && job.followUpKit" class="follow-up-card__detail border-t border-slate-800/80 p-4 sm:p-5">
       <div class="grid gap-5 lg:grid-cols-2">

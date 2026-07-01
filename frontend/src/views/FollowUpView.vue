@@ -22,13 +22,13 @@ const filteredJobs = computed(() => {
 async function loadBoard() {
   loading.value = true;
   try {
-    await http.post('/traction/scan');
     const { data } = await http.get('/traction/follow-up/board');
     board.value = data;
     if (!selectedId.value && data.jobs?.length) {
       const due = data.jobs.find((j) => j.followUpDue);
       selectedId.value = due?.jobId || data.jobs[0].jobId;
     }
+    http.post('/traction/scan').catch(() => {});
   } finally {
     loading.value = false;
   }
@@ -61,6 +61,18 @@ async function enrichContacts(job) {
   enriching.value = job.jobId;
   try {
     const { data } = await http.post(`/traction/follow-up/${job.jobId}/enrich`);
+    job.followUpKit = data;
+    const row = board.value?.jobs?.find((j) => j.jobId === job.jobId);
+    if (row) row.followUpKit = data;
+  } finally {
+    enriching.value = '';
+  }
+}
+
+async function generateKit(job) {
+  enriching.value = job.jobId;
+  try {
+    const { data } = await http.get(`/traction/follow-up/${job.jobId}/kit`);
     job.followUpKit = data;
     const row = board.value?.jobs?.find((j) => j.jobId === job.jobId);
     if (row) row.followUpKit = data;
@@ -145,6 +157,7 @@ onMounted(loadBoard);
         @mark-done="markDone"
         @open-job="openJob"
         @enrich="enrichContacts"
+        @generate="generateKit"
       />
 
       <div v-if="selectedId && jobs.find((j) => j.jobId === selectedId)?.ats" class="card p-5">
