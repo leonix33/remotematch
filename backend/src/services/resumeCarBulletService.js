@@ -8,7 +8,7 @@ const CAR_MEASURED_RE = /,?\s*as measured by\s+/i;
 const CAR_BY_RE =
   /,?\s*by\s+(?=(?:designing|implementing|building|integrating|automating|establishing|managing|configuring|hardening|enforcing|optimizing|supporting|conducting|participating|strengthening|ensuring|developing|architecting))/i;
 
-const MAX_BULLET_CHARS = 340;
+const MAX_BULLET_CHARS = 480;
 const ACTION_SPLIT_RE = new RegExp(`(?<=\\.)\\s+(?=(?:${ACTION_VERBS})\\b)`, 'g');
 
 function trimToReadable(text = '') {
@@ -39,7 +39,7 @@ function condenseCarBullet(text = '') {
     if (metricRaw) {
       result = `${action} — ${metricRaw.replace(/[,.]\s*$/, '')}`;
     }
-    if (byClause && byClause.length > 20 && byClause.length < 120) {
+    if (byClause && byClause.length > 20 && byClause.length < 180) {
       result = `${result}, ${byClause.replace(/^by\s+/i, '')}`;
     }
     result = trimToReadable(`${result}.`.replace(/\s{2,}/g, ' '));
@@ -167,6 +167,10 @@ function polishExperienceText(text = '') {
     }
 
     if (inExperience && trimmed.length > 80) {
+      if (/^[-•*●▪]/.test(trimmed)) {
+        out.push(line);
+        continue;
+      }
       const raw = trimmed.replace(/^[-•*●▪]\s+/, '');
       const bullets = splitExperienceParagraph(raw);
       if (bullets?.length) {

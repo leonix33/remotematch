@@ -363,10 +363,11 @@ RULES:
 1. ONLY edit summary/profile and experience bullets — never change employers, titles, dates, education, or certifications.
 2. Address missing ATS terms naturally (max once each): ${(redTerms || []).join(', ') || 'none'}
 3. Mirror uncovered posting requirements with real experience from the original resume — never invent.
-4. Max 5-6 substantive bullets per role; verb + outcome + context; ~220-320 chars each. No "as measured by" scaffolding.
-5. Summary: 2 lines naming the target role and top 2 qualifications from the posting.
-6. Cover letter: 4 sentences — ${job?.title || 'role'} at ${job?.company || 'company'}, fit, proof point, close.
-7. Return JSON only: { "sections": [...], "coverLetterParagraph": "..." }`;
+4. Experience bullets: 7-8 for the most recent role, 5-6 for prior roles. Each bullet 320-480 chars with technologies, scope, and measurable outcomes. Weave posting requirements and missing keywords naturally — complete sentences, never end with ellipsis.
+5. Expand thin roles by splitting combined accomplishments from the original resume into separate JD-aligned bullets.
+6. Summary: 3 lines naming the target role and top qualifications from the posting.
+7. Cover letter: 4 sentences — ${job?.title || 'role'} at ${job?.company || 'company'}, fit, proof point, close.
+8. Return JSON only: { "sections": [...], "coverLetterParagraph": "..." }`;
 
   const user = `TARGET: ${job?.title || 'Role'} at ${job?.company || 'Company'}
 ATS score: ${atsScore}% · Job requirement fit: ${jdMatchPct ?? '—'}%
@@ -614,7 +615,8 @@ JOB-TARGET RULES:
 1. Summary must name "${job?.title || 'this role'}" fit and reflect top posting requirements.
 2. Experience bullets must prove qualifications from the posting using the candidate's real work only.
 3. Each critical keyword/requirement appears at most once — varied wording, no stuffing.
-4. 5-6 substantive bullets per role (~220-320 chars); verb + outcome + tech context; no "as measured by" format.
+4. Experience: 7-8 substantive bullets for the most recent role, 5-6 for prior roles (~320-480 chars each). Each bullet must include relevant tech stack, scope, and outcomes while addressing posting requirements. Complete sentences — never truncate or use ellipsis.
+5. If a role has fewer bullets in the original, expand by splitting combined lines into separate JD-aligned accomplishments from the candidate's real work.
 
 STRUCTURE RULES:
 1. EXACT section headings from original, same order.

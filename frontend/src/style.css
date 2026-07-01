@@ -1089,14 +1089,42 @@ body {
 
 .resume-template-pro .resume-section-body-skills,
 .resume-template-pro .resume-section-body-tools {
-  display: grid;
-  gap: 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.12rem;
 }
 
-@media (min-width: 520px) {
-  .resume-template-pro .resume-section-body-skills {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
+.resume-template-pro .resume-skill-inline {
+  margin: 0;
+  font-size: 8.25pt;
+  line-height: 1.32;
+  color: #d8dee6;
+}
+
+.resume-template-pro .resume-skill-inline-label {
+  font-weight: 700;
+  color: #6eb5e8;
+}
+
+.resume-template-pro .resume-skill-inline-more {
+  font-style: italic;
+  color: #94a3b8;
+}
+
+.resume-template-pro .resume-skill-category {
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: none;
+}
+
+.resume-template-pro .resume-skill-category-label {
+  margin: 0 0 0.25rem;
+  font-size: 9pt;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #6eb5e8;
 }
 
 .resume-template-pro .resume-section-body-education {
@@ -1119,47 +1147,6 @@ body {
   .resume-template-pro .resume-section-body-certs {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-}
-
-.resume-template-pro .resume-skill-category {
-  margin: 0;
-  padding: 0.4rem 0.5rem 0.5rem;
-  border-radius: 0.35rem;
-  background: rgba(74, 126, 181, 0.06);
-  border: 1px solid rgba(74, 126, 181, 0.14);
-}
-
-.resume-template-pro .resume-skill-category-label {
-  margin: 0 0 0.4rem;
-  font-size: 9.5pt;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: #6eb5e8;
-}
-
-.resume-template-pro .resume-skill-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.22rem 0.32rem;
-}
-
-.resume-template-pro .resume-skill-chip {
-  display: inline-block;
-  padding: 0.12rem 0.42rem;
-  border-radius: 0.2rem;
-  background: rgba(15, 23, 42, 0.55);
-  border: 1px solid rgba(110, 181, 232, 0.22);
-  font-size: 8pt;
-  font-weight: 500;
-  color: #d8dee6;
-  line-height: 1.3;
-}
-
-.resume-template-pro .resume-skill-chip-more {
-  font-style: italic;
-  color: #94a3b8;
-  border-style: dashed;
 }
 
 .resume-template-pro .resume-tools-block {

@@ -1,6 +1,6 @@
 const BULLET_RE = /^(\s*[-•*●▪]\s+)/;
-const MAX_BULLETS_PER_ROLE = 6;
-const MAX_BULLET_CHARS = 340;
+const MAX_BULLETS_PER_ROLE = 8;
+const MAX_BULLET_CHARS = 480;
 const MAX_SUMMARY_LINES = 3;
 
 const JD_ECHO_SUFFIX =

@@ -26,13 +26,10 @@ defineProps({
 
   <p v-else-if="row.type === 'pipe-line'" class="resume-pipe-line">{{ row.text }}</p>
 
-  <div v-else-if="row.type === 'skill-category'" class="resume-skill-category">
-    <p class="resume-skill-category-label">{{ row.label }}</p>
-    <div class="resume-skill-chips">
-      <span v-for="(item, sidx) in row.items" :key="sidx" class="resume-skill-chip">{{ item }}</span>
-      <span v-if="row.overflow" class="resume-skill-chip resume-skill-chip-more">+{{ row.overflow }} more</span>
-    </div>
-  </div>
+  <p v-else-if="row.type === 'skill-category'" class="resume-skill-inline">
+    <span class="resume-skill-inline-label">{{ row.label }}:</span>
+    {{ row.items.join(', ') }}<span v-if="row.overflow" class="resume-skill-inline-more">, +{{ row.overflow }} more</span>
+  </p>
 
   <div v-else-if="row.type === 'tools-grid'" class="resume-tools-block">
     <p v-if="row.label" class="resume-skill-category-label">{{ row.label }}</p>

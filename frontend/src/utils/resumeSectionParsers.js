@@ -99,13 +99,13 @@ export function isFalseToolsHeader(lines, lineIndex) {
   return false;
 }
 
-const MAX_SKILLS_PER_CATEGORY = 10;
+const MAX_SKILLS_PER_CATEGORY = 16;
 
 function compactSkillLabel(item = '') {
   let t = String(item).trim();
-  const short = t.match(/^([^(|]{2,42})\s*\(/);
-  if (short && t.length > 36) return short[1].trim();
-  if (t.length > 44) return `${t.slice(0, 42).trim()}…`;
+  const short = t.match(/^([^(|]{2,36})\s*\(/);
+  if (short && t.length > 32) return short[1].trim();
+  if (t.length > 38) return `${t.slice(0, 36).trim()}…`;
   return t;
 }
 
@@ -343,7 +343,7 @@ export function parseExperienceSectionLines(contentLines) {
       });
       if (jobBlock.bodyText) {
         const bullets = splitParagraphToBullets(jobBlock.bodyText);
-        if (bullets) rows.push(...bullets.slice(0, 6).filter(isValidBulletRow));
+        if (bullets) rows.push(...bullets.slice(0, 8).filter(isValidBulletRow));
         else rows.push({ type: 'text', text: condenseCarBullet(jobBlock.bodyText) });
       }
       continue;
@@ -352,7 +352,7 @@ export function parseExperienceSectionLines(contentLines) {
     if (t.length > 100) {
       const bullets = splitParagraphToBullets(t);
       if (bullets) {
-        rows.push(...bullets.slice(0, 6).filter(isValidBulletRow));
+        rows.push(...bullets.slice(0, 8).filter(isValidBulletRow));
         continue;
       }
     }
