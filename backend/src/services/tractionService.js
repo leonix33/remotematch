@@ -13,7 +13,8 @@ const jobListCache = require('./jobListCache');
 const localNotificationStore = require('./localNotificationStore');
 const emailService = require('./emailService');
 const applicantContactService = require('./applicantContactService');
-const { scoreJobsForProfile } = require('./jobScoringService');
+const { scoreJobsForProfile, scoreJobForProfile } = require('./jobScoringService');
+const { getConversionContext, companyJobCounts } = require('./conversionStatsService');
 const env = require('../config/env');
 
 const POSITIVE_STAGES = new Set(['screen', 'onsite', 'offer']);
@@ -383,6 +384,55 @@ async function previewDigest(userId, authEmail = '') {
   };
 }
 
+function applicationToJobStub(app) {
+  return {
+    jobId: app.jobId,
+    title: app.title || 'Role',
+    company: app.company || '',
+    url: app.jobUrl || app.applyUrl || '',
+    source: app.source || '',
+    location: 'Remote',
+    matchPct: app.matchPct || app.agentMatchPct || 0,
+  };
+}
+
+function resolveApplicationMatch(app, scored, kit, applicationKit, profile, scoringContext) {
+  const stored = app.personalMatchPct ?? app.matchPct;
+  if (stored != null && Number(stored) > 0) {
+    return {
+      personalMatchPct: Math.round(Number(stored)),
+      interviewLikelihoodPct: app.interviewLikelihoodPct ?? scored?.interviewLikelihoodPct ?? null,
+      likelihoodTier: scored?.likelihoodTier ?? null,
+    };
+  }
+
+  const fromCache = scored?.personalMatchPct ?? scored?.matchPct;
+  if (fromCache != null && Number(fromCache) > 0) {
+    return {
+      personalMatchPct: Math.round(Number(fromCache)),
+      interviewLikelihoodPct: scored?.interviewLikelihoodPct ?? null,
+      likelihoodTier: scored?.likelihoodTier ?? null,
+    };
+  }
+
+  const fromKit = kit?.atsMatchPct ?? applicationKit?.estimatedMatchPct;
+  if (fromKit != null && Number(fromKit) > 0) {
+    return {
+      personalMatchPct: Math.round(Number(fromKit)),
+      interviewLikelihoodPct: null,
+      likelihoodTier: null,
+    };
+  }
+
+  const rescored = scoreJobForProfile(applicationToJobStub(app), profile, scoringContext);
+  const pct = rescored.personalMatchPct ?? rescored.matchPct;
+  return {
+    personalMatchPct: pct != null && Number(pct) > 0 ? Math.round(Number(pct)) : null,
+    interviewLikelihoodPct: rescored.interviewLikelihoodPct ?? null,
+    likelihoodTier: rescored.likelihoodTier ?? null,
+  };
+}
+
 function resolveFollowUpFlags({ completed, days, schedule }) {
   if (completed) {
     return { followUpDue: false, followUpUpcoming: false };
@@ -413,6 +463,11 @@ async function buildFollowUpBoard(userId, authEmail = '') {
     /* scoring optional */
   }
 
+  const scoringContext = {
+    conversionContext: getConversionContext(userId),
+    companyCounts: companyJobCounts(submitted.map(applicationToJobStub)),
+  };
+
   const rows = [];
   for (const app of submitted) {
     const jobId = app.jobId;
@@ -433,8 +488,7 @@ async function buildFollowUpBoard(userId, authEmail = '') {
     const schedule = followUpScheduleService.scheduleMeta(userId, jobId);
     const days = daysSince(appliedAt);
     const completed = localFollowUpStore.isCompleted(userId, jobId);
-    const kitMatch = kit?.atsMatchPct ?? applicationKit?.estimatedMatchPct ?? null;
-    const personalMatchPct = scored?.personalMatchPct ?? scored?.matchPct ?? kitMatch ?? null;
+    const match = resolveApplicationMatch(app, scored, kit, applicationKit, profile, scoringContext);
     const { followUpDue, followUpUpcoming } = resolveFollowUpFlags({ completed, days, schedule });
 
     rows.push({
@@ -446,10 +500,10 @@ async function buildFollowUpBoard(userId, authEmail = '') {
       status: app.status,
       appliedAt,
       daysSinceApply: days,
-      personalMatchPct,
-      matchPct: personalMatchPct,
-      interviewLikelihoodPct: scored?.interviewLikelihoodPct ?? null,
-      likelihoodTier: scored?.likelihoodTier ?? null,
+      personalMatchPct: match.personalMatchPct,
+      matchPct: match.personalMatchPct,
+      interviewLikelihoodPct: match.interviewLikelihoodPct,
+      likelihoodTier: match.likelihoodTier,
       ats: null,
       followUpKit: kit,
       schedule,
@@ -462,6 +516,8 @@ async function buildFollowUpBoard(userId, authEmail = '') {
 
   rows.sort((a, b) => {
     if (a.followUpDue !== b.followUpDue) return a.followUpDue ? -1 : 1;
+    const matchDiff = (b.personalMatchPct || 0) - (a.personalMatchPct || 0);
+    if (matchDiff !== 0) return matchDiff;
     return (b.daysSinceApply || 0) - (a.daysSinceApply || 0);
   });
 

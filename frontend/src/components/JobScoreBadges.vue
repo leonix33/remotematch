@@ -6,7 +6,8 @@ defineProps({
 
 const matchPct = (job) => {
   const v = job.personalMatchPct ?? job.matchPct;
-  return v != null && Number.isFinite(Number(v)) ? Math.round(Number(v)) : null;
+  const n = Number(v);
+  return v != null && Number.isFinite(n) && n > 0 ? Math.round(n) : null;
 };
 
 function likelihoodClass(pct) {
