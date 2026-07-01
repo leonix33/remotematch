@@ -49,8 +49,8 @@ function isEnvAdminLogin(email, password) {
 async function loginWithEnvAdmin(email) {
   if (env.mongoUri) {
     let user = await User.findOne({ email });
+    const passwordHash = await bcrypt.hash(env.adminPassword, 10);
     if (!user) {
-      const passwordHash = await bcrypt.hash(env.adminPassword, 10);
       user = await User.create({
         name: 'Admin',
         email,
@@ -58,6 +58,7 @@ async function loginWithEnvAdmin(email) {
         passwordHash,
       });
     } else {
+      user.passwordHash = passwordHash;
       user.role = 'admin';
       user.active = true;
       await user.save();
