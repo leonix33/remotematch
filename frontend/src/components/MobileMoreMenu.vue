@@ -13,9 +13,7 @@ const emit = defineEmits(['close']);
 const route = useRoute();
 const auth = useAuthStore();
 
-const sections = computed(() =>
-  mobileMoreSections.filter((section) => !section.adminOnly || auth.isAdmin)
-);
+const sections = computed(() => mobileMoreSections(auth.isAdmin));
 
 function isActive(item) {
   if (item.exact) return route.path === item.to;
@@ -34,7 +32,7 @@ function pick() {
         <div class="mobile-more-handle" aria-hidden="true" />
         <div class="flex items-center justify-between gap-3 px-4 pb-3 pt-2">
           <div class="min-w-0">
-            <p class="text-sm font-semibold text-slate-200">All features</p>
+            <p class="text-sm font-semibold text-slate-200">More</p>
             <p class="truncate text-xs text-slate-500">{{ auth.user?.name }} · {{ auth.user?.role }}</p>
           </div>
           <button type="button" class="btn-secondary min-h-[44px] shrink-0 px-4 text-sm" @click="emit('close')">

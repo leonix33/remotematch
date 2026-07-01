@@ -47,7 +47,7 @@ const router = createRouter({
     {
       path: '/monitor',
       component: MonitorLayout,
-      meta: { requiresAuth: true, skipOnboarding: true },
+      meta: { requiresAuth: true, skipOnboarding: true, adminOnly: true },
       children: [
         { path: '', component: MonitorOverviewView },
         { path: 'pipeline', component: MonitorPipelineView },
@@ -61,20 +61,20 @@ const router = createRouter({
     { path: '/approvals', component: ApprovalsView, meta: { requiresAuth: true, skipOnboarding: true } },
     { path: '/follow-ups', component: FollowUpView, meta: { requiresAuth: true, skipOnboarding: true } },
     { path: '/tailored-resumes', component: TailoredResumesView, meta: { requiresAuth: true, skipOnboarding: true } },
-    { path: '/linkedin', component: LinkedInWorkflowView, meta: { requiresAuth: true, skipOnboarding: true } },
-    { path: '/chat', component: ChatView, meta: { requiresAuth: true, skipOnboarding: true } },
-    { path: '/intelligence', component: IntelligenceView, meta: { requiresAuth: true, skipOnboarding: true } },
+    { path: '/linkedin', component: LinkedInWorkflowView, meta: { requiresAuth: true, skipOnboarding: true, adminOnly: true } },
+    { path: '/chat', component: ChatView, meta: { requiresAuth: true, skipOnboarding: true, adminOnly: true } },
+    { path: '/intelligence', component: IntelligenceView, meta: { requiresAuth: true, skipOnboarding: true, adminOnly: true } },
     { path: '/interview', component: InterviewView, meta: { requiresAuth: true, skipOnboarding: true } },
-    { path: '/conferences', component: ConferencesView, meta: { requiresAuth: true, skipOnboarding: true } },
-    { path: '/social', component: SocialView, meta: { requiresAuth: true, skipOnboarding: true } },
-    { path: '/outcomes', component: OutcomesView, meta: { requiresAuth: true, skipOnboarding: true } },
-    { path: '/swarm', component: SwarmView, meta: { requiresAuth: true, skipOnboarding: true } },
-    { path: '/resumes', component: ResumesView, meta: { requiresAuth: true, skipOnboarding: true } },
-    { path: '/calendar', component: CalendarView, meta: { requiresAuth: true, skipOnboarding: true } },
-    { path: '/applications', component: ApplicationsView, meta: { requiresAuth: true, skipOnboarding: true } },
-    { path: '/generator', component: GeneratorView, meta: { requiresAuth: true } },
-    { path: '/agent', component: AgentView, meta: { requiresAuth: true } },
-    { path: '/analytics', component: AnalyticsView, meta: { requiresAuth: true } },
+    { path: '/conferences', component: ConferencesView, meta: { requiresAuth: true, skipOnboarding: true, adminOnly: true } },
+    { path: '/social', component: SocialView, meta: { requiresAuth: true, skipOnboarding: true, adminOnly: true } },
+    { path: '/outcomes', component: OutcomesView, meta: { requiresAuth: true, skipOnboarding: true, adminOnly: true } },
+    { path: '/swarm', component: SwarmView, meta: { requiresAuth: true, skipOnboarding: true, adminOnly: true } },
+    { path: '/resumes', component: ResumesView, meta: { requiresAuth: true, skipOnboarding: true, adminOnly: true } },
+    { path: '/calendar', component: CalendarView, meta: { requiresAuth: true, skipOnboarding: true, adminOnly: true } },
+    { path: '/applications', component: ApplicationsView, meta: { requiresAuth: true, skipOnboarding: true, adminOnly: true } },
+    { path: '/generator', component: GeneratorView, meta: { requiresAuth: true, adminOnly: true } },
+    { path: '/agent', component: AgentView, meta: { requiresAuth: true, adminOnly: true } },
+    { path: '/analytics', component: AnalyticsView, meta: { requiresAuth: true, adminOnly: true } },
     { path: '/users', component: UsersView, meta: { requiresAuth: true, adminOnly: true, skipOnboarding: true } },
   ],
 });
@@ -83,7 +83,7 @@ router.beforeEach(async (to) => {
   const auth = useAuthStore();
   if (to.meta.requiresAuth && !auth.accessToken) return '/login';
   if (to.meta.guest && auth.accessToken && !['/welcome', '/privacy', '/terms'].includes(to.path)) return '/';
-  if (to.meta.adminOnly && auth.user?.role !== 'admin') return '/';
+  if (to.matched.some((record) => record.meta.adminOnly) && auth.user?.role !== 'admin') return '/';
 
   if (auth.accessToken && to.meta.requiresAuth) {
     const profileStore = useProfileStore();

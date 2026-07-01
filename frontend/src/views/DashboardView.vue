@@ -464,9 +464,12 @@ onMounted(async () => {
         </div>
       </div>
       <p class="mt-4 text-xs text-slate-600">
-        <RouterLink to="/applications" class="text-teal-400 hover:underline">All applications</RouterLink>
+        <RouterLink to="/follow-ups" class="text-teal-400 hover:underline">Follow-ups</RouterLink>
         ·
         <RouterLink to="/approvals" class="text-teal-400 hover:underline">Apply queue</RouterLink>
+        <template v-if="auth.isAdmin">
+          · <RouterLink to="/applications" class="text-teal-400 hover:underline">All applications</RouterLink>
+        </template>
       </p>
     </section>
 

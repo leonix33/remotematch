@@ -4,7 +4,7 @@ import { useRoute, RouterLink } from 'vue-router';
 import { useAuthStore } from '../stores/auth';
 import AppLogo from './AppLogo.vue';
 import { isProduction, canonicalDomain } from '../config';
-import { simpleNav, advancedNav } from '../utils/navigation';
+import { simpleNav, moreNavSections } from '../utils/navigation';
 
 defineProps({
   onLogout: { type: Function, required: true },
@@ -13,11 +13,11 @@ defineProps({
 const route = useRoute();
 const auth = useAuthStore();
 
-const showAdvanced = ref(false);
+const showMore = ref(false);
 
-const visibleAdvanced = computed(() =>
-  advancedNav.filter((item) => !item.adminOnly || auth.isAdmin)
-);
+const moreSections = computed(() => moreNavSections(auth.isAdmin));
+
+const moreItems = computed(() => moreSections.value.flatMap((section) => section.items));
 
 function isActive(item) {
   if (item.exact) return route.path === item.to;
@@ -26,9 +26,9 @@ function isActive(item) {
 
 watch(
   () => route.path,
-  (path) => {
-    if (visibleAdvanced.value.some((item) => isActive(item))) {
-      showAdvanced.value = true;
+  () => {
+    if (moreItems.value.some((item) => isActive(item))) {
+      showMore.value = true;
     }
   },
   { immediate: true }
@@ -62,25 +62,31 @@ watch(
       </section>
 
       <section class="sidebar-section">
-        <button
-          type="button"
-          class="sidebar-section-header w-full"
-          @click="showAdvanced = !showAdvanced"
-        >
-          <span class="sidebar-section-label">More tools</span>
-          <span class="sidebar-chevron" :class="showAdvanced ? 'rotate-180' : ''">▾</span>
+        <button type="button" class="sidebar-section-header w-full" @click="showMore = !showMore">
+          <span class="sidebar-section-label">More</span>
+          <span class="sidebar-chevron" :class="showMore ? 'rotate-180' : ''">▾</span>
         </button>
-        <div v-show="showAdvanced" class="mt-1 space-y-0.5">
-          <RouterLink
-            v-for="item in visibleAdvanced"
-            :key="item.to"
-            :to="item.to"
-            class="sidebar-link text-sm"
-            :class="isActive(item) ? 'sidebar-link-active' : ''"
-          >
-            <span class="sidebar-link-icon">{{ item.icon }}</span>
-            <span class="truncate">{{ item.label }}</span>
-          </RouterLink>
+        <div v-show="showMore" class="mt-1 space-y-3">
+          <div v-for="section in moreSections" :key="section.title">
+            <p
+              v-if="moreSections.length > 1"
+              class="px-3 pb-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-600"
+            >
+              {{ section.title }}
+            </p>
+            <div class="space-y-0.5">
+              <RouterLink
+                v-for="item in section.items"
+                :key="item.to"
+                :to="item.to"
+                class="sidebar-link text-sm"
+                :class="isActive(item) ? 'sidebar-link-active' : ''"
+              >
+                <span class="sidebar-link-icon">{{ item.icon }}</span>
+                <span class="truncate">{{ item.label }}</span>
+              </RouterLink>
+            </div>
+          </div>
         </div>
       </section>
     </nav>
