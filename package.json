@@ -12,6 +12,7 @@
     "refresh:data": "node scripts/refresh-agent-data.js",
     "sync:render": "node scripts/refresh-agent-data.js && node scripts/push-local-data-to-render.js",
     "deploy:data": "node scripts/deploy-data-to-render.js",
+    "refresh:production": "node scripts/post-deploy-refresh.js",
     "mongo:up": "docker compose up -d mongo",
     "mongo:down": "docker compose down",
     "mongo:logs": "docker compose logs -f mongo"
