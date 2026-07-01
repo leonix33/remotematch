@@ -420,6 +420,19 @@ async function buildFollowUpBoard(userId, authEmail = '') {
     const scored = scoredById.get(jobId);
     const applicationKit =
       scored || kit ? null : await applicationKitStore.get(userId, jobId);
+    const appliedAt = app.submittedAt || app.lastAttempted;
+
+    if (!followUpScheduleStore.get(userId, jobId) && appliedAt) {
+      followUpScheduleStore.schedule(userId, jobId, {
+        appliedAt,
+        title: app.title,
+        company: app.company,
+      });
+    }
+
+    const schedule = followUpScheduleService.scheduleMeta(userId, jobId);
+    const days = daysSince(appliedAt);
+    const completed = localFollowUpStore.isCompleted(userId, jobId);
     const kitMatch = kit?.atsMatchPct ?? applicationKit?.estimatedMatchPct ?? null;
     const personalMatchPct = scored?.personalMatchPct ?? scored?.matchPct ?? kitMatch ?? null;
     const { followUpDue, followUpUpcoming } = resolveFollowUpFlags({ completed, days, schedule });
